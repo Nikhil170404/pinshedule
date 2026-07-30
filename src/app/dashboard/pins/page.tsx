@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/Badge'
 import { ClientTime } from '@/components/ui/ClientTime'
+import { RetryPinButton } from '@/components/ui/RetryPinButton'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Image, Calendar, Clock } from 'lucide-react'
@@ -82,6 +83,10 @@ export default async function PinsPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{pin.title || 'Untitled'}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{pin.board_name || pin.board_id || '—'}</p>
+                    {pin.status === 'failed' && pin.error_message && (
+                      <p className="text-[11px] text-red-500 mt-0.5 line-clamp-1">{pin.error_message}</p>
+                    )}
+                    {pin.status === 'failed' && <RetryPinButton pinId={pin.id} />}
                   </div>
                   <div className="text-xs text-gray-500 flex items-center gap-1.5">
                     <Clock size={11} className="shrink-0 text-gray-400" />
@@ -125,8 +130,9 @@ export default async function PinsPage() {
                     />
                   </div>
                   {pin.error_message && (
-                    <p className="text-xs text-red-500 mt-1 truncate">{pin.error_message}</p>
+                    <p className="text-xs text-red-500 mt-1 line-clamp-2">{pin.error_message}</p>
                   )}
+                  {pin.status === 'failed' && <RetryPinButton pinId={pin.id} />}
                 </div>
               </div>
             ))}

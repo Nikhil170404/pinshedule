@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, ChevronRight, Calendar, List, Clock, X, Image } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, List, Clock, X, Image, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import type { ScheduledPin } from '@/types'
@@ -35,7 +35,15 @@ const STATUS_DOT: Record<string, string> = {
   pending:   'bg-[#E60023]',
 }
 
-function PinCard({ pin }: { pin: ScheduledPin }) {
+function PinCard({ pin, onRetry }: { pin: ScheduledPin; onRetry?: (id: string) => void }) {
+  const [retrying, setRetrying] = useState(false)
+
+  async function handleRetry() {
+    setRetrying(true)
+    await onRetry?.(pin.id)
+    setRetrying(false)
+  }
+
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100/80 transition-colors">
       <div className="w-11 h-11 rounded-lg bg-gray-200 shrink-0 overflow-hidden">
@@ -59,13 +67,29 @@ function PinCard({ pin }: { pin: ScheduledPin }) {
             <span className="text-xs text-gray-400 truncate">{pin.board_name}</span>
           )}
         </div>
+        {pin.status === 'failed' && pin.error_message && (
+          <p className="text-[11px] text-red-500 mt-1 leading-snug line-clamp-2">{pin.error_message}</p>
+        )}
       </div>
-      <span className={cn(
-        'text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 capitalize mt-0.5',
-        STATUS_PILL[pin.status] ?? STATUS_PILL.pending
-      )}>
-        {pin.status}
-      </span>
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <span className={cn(
+          'text-[10px] font-semibold px-2 py-0.5 rounded-full border capitalize',
+          STATUS_PILL[pin.status] ?? STATUS_PILL.pending
+        )}>
+          {pin.status}
+        </span>
+        {pin.status === 'failed' && onRetry && (
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+            title="Retry — resets to pending so the next cron run picks it up"
+          >
+            <RotateCcw size={10} className={retrying ? 'animate-spin' : ''} />
+            Retry
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -117,6 +141,16 @@ export default function CalendarPage() {
 
   const selectedDayPins  = selectedDay ? pinsForDay(selectedDay) : []
   const isCurrentMonth   = year === today.getFullYear() && month === today.getMonth()
+
+  const retryPin = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await supabase
+      .from('scheduled_pins')
+      .update({ status: 'pending', error_message: null })
+      .eq('id', id)
+    // Update local state so UI reflects the change immediately
+    setPins((prev) => prev.map((p) => p.id === id ? { ...p, status: 'pending', error_message: undefined } : p))
+  }, [])
 
   function prevMonth() { setCurrentMonth(new Date(year, month - 1, 1)); setSelectedDay(null) }
   function nextMonth() { setCurrentMonth(new Date(year, month + 1, 1)); setSelectedDay(null) }
@@ -327,7 +361,7 @@ export default function CalendarPage() {
                         <span className="text-xs text-gray-400 ml-auto">{dp.length} pin{dp.length > 1 ? 's' : ''}</span>
                       </div>
                       <div className="space-y-2">
-                        {dp.map((p) => <PinCard key={p.id} pin={p} />)}
+                        {dp.map((p) => <PinCard key={p.id} pin={p} onRetry={retryPin} />)}
                       </div>
                     </div>
                   )
@@ -391,7 +425,7 @@ export default function CalendarPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedDayPins.map((p) => <PinCard key={p.id} pin={p} />)}
+                    {selectedDayPins.map((p) => <PinCard key={p.id} pin={p} onRetry={retryPin} />)}
                   </div>
                 )}
               </div>
