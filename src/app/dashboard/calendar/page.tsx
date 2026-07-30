@@ -355,7 +355,7 @@ export default function CalendarPage() {
         {/* Day detail panel — slides in on desktop, shown below on mobile */}
         {selectedDay && (
           <div className="w-full lg:w-72 xl:w-80 shrink-0">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden lg:sticky lg:top-6">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden sticky top-6">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">
