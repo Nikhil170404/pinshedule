@@ -56,6 +56,12 @@ export default async function DashboardPage() {
   const publishedCount = allStatuses.filter((p) => p.status === 'published').length
   const failedCount = allStatuses.filter((p) => p.status === 'failed').length
 
+  // Detect if failures are due to missing Pinterest scopes → show reconnect banner
+  const needsReconnect = connected && recentPins.some(
+    (p) => p.status === 'failed' && p.error_message &&
+      (p.error_message.includes('permissions') || p.error_message.includes('boards:write') || p.error_message.includes('pins:write') || p.error_message.includes('Reconnect'))
+  )
+
   const statusBadge = (status: string) => {
     if (status === 'published') return <Badge variant="success">Published</Badge>
     if (status === 'failed') return <Badge variant="danger">Failed</Badge>
@@ -93,6 +99,24 @@ export default async function DashboardPage() {
           </div>
           <Link href="/api/auth/pinterest">
             <Button size="sm">Connect Pinterest</Button>
+          </Link>
+        </div>
+      ) : needsReconnect ? (
+        /* Token missing boards:write / pins:write scope */
+        <div className="flex items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <AlertCircle size={17} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Pinterest needs reconnecting</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Your token is missing <code className="font-mono bg-amber-100 px-1 rounded">boards:write</code> permission. Reconnect to fix all failed pins.
+              </p>
+            </div>
+          </div>
+          <Link href="/api/auth/pinterest">
+            <Button size="sm">Reconnect Pinterest</Button>
           </Link>
         </div>
       ) : (

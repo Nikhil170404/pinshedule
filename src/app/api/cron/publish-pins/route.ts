@@ -69,7 +69,13 @@ export async function GET(request: NextRequest) {
 
       published++
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
+      let msg = err instanceof Error ? err.message : 'Unknown error'
+      // Make Pinterest permission errors actionable for the user
+      if (msg.includes('insufficient permissions') || msg.includes('boards:write') || msg.includes('pins:write')) {
+        msg = 'Pinterest token is missing required permissions (boards:write, pins:write). Go to Settings → Reconnect Pinterest.'
+      } else if (msg.includes('401') || msg.includes('Unauthorized') || msg.includes('invalid_token')) {
+        msg = 'Pinterest token expired or revoked. Go to Settings → Reconnect Pinterest.'
+      }
       await supabase
         .from('scheduled_pins')
         .update({ status: 'failed', error_message: msg })
