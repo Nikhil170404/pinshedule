@@ -1,20 +1,29 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, Sparkles, ChevronDown } from 'lucide-react'
+import { Upload, X, Sparkles, ChevronDown, CheckCircle2, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
-// iOS Safari minimum date string helper — avoids the UTC vs local offset bug
-// where new Date().toISOString() gives the wrong local time on iOS.
+// Build datetime-local min string in LOCAL time (avoids UTC offset bug on iOS)
 function localDatetimeMin() {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+// Format a datetime-local value for display after scheduling
+function fmtScheduled(iso: string) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
 export default function SchedulePage() {
@@ -25,11 +34,32 @@ export default function SchedulePage() {
   const [link, setLink] = useState('')
   const [board, setBoard] = useState('')
   const [boards, setBoards] = useState<{ id: string; name: string }[]>([])
+  const [boardsLoading, setBoardsLoading] = useState(true)
+  const [boardsError, setBoardsError] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiOptions, setAiOptions] = useState<string[]>([])
-  const [boardsLoaded, setBoardsLoaded] = useState(false)
+  const [lastScheduled, setLastScheduled] = useState<{ title: string; boardName: string; at: string } | null>(null)
+
+  // Load boards on mount — don't wait for focus (mobile iOS opens native picker immediately)
+  useEffect(() => {
+    async function loadBoards() {
+      try {
+        const res = await fetch('/api/boards')
+        const data = await res.json()
+        if (data.error && !data.boards?.length) {
+          setBoardsError(data.error)
+        }
+        setBoards(data.boards ?? [])
+      } catch {
+        setBoardsError('Could not load boards')
+      } finally {
+        setBoardsLoading(false)
+      }
+    }
+    loadBoards()
+  }, [])
 
   const onDrop = useCallback((files: File[]) => {
     const file = files[0]
@@ -43,20 +73,7 @@ export default function SchedulePage() {
     accept: { 'image/*': [] },
     maxFiles: 1,
     maxSize: 20 * 1024 * 1024,
-    // noClick: false ensures tap-to-select works on iOS Safari
   })
-
-  async function loadBoards() {
-    if (boardsLoaded) return
-    try {
-      const res = await fetch('/api/boards')
-      const data = await res.json()
-      setBoards(data.boards ?? [])
-      setBoardsLoaded(true)
-    } catch {
-      toast.error('Could not load boards. Is your Pinterest connected?')
-    }
-  }
 
   async function generateCaptions() {
     if (!title && !description) {
@@ -120,13 +137,20 @@ export default function SchedulePage() {
         board_id: board,
         board_name: selectedBoard?.name,
         destination_url: link || null,
-        // Parse the local datetime string as local time (not UTC) by appending :00
         scheduled_at: new Date(scheduledAt).toISOString(),
         status: 'pending',
       })
 
       if (error) throw error
-      toast.success('Pin scheduled!')
+
+      // Remember what was scheduled for the success banner
+      setLastScheduled({
+        title: title || 'Untitled pin',
+        boardName: selectedBoard?.name ?? board,
+        at: scheduledAt,
+      })
+
+      // Reset form
       setImageFile(null)
       setImagePreview('')
       setTitle('')
@@ -148,14 +172,42 @@ export default function SchedulePage() {
         <p className="text-gray-500 text-sm mt-0.5">Upload, write, pick a board — done in 3 clicks</p>
       </div>
 
-      {/* noValidate: we handle all validation in onSubmit with toast messages,
-          so the browser never shows its own red :invalid borders */}
+      {/* Success banner */}
+      {lastScheduled && (
+        <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl">
+          <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-green-800">Pin scheduled!</p>
+            <p className="text-xs text-green-700 mt-0.5 truncate">
+              &ldquo;{lastScheduled.title}&rdquo; → {lastScheduled.boardName}
+            </p>
+            <p className="text-xs text-green-600 mt-0.5">
+              {fmtScheduled(lastScheduled.at)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href="/dashboard/pins" className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1">
+              <Calendar size={12} />
+              View
+            </Link>
+            <button
+              onClick={() => setLastScheduled(null)}
+              className="text-green-500 hover:text-green-700 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* noValidate: validation is done in onSubmit with toasts — no browser :invalid borders */}
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {/* Image upload */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Image</p>
           {imagePreview ? (
-            <div className="relative inline-block">
+            <div className="relative inline-block w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imagePreview}
@@ -176,7 +228,6 @@ export default function SchedulePage() {
               {...getRootProps()}
               className={cn(
                 'border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200',
-                // Larger tap target on mobile
                 'min-h-[120px] flex flex-col items-center justify-center',
                 isDragActive
                   ? 'border-[#E60023] bg-red-50'
@@ -261,36 +312,50 @@ export default function SchedulePage() {
         {/* Board selector */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1.5">Board</label>
-          <div className="relative">
-            <select
-              value={board}
-              onChange={(e) => setBoard(e.target.value)}
-              onFocus={loadBoards}
-              className={cn(
-                'w-full rounded-xl border bg-white px-4 py-2.5',
-                'text-sm focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
-                'pr-9 min-h-[44px] shadow-none transition-colors',
-                board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
-              )}
-            >
-              <option value="">Select a board</option>
-              {boards.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+          {boardsError && !boards.length ? (
+            <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-700">{boardsError}</p>
+              <Link href="/dashboard/settings" className="text-xs font-semibold text-amber-700 hover:underline shrink-0 ml-3">
+                Connect Pinterest
+              </Link>
+            </div>
+          ) : (
+            <div className="relative">
+              <select
+                value={board}
+                onChange={(e) => setBoard(e.target.value)}
+                disabled={boardsLoading}
+                className={cn(
+                  'w-full rounded-xl border bg-white px-4 py-2.5',
+                  'text-sm focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
+                  'pr-9 min-h-[44px] shadow-none transition-colors appearance-none',
+                  boardsLoading ? 'text-gray-400 border-gray-200' :
+                  board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
+                )}
+              >
+                <option value="">
+                  {boardsLoading ? 'Loading boards…' : boards.length === 0 ? 'No boards found' : 'Select a board'}
+                </option>
+                {boards.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* Schedule date & time */}
-        <Input
-          label="Schedule date & time"
-          type="datetime-local"
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-          min={localDatetimeMin()}
-          required
-        />
+        <div>
+          <Input
+            label="Schedule date & time"
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            min={localDatetimeMin()}
+            hint="Time is in your local timezone"
+          />
+        </div>
 
         <Button type="submit" loading={loading} size="lg" className="w-full">
           Schedule pin
