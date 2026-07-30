@@ -99,31 +99,34 @@ export default async function DashboardPage({
 
       {/* ── Pinterest status ── */}
       {params.error === 'missing_boards_write' ? (
-        /* Pinterest granted the token but WITHOUT boards:write — app config issue */
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2">
+        /* Pinterest trial apps can't get boards:write — must apply for upgrade */
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-3">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
               <XCircle size={17} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-red-900">Pinterest app is missing the <code className="font-mono bg-red-100 px-1 rounded text-xs">boards:write</code> scope</p>
+              <p className="text-sm font-semibold text-red-900">Pinterest app is in Trial mode — write access is blocked</p>
               <p className="text-xs text-red-700 mt-1 leading-relaxed">
-                Reconnecting will not fix this — the scope must be enabled in the Pinterest Developer Portal first.
+                Trial apps only get read permissions (<code className="font-mono bg-red-100 px-0.5 rounded">pins:read</code>, <code className="font-mono bg-red-100 px-0.5 rounded">boards:read</code>).
+                Creating pins requires <code className="font-mono bg-red-100 px-0.5 rounded">boards:write</code> which Pinterest only grants after you upgrade your app access.
+                Reconnecting will not fix this.
               </p>
             </div>
           </div>
           <div className="ml-12 space-y-1 text-xs text-red-700">
-            <p className="font-semibold">How to fix:</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-red-600">
-              <li>Go to <strong>developers.pinterest.com/apps</strong></li>
-              <li>Open your app → <strong>Edit</strong></li>
-              <li>Under <strong>Scopes / Permissions</strong>, enable <code className="font-mono bg-red-100 px-0.5 rounded">boards:write</code> and <code className="font-mono bg-red-100 px-0.5 rounded">pins:write</code></li>
-              <li>Save, then come back here and reconnect</li>
+            <p className="font-semibold">How to fix (takes 1–3 days for Pinterest review):</p>
+            <ol className="list-decimal list-inside space-y-1 text-red-600 leading-relaxed">
+              <li>Go to <strong>developers.pinterest.com/apps</strong> → open your <strong>pinschedulekaro</strong> app</li>
+              <li>Click <strong>&ldquo;Upgrade access&rdquo;</strong> next to &ldquo;Trial access active&rdquo;</li>
+              <li>Fill in your app&apos;s use case (Pinterest scheduler, select <code className="font-mono bg-red-100 px-0.5 rounded">boards:write</code> + <code className="font-mono bg-red-100 px-0.5 rounded">pins:write</code>)</li>
+              <li>Submit — Pinterest reviews within 1–3 business days</li>
+              <li>Once approved, come back and reconnect your Pinterest account here</li>
             </ol>
           </div>
           <div className="ml-12">
             <Link href="/api/auth/pinterest">
-              <Button size="sm" variant="danger">Reconnect after fixing app</Button>
+              <Button size="sm" variant="outline">Reconnect after approval</Button>
             </Link>
           </div>
         </div>
