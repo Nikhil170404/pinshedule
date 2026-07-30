@@ -7,29 +7,38 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import type { ScheduledPin } from '@/types'
 
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAYS_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const DAYS_MINI  = ['S','M','T','W','T','F','S']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+// Always format in the browser's local timezone (calendar is 'use client', so this is correct)
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function fmtDayHeading(year: number, month: number, day: number) {
+  return new Date(year, month, day).toLocaleDateString([], {
+    weekday: 'long', month: 'long', day: 'numeric'
+  })
+}
+
 const STATUS_PILL: Record<string, string> = {
   published: 'bg-green-100 text-green-700 border-green-200',
-  failed: 'bg-red-100 text-red-700 border-red-200',
-  pending: 'bg-orange-50 text-orange-600 border-orange-200',
+  failed:    'bg-red-100 text-red-700 border-red-200',
+  pending:   'bg-orange-50 text-orange-700 border-orange-200',
 }
 
 const STATUS_DOT: Record<string, string> = {
   published: 'bg-green-500',
-  failed: 'bg-red-500',
-  pending: 'bg-[#E60023]',
+  failed:    'bg-red-500',
+  pending:   'bg-[#E60023]',
 }
 
 function PinCard({ pin }: { pin: ScheduledPin }) {
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100/80 transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-gray-200 shrink-0 overflow-hidden">
+      <div className="w-11 h-11 rounded-lg bg-gray-200 shrink-0 overflow-hidden">
         {pin.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={pin.image_url} alt="" className="w-full h-full object-cover" />
@@ -40,19 +49,19 @@ function PinCard({ pin }: { pin: ScheduledPin }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate leading-tight">{pin.title || 'Untitled pin'}</p>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <span className="text-[11px] text-gray-500 flex items-center gap-0.5">
-            <Clock size={10} className="shrink-0" />
+        <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{pin.title || 'Untitled pin'}</p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-xs text-gray-500 flex items-center gap-0.5 font-medium">
+            <Clock size={11} className="shrink-0" />
             {fmtTime(pin.scheduled_at)}
           </span>
           {pin.board_name && (
-            <span className="text-[11px] text-gray-400 truncate">{pin.board_name}</span>
+            <span className="text-xs text-gray-400 truncate">{pin.board_name}</span>
           )}
         </div>
       </div>
       <span className={cn(
-        'text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 capitalize',
+        'text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 capitalize mt-0.5',
         STATUS_PILL[pin.status] ?? STATUS_PILL.pending
       )}>
         {pin.status}
@@ -62,14 +71,14 @@ function PinCard({ pin }: { pin: ScheduledPin }) {
 }
 
 export default function CalendarPage() {
-  const [today] = useState(() => new Date())
+  const [today]        = useState(() => new Date())
   const [currentMonth, setCurrentMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
-  const [pins, setPins] = useState<ScheduledPin[]>([])
-  const [loading, setLoading] = useState(true)
+  const [pins, setPins]         = useState<ScheduledPin[]>([])
+  const [loading, setLoading]   = useState(true)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [view, setView] = useState<'month' | 'list'>('month')
+  const [view, setView]         = useState<'month' | 'list'>('month')
 
-  const year = currentMonth.getFullYear()
+  const year  = currentMonth.getFullYear()
   const month = currentMonth.getMonth()
 
   useEffect(() => {
@@ -78,23 +87,20 @@ export default function CalendarPage() {
       setLoading(true)
       const supabase = createClient()
       const start = new Date(year, month, 1).toISOString()
-      const end = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
+      const end   = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
       const { data } = await supabase
         .from('scheduled_pins')
         .select('*')
         .gte('scheduled_at', start)
         .lte('scheduled_at', end)
         .order('scheduled_at')
-      if (active) {
-        setPins(data ?? [])
-        setLoading(false)
-      }
+      if (active) { setPins(data ?? []); setLoading(false) }
     }
     load()
     return () => { active = false }
   }, [year, month])
 
-  const firstDay = new Date(year, month, 1).getDay()
+  const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   const cells: (number | null)[] = [
@@ -109,18 +115,17 @@ export default function CalendarPage() {
     })
   }
 
-  const selectedDayPins = selectedDay ? pinsForDay(selectedDay) : []
+  const selectedDayPins  = selectedDay ? pinsForDay(selectedDay) : []
+  const isCurrentMonth   = year === today.getFullYear() && month === today.getMonth()
 
   function prevMonth() { setCurrentMonth(new Date(year, month - 1, 1)); setSelectedDay(null) }
   function nextMonth() { setCurrentMonth(new Date(year, month + 1, 1)); setSelectedDay(null) }
-  function goToday() {
+  function goToday()   {
     setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1))
     setSelectedDay(today.getDate())
   }
 
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
-
-  // For list view: group pins by day
+  // list view: only days that have pins
   const pinsByDay = Array.from({ length: daysInMonth }, (_, i) => i + 1)
     .map((day) => ({ day, pins: pinsForDay(day) }))
     .filter(({ pins: dp }) => dp.length > 0)
@@ -136,7 +141,7 @@ export default function CalendarPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* View toggle */}
+          {/* Month / List toggle */}
           <div className="flex items-center bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setView('month')}
@@ -173,113 +178,112 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Body: calendar + optional day panel */}
+      {/* Main panel + optional day sidebar */}
       <div className="flex flex-col lg:flex-row gap-4 items-start">
-        {/* Main calendar card */}
+
+        {/* Calendar card */}
         <div className="w-full lg:flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+
           {/* Month nav */}
           <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
-            <button
-              onClick={prevMonth}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600"
-              aria-label="Previous month"
-            >
+            <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600" aria-label="Previous month">
               <ChevronLeft size={18} />
             </button>
-            <h2 className="font-semibold text-gray-900 text-base sm:text-lg select-none">
+            <h2 className="font-bold text-gray-900 text-base sm:text-lg select-none">
               {MONTHS[month]} {year}
             </h2>
-            <button
-              onClick={nextMonth}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600"
-              aria-label="Next month"
-            >
+            <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600" aria-label="Next month">
               <ChevronRight size={18} />
             </button>
           </div>
 
           {view === 'month' ? (
             <>
-              {/* Weekday headers */}
-              <div className="grid grid-cols-7 border-b border-gray-50 bg-gray-50/50">
-                {DAYS_SHORT.map((d) => (
-                  <div key={d} className="py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                    <span className="sm:hidden">{d[0]}</span>
-                    <span className="hidden sm:inline">{d}</span>
+              {/* Weekday header row */}
+              <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/60">
+                {DAYS_SHORT.map((d, i) => (
+                  <div key={d} className="py-2 text-center select-none">
+                    {/* 3-letter on ≥sm, 1-letter on xs */}
+                    <span className="hidden sm:inline text-xs font-semibold text-gray-400 uppercase tracking-wide">{d}</span>
+                    <span className="sm:hidden text-[10px] font-semibold text-gray-400 uppercase">{DAYS_MINI[i]}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Grid */}
+              {/* Calendar grid */}
               {loading ? (
                 <div className="grid grid-cols-7">
                   {Array(35).fill(0).map((_, i) => (
-                    <div key={i} className="min-h-[64px] sm:min-h-[90px] border-b border-r border-gray-50 p-1.5">
-                      <div className="skeleton w-6 h-6 rounded-full" />
+                    <div key={i} className="min-h-[80px] sm:min-h-[110px] border-b border-r border-gray-50 p-2">
+                      <div className="skeleton w-7 h-7 rounded-full" />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-7">
                   {cells.map((day, i) => {
-                    const isToday = day !== null && isCurrentMonth && today.getDate() === day
+                    const isToday    = day !== null && isCurrentMonth && today.getDate() === day
                     const isSelected = day === selectedDay
-                    const dayPins = day !== null ? pinsForDay(day) : []
+                    const dayPins    = day !== null ? pinsForDay(day) : []
                     return (
                       <div
                         key={i}
                         onClick={() => day && setSelectedDay(isSelected ? null : day)}
                         className={cn(
-                          'min-h-[64px] sm:min-h-[90px] p-1 sm:p-1.5 border-b border-r border-gray-50 transition-colors last-of-type:border-r-0',
-                          !day ? 'bg-gray-50/40' : 'cursor-pointer',
-                          isSelected && day ? 'bg-red-50' : day ? 'hover:bg-gray-50' : ''
+                          'min-h-[80px] sm:min-h-[110px] p-1.5 sm:p-2 border-b border-r border-gray-50 transition-colors',
+                          !day   ? 'bg-gray-50/40' : 'cursor-pointer',
+                          isSelected && day ? 'bg-red-50'    : '',
+                          !isSelected && day ? 'hover:bg-gray-50' : ''
                         )}
                       >
                         {day !== null && (
                           <>
+                            {/* Date number */}
                             <span className={cn(
-                              'inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-xs sm:text-sm font-medium leading-none',
+                              'inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-sm font-semibold leading-none',
                               isToday
                                 ? 'bg-[#E60023] text-white'
                                 : isSelected
-                                  ? 'bg-[#E60023]/15 text-[#E60023] font-semibold'
-                                  : 'text-gray-700'
+                                  ? 'bg-[#E60023]/15 text-[#E60023]'
+                                  : 'text-gray-700 hover:bg-gray-100'
                             )}>
                               {day}
                             </span>
 
-                            {/* Desktop: pill labels */}
+                            {/* Desktop: time + title pills */}
                             {dayPins.length > 0 && (
-                              <div className="mt-0.5 space-y-0.5 hidden sm:block">
+                              <div className="mt-1 space-y-0.5 hidden sm:block">
                                 {dayPins.slice(0, 2).map((p) => (
                                   <div
                                     key={p.id}
                                     className={cn(
-                                      'text-[9px] md:text-[10px] px-1 py-px rounded-md truncate font-medium border',
+                                      'text-[10px] md:text-[11px] px-1.5 py-0.5 rounded-md truncate font-medium border leading-tight',
                                       STATUS_PILL[p.status] ?? STATUS_PILL.pending
                                     )}
                                   >
-                                    {fmtTime(p.scheduled_at)} · {p.title || 'Pin'}
+                                    <span className="font-bold">{fmtTime(p.scheduled_at)}</span>
+                                    {' '}
+                                    <span className="opacity-80">{p.title || 'Pin'}</span>
                                   </div>
                                 ))}
                                 {dayPins.length > 2 && (
-                                  <p className="text-[9px] text-gray-400 pl-0.5">+{dayPins.length - 2} more</p>
+                                  <p className="text-[10px] text-gray-400 pl-1 font-medium">
+                                    +{dayPins.length - 2} more
+                                  </p>
                                 )}
                               </div>
                             )}
 
-                            {/* Mobile: dot indicators */}
+                            {/* Mobile: colored dots */}
                             {dayPins.length > 0 && (
                               <div className="flex gap-0.5 mt-1 sm:hidden flex-wrap">
-                                {dayPins.slice(0, 3).map((p, pi) => (
+                                {dayPins.slice(0, 4).map((p, pi) => (
                                   <div
                                     key={pi}
                                     className={cn('w-1.5 h-1.5 rounded-full shrink-0', STATUS_DOT[p.status] ?? STATUS_DOT.pending)}
                                   />
                                 ))}
-                                {dayPins.length > 3 && (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
-                                )}
+                                {dayPins.length > 4 && <div className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />}
                               </div>
                             )}
                           </>
@@ -291,13 +295,12 @@ export default function CalendarPage() {
               )}
             </>
           ) : (
-            /* List view */
+            /* ── List view ── */
             <div className="divide-y divide-gray-50">
               {loading ? (
                 <div className="py-16 text-center">
-                  <div className="skeleton h-4 w-32 rounded mx-auto mb-3" />
                   <div className="space-y-2 px-6">
-                    {[1,2,3].map((i) => <div key={i} className="skeleton h-14 w-full rounded-xl" />)}
+                    {[1,2,3].map((i) => <div key={i} className="skeleton h-16 w-full rounded-xl" />)}
                   </div>
                 </div>
               ) : pinsByDay.length === 0 ? (
@@ -305,27 +308,23 @@ export default function CalendarPage() {
                   <Calendar size={28} className="text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium text-sm">No pins in {MONTHS[month]}</p>
                   <p className="text-gray-400 text-xs mt-1 mb-5">Schedule your first pin for this month</p>
-                  <Link
-                    href="/dashboard/schedule"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E60023] text-white text-sm font-medium rounded-xl hover:bg-[#c0001d] transition-colors"
-                  >
+                  <Link href="/dashboard/schedule" className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E60023] text-white text-sm font-medium rounded-xl hover:bg-[#c0001d] transition-colors">
                     Schedule a pin
                   </Link>
                 </div>
               ) : (
                 pinsByDay.map(({ day, pins: dp }) => {
-                  const date = new Date(year, month, day)
                   const isTodayRow = isCurrentMonth && today.getDate() === day
                   return (
-                    <div key={day} className="px-4 sm:px-6 py-4">
+                    <div key={day} className="px-4 sm:px-6 py-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                          {fmtDayHeading(year, month, day)}
                         </p>
                         {isTodayRow && (
-                          <span className="text-[10px] font-semibold bg-[#E60023] text-white px-1.5 py-0.5 rounded-full">Today</span>
+                          <span className="text-[10px] font-bold bg-[#E60023] text-white px-1.5 py-0.5 rounded-full">Today</span>
                         )}
-                        <span className="text-xs text-gray-400">{dp.length} pin{dp.length > 1 ? 's' : ''}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{dp.length} pin{dp.length > 1 ? 's' : ''}</span>
                       </div>
                       <div className="space-y-2">
                         {dp.map((p) => <PinCard key={p.id} pin={p} />)}
@@ -337,32 +336,36 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* Legend */}
+          {/* Status legend */}
           <div className="flex items-center gap-4 px-4 sm:px-6 py-3 border-t border-gray-50 bg-gray-50/30">
             {[
-              { label: 'Pending', dot: STATUS_DOT.pending },
+              { label: 'Pending',   dot: STATUS_DOT.pending },
               { label: 'Published', dot: STATUS_DOT.published },
-              { label: 'Failed', dot: STATUS_DOT.failed },
+              { label: 'Failed',    dot: STATUS_DOT.failed },
             ].map(({ label, dot }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className={cn('w-2 h-2 rounded-full', dot)} />
                 <span className="text-xs text-gray-500">{label}</span>
               </div>
             ))}
+            <p className="ml-auto text-[10px] text-gray-400 hidden sm:block">Times shown in your local timezone</p>
           </div>
         </div>
 
-        {/* Day detail panel — slides in on desktop, shown below on mobile */}
+        {/* Day detail panel — desktop sidebar, mobile accordion below */}
         {selectedDay && (
           <div className="w-full lg:w-72 xl:w-80 shrink-0">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden lg:sticky lg:top-6">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden sticky top-6">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div>
-                  <p className="font-semibold text-gray-900 text-sm">
-                    {new Date(year, month, selectedDay).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                  <p className="font-bold text-gray-900 text-sm">
+                    {DAYS_FULL[new Date(year, month, selectedDay).getDay()]},{' '}
+                    {MONTHS[month]} {selectedDay}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {selectedDayPins.length} pin{selectedDayPins.length !== 1 ? 's' : ''} scheduled
+                    {selectedDayPins.length === 0
+                      ? 'Nothing scheduled'
+                      : `${selectedDayPins.length} pin${selectedDayPins.length > 1 ? 's' : ''} scheduled`}
                   </p>
                 </div>
                 <button
@@ -373,16 +376,17 @@ export default function CalendarPage() {
                   <X size={15} />
                 </button>
               </div>
-              <div className="p-4 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto">
+
+              <div className="p-4 max-h-[55vh] overflow-y-auto">
                 {selectedDayPins.length === 0 ? (
                   <div className="py-10 text-center">
                     <Clock size={24} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">No pins this day</p>
+                    <p className="text-sm text-gray-400 mb-3">No pins this day</p>
                     <Link
-                      href={`/dashboard/schedule`}
-                      className="mt-3 inline-block text-xs text-[#E60023] hover:underline font-medium"
+                      href="/dashboard/schedule"
+                      className="text-xs text-[#E60023] hover:underline font-semibold"
                     >
-                      Schedule a pin
+                      + Schedule a pin
                     </Link>
                   </div>
                 ) : (

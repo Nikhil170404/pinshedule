@@ -102,7 +102,10 @@ export function MobileTabBar() {
   ]
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-40 flex safe-area-inset-bottom">
+    <nav
+      className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-40 flex safe-area-pb safe-area-pl safe-area-pr"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}
+    >
       {mobileNav.map(({ href, label, icon: Icon }) => {
         const active = pathname === href
         return (
@@ -110,8 +113,9 @@ export function MobileTabBar() {
             key={href}
             href={href}
             className={cn(
-              'flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors',
-              active ? 'text-[#E60023]' : 'text-gray-400 hover:text-gray-600'
+              'flex-1 flex flex-col items-center py-2.5 text-[10px] font-medium transition-colors',
+              'gap-0.5', // gap in flex — works Safari 14.5+
+              active ? 'text-[#E60023]' : 'text-gray-400'
             )}
           >
             <Icon size={20} />

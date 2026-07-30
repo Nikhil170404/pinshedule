@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate } from '@/lib/utils'
+import { ClientTime } from '@/components/ui/ClientTime'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Image, Calendar, Clock } from 'lucide-react'
@@ -57,17 +57,17 @@ export default async function PinsPage() {
         <>
           {/* Desktop table */}
           <div className="hidden sm:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-[56px,1fr,160px,90px] gap-4 px-5 py-3 border-b border-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <div className="grid grid-cols-[56px,1fr,180px,90px] gap-4 px-5 py-3 border-b border-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               <span>Image</span>
               <span>Pin</span>
-              <span>Scheduled</span>
+              <span>Scheduled (local)</span>
               <span>Status</span>
             </div>
             <div className="divide-y divide-gray-50">
               {pins.map((pin) => (
                 <div
                   key={pin.id}
-                  className="grid grid-cols-[56px,1fr,160px,90px] gap-4 px-5 py-4 items-center hover:bg-gray-50/50 transition-colors"
+                  className="grid grid-cols-[56px,1fr,180px,90px] gap-4 px-5 py-4 items-center hover:bg-gray-50/50 transition-colors"
                 >
                   <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
                     {pin.image_url ? (
@@ -85,7 +85,11 @@ export default async function PinsPage() {
                   </div>
                   <div className="text-xs text-gray-500 flex items-center gap-1.5">
                     <Clock size={11} className="shrink-0 text-gray-400" />
-                    {formatDate(pin.scheduled_at, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {/* ClientTime renders in the browser's local timezone — server (Vercel/UTC) would show wrong hour */}
+                    <ClientTime
+                      iso={pin.scheduled_at}
+                      options={{ month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }}
+                    />
                   </div>
                   <Badge variant={statusVariant(pin.status)}>{pin.status}</Badge>
                 </div>
@@ -113,10 +117,13 @@ export default async function PinsPage() {
                     <Badge variant={statusVariant(pin.status)}>{pin.status}</Badge>
                   </div>
                   <p className="text-xs text-gray-400 truncate mt-0.5">{pin.board_name || pin.board_id || '—'}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1.5">
+                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1.5">
                     <Clock size={11} className="shrink-0 text-gray-400" />
-                    {formatDate(pin.scheduled_at, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                    <ClientTime
+                      iso={pin.scheduled_at}
+                      options={{ month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }}
+                    />
+                  </div>
                   {pin.error_message && (
                     <p className="text-xs text-red-500 mt-1 truncate">{pin.error_message}</p>
                   )}

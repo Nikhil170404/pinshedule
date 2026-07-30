@@ -9,6 +9,14 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, X, Sparkles, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// iOS Safari minimum date string helper — avoids the UTC vs local offset bug
+// where new Date().toISOString() gives the wrong local time on iOS.
+function localDatetimeMin() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
 export default function SchedulePage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
@@ -35,6 +43,7 @@ export default function SchedulePage() {
     accept: { 'image/*': [] },
     maxFiles: 1,
     maxSize: 20 * 1024 * 1024,
+    // noClick: false ensures tap-to-select works on iOS Safari
   })
 
   async function loadBoards() {
@@ -111,6 +120,7 @@ export default function SchedulePage() {
         board_id: board,
         board_name: selectedBoard?.name,
         destination_url: link || null,
+        // Parse the local datetime string as local time (not UTC) by appending :00
         scheduled_at: new Date(scheduledAt).toISOString(),
         status: 'pending',
       })
@@ -138,36 +148,47 @@ export default function SchedulePage() {
         <p className="text-gray-500 text-sm mt-0.5">Upload, write, pick a board — done in 3 clicks</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      {/* noValidate: we handle all validation in onSubmit with toast messages,
+          so the browser never shows its own red :invalid borders */}
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {/* Image upload */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Image</p>
           {imagePreview ? (
             <div className="relative inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imagePreview} alt="Preview" className="rounded-2xl max-h-64 object-cover border border-gray-100" />
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="rounded-2xl max-h-64 w-full object-cover border border-gray-100"
+              />
               <button
                 type="button"
                 onClick={() => { setImagePreview(''); setImageFile(null) }}
-                className="absolute top-2 right-2 w-7 h-7 bg-gray-900/70 text-white rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors"
+                className="absolute top-2 right-2 w-8 h-8 bg-gray-900/70 text-white rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors"
+                aria-label="Remove image"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             </div>
           ) : (
             <div
               {...getRootProps()}
               className={cn(
-                'border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200',
+                'border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200',
+                // Larger tap target on mobile
+                'min-h-[120px] flex flex-col items-center justify-center',
                 isDragActive
                   ? 'border-[#E60023] bg-red-50'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100'
               )}
             >
               <input {...getInputProps()} />
-              <Upload size={24} className="mx-auto text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600 font-medium">Drop image here or click to upload</p>
-              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP up to 20MB</p>
+              <Upload size={24} className="text-gray-400 mb-3" />
+              <p className="text-sm text-gray-600 font-medium">
+                {isDragActive ? 'Drop it here' : 'Tap to upload or drag & drop'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP · max 20 MB</p>
             </div>
           )}
         </div>
@@ -179,6 +200,8 @@ export default function SchedulePage() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           hint="Keep it under 100 characters"
+          autoCapitalize="words"
+          autoCorrect="on"
         />
 
         {/* Description + AI */}
@@ -189,17 +212,19 @@ export default function SchedulePage() {
               type="button"
               onClick={generateCaptions}
               disabled={aiLoading}
-              className="flex items-center gap-1.5 text-xs text-[#E60023] font-medium hover:underline disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-[#E60023] font-medium hover:underline disabled:opacity-50 min-h-[44px] px-1"
             >
               <Sparkles size={13} />
               {aiLoading ? 'Generating…' : 'AI generate'}
             </button>
           </div>
           <Textarea
-            placeholder="Describe your pin (150-200 chars recommended, add hashtags)"
+            placeholder="Describe your pin (150–200 chars, add hashtags)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
+            autoCapitalize="sentences"
+            autoCorrect="on"
           />
 
           {/* AI options */}
@@ -211,7 +236,7 @@ export default function SchedulePage() {
                   key={i}
                   type="button"
                   onClick={() => setDescription(opt)}
-                  className="w-full text-left text-xs bg-gray-50 hover:bg-red-50 hover:border-red-200 border border-gray-100 rounded-xl p-3 transition-colors"
+                  className="w-full text-left text-xs bg-gray-50 hover:bg-red-50 hover:border-red-200 active:bg-red-100 border border-gray-100 rounded-xl p-3 transition-colors leading-relaxed"
                 >
                   {opt}
                 </button>
@@ -220,16 +245,20 @@ export default function SchedulePage() {
           )}
         </div>
 
-        {/* Link */}
+        {/* Destination URL */}
         <Input
           label="Destination URL (optional)"
           type="url"
           placeholder="https://your-blog.com/post"
           value={link}
           onChange={(e) => setLink(e.target.value)}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="url"
         />
 
-        {/* Board */}
+        {/* Board selector */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1.5">Board</label>
           <div className="relative">
@@ -237,25 +266,29 @@ export default function SchedulePage() {
               value={board}
               onChange={(e) => setBoard(e.target.value)}
               onFocus={loadBoards}
-              required
-              className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent pr-9"
+              className={cn(
+                'w-full rounded-xl border bg-white px-4 py-2.5',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
+                'pr-9 min-h-[44px] shadow-none transition-colors',
+                board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
+              )}
             >
               <option value="">Select a board</option>
               {boards.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
-            <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
-        {/* Schedule time */}
+        {/* Schedule date & time */}
         <Input
           label="Schedule date & time"
           type="datetime-local"
           value={scheduledAt}
           onChange={(e) => setScheduledAt(e.target.value)}
-          min={new Date().toISOString().slice(0, 16)}
+          min={localDatetimeMin()}
           required
         />
 

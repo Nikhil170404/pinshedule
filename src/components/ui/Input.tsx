@@ -7,6 +7,19 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string
 }
 
+// Base styles shared by input and textarea.
+// font-size is set to 1rem (16px) in CSS globally for inputs to prevent iOS
+// auto-zoom on focus, but we scale it down visually with Tailwind's text-sm.
+const fieldBase = [
+  'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5',
+  'text-sm text-gray-900 placeholder:text-gray-400',
+  'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
+  'transition-colors duration-200',
+  'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed',
+  // iOS: min touch target height, remove inner shadow
+  'min-h-[44px] shadow-none',
+].join(' ')
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
@@ -21,10 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400',
-            'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
-            'transition-all duration-200',
-            'disabled:bg-gray-50 disabled:text-gray-400',
+            fieldBase,
             error && 'border-red-500 focus:ring-red-500',
             className
           )}
@@ -36,7 +46,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     )
   }
 )
-
 Input.displayName = 'Input'
 
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -59,9 +68,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400',
-            'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
-            'transition-all duration-200 resize-none',
+            fieldBase,
+            'resize-none',
             error && 'border-red-500 focus:ring-red-500',
             className
           )}
@@ -73,5 +81,4 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     )
   }
 )
-
 Textarea.displayName = 'Textarea'
