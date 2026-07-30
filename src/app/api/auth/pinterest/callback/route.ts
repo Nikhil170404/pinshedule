@@ -39,6 +39,15 @@ export async function GET(request: NextRequest) {
     if (!tokenRes.ok) throw new Error('Token exchange failed')
     const tokens = await tokenRes.json()
 
+    // Check what scopes Pinterest actually granted.
+    // If boards:write is missing the app needs it enabled in the Pinterest Developer Portal.
+    const grantedScopes: string = tokens.scope ?? ''
+    if (!grantedScopes.includes('boards:write')) {
+      return NextResponse.redirect(
+        `${appUrl}/dashboard?error=missing_boards_write`
+      )
+    }
+
     // Get Pinterest user info
     const userRes = await fetch('https://api.pinterest.com/v5/user_account', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },

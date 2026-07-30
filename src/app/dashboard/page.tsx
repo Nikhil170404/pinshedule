@@ -11,7 +11,12 @@ import {
   XCircle, ArrowRight, Link2, Search,
 } from 'lucide-react'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; connected?: string }>
+}) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -93,7 +98,36 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Pinterest status ── */}
-      {!connected ? (
+      {params.error === 'missing_boards_write' ? (
+        /* Pinterest granted the token but WITHOUT boards:write — app config issue */
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+              <XCircle size={17} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-900">Pinterest app is missing the <code className="font-mono bg-red-100 px-1 rounded text-xs">boards:write</code> scope</p>
+              <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                Reconnecting will not fix this — the scope must be enabled in the Pinterest Developer Portal first.
+              </p>
+            </div>
+          </div>
+          <div className="ml-12 space-y-1 text-xs text-red-700">
+            <p className="font-semibold">How to fix:</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-red-600">
+              <li>Go to <strong>developers.pinterest.com/apps</strong></li>
+              <li>Open your app → <strong>Edit</strong></li>
+              <li>Under <strong>Scopes / Permissions</strong>, enable <code className="font-mono bg-red-100 px-0.5 rounded">boards:write</code> and <code className="font-mono bg-red-100 px-0.5 rounded">pins:write</code></li>
+              <li>Save, then come back here and reconnect</li>
+            </ol>
+          </div>
+          <div className="ml-12">
+            <Link href="/api/auth/pinterest">
+              <Button size="sm" variant="danger">Reconnect after fixing app</Button>
+            </Link>
+          </div>
+        </div>
+      ) : !connected ? (
         <div className="flex items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -109,7 +143,6 @@ export default async function DashboardPage() {
           </Link>
         </div>
       ) : needsReconnect ? (
-        /* Token missing boards:write / pins:write scope */
         <div className="flex items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -118,7 +151,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-sm font-semibold text-amber-900">Pinterest needs reconnecting</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Your token is missing <code className="font-mono bg-amber-100 px-1 rounded">boards:write</code> permission. Reconnect to fix all failed pins.
+                Token missing required permissions. Reconnect to fix all failed pins.
               </p>
             </div>
           </div>
