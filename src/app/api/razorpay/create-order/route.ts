@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const AMOUNTS: Record<string, Record<string, number>> = {
   starter: { monthly: 39900, yearly: 384000 },
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { success } = await rateLimit('payment', user.id)
+  if (!success) return rateLimitResponse()
 
   const { plan, billing } = await request.json()
   const amount = AMOUNTS[plan]?.[billing]

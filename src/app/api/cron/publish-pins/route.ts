@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   // Fetch all pending pins due now
   const { data: pins, error } = await supabase
     .from('scheduled_pins')
-    .select('*, pinterest_connections(access_token, refresh_token, expires_at)')
+    .select('*')
     .eq('status', 'pending')
     .lte('scheduled_at', new Date().toISOString())
     .limit(50)
@@ -26,9 +26,11 @@ export async function POST(request: NextRequest) {
 
   for (const pin of pins ?? []) {
     try {
-      const conn = Array.isArray(pin.pinterest_connections)
-        ? pin.pinterest_connections[0]
-        : pin.pinterest_connections
+      const { data: conn } = await supabase
+        .from('pinterest_connections')
+        .select('access_token, refresh_token, expires_at')
+        .eq('user_id', pin.user_id)
+        .single()
 
       if (!conn) throw new Error('No Pinterest connection')
 

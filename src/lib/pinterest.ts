@@ -41,7 +41,7 @@ export async function refreshPinterestToken(refreshToken: string) {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
-    scope: 'pins:read,pins:write,boards:read,user_accounts:read',
+    scope: 'pins:read,pins:write,boards:read,boards:write,user_accounts:read',
   })
 
   const credentials = Buffer.from(
@@ -86,7 +86,7 @@ export function buildPinterestAuthUrl(state: string) {
     client_id: process.env.PINTEREST_CLIENT_ID!,
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/pinterest/callback`,
     response_type: 'code',
-    scope: 'pins:read,pins:write,boards:read,user_accounts:read',
+    scope: 'pins:read,pins:write,boards:read,boards:write,user_accounts:read',
     state,
   })
   return `https://www.pinterest.com/oauth/?${params}`
