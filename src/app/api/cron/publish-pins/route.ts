@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createPin } from '@/lib/pinterest'
 import { decrypt } from '@/lib/utils'
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const auth = request.headers.get('authorization')
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
