@@ -77,6 +77,11 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+/* Mobile safe area (notched phones) */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Glass card */
 .glass {
   background: rgba(255, 255, 255, 0.8);
