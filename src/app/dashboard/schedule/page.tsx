@@ -148,7 +148,9 @@ export default function SchedulePage() {
         <p className="text-gray-500 text-sm mt-0.5">Upload, write, pick a board — done in 3 clicks</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      {/* noValidate: we handle all validation in onSubmit with toast messages,
+          so the browser never shows its own red :invalid borders */}
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {/* Image upload */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Image</p>
@@ -264,14 +266,11 @@ export default function SchedulePage() {
               value={board}
               onChange={(e) => setBoard(e.target.value)}
               onFocus={loadBoards}
-              required
               className={cn(
-                'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5',
-                'text-sm text-gray-900',
-                'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
-                'pr-9 min-h-[44px]',
-                // iOS: appearance:none is set globally in CSS; ensure no inner shadow
-                'shadow-none'
+                'w-full rounded-xl border bg-white px-4 py-2.5',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
+                'pr-9 min-h-[44px] shadow-none transition-colors',
+                board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
               )}
             >
               <option value="">Select a board</option>
