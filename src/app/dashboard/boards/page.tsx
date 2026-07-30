@@ -2,36 +2,56 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { LayoutGrid, Lock, Globe } from 'lucide-react'
+import { LayoutGrid, Lock, Globe, RefreshCw } from 'lucide-react'
 import type { PinterestBoard } from '@/types'
+import { cn } from '@/lib/utils'
 
 export default function BoardsPage() {
   const [boards, setBoards] = useState<PinterestBoard[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/boards')
-        const data = await res.json()
-        setBoards(data.boards ?? [])
-      } catch {
-        toast.error('Could not load boards. Make sure Pinterest is connected.')
-      }
-      setLoading(false)
+  async function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const res = await fetch('/api/boards')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setBoards(data.boards ?? [])
+    } catch {
+      toast.error('Could not load boards. Make sure Pinterest is connected.')
     }
-    load()
-  }, [])
+    setLoading(false)
+    setRefreshing(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Your Boards</h1>
-        <p className="text-gray-500 text-sm mt-0.5">All Pinterest boards available for scheduling</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Your Boards</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {!loading && `${boards.length} board${boards.length !== 1 ? 's' : ''} available for scheduling`}
+            {loading && 'Loading boards…'}
+          </p>
+        </div>
+        <button
+          onClick={() => load(true)}
+          disabled={loading || refreshing}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors disabled:opacity-40',
+          )}
+        >
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
       {loading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
               <div className="skeleton h-32 w-full rounded-xl" />
@@ -47,13 +67,13 @@ export default function BoardsPage() {
           <p className="text-gray-400 text-sm mt-1">Connect your Pinterest account to see your boards.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {boards.map((board) => (
             <div
               key={board.id}
-              className="bg-white rounded-2xl border border-gray-100 hover:shadow-md transition-all duration-200 overflow-hidden"
+              className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 overflow-hidden"
             >
-              <div className="h-32 bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center">
+              <div className="h-36 bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center overflow-hidden">
                 {board.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={board.image_url} alt="" className="w-full h-full object-cover" />
@@ -62,17 +82,30 @@ export default function BoardsPage() {
                 )}
               </div>
               <div className="p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-semibold text-gray-900 text-sm">{board.name}</h3>
-                  {board.privacy === 'SECRET' ? (
-                    <Lock size={14} className="text-gray-400" />
-                  ) : (
-                    <Globe size={14} className="text-gray-400" />
-                  )}
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-semibold text-gray-900 text-sm leading-snug">{board.name}</h3>
+                  <span className="shrink-0 mt-0.5">
+                    {board.privacy === 'SECRET' ? (
+                      <Lock size={13} className="text-gray-400" />
+                    ) : (
+                      <Globe size={13} className="text-gray-400" />
+                    )}
+                  </span>
                 </div>
-                {board.pin_count !== undefined && (
-                  <p className="text-xs text-gray-500">{board.pin_count} pins</p>
-                )}
+                <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                  {board.pin_count !== undefined && (
+                    <span>{board.pin_count.toLocaleString()} pins</span>
+                  )}
+                  {board.follower_count !== undefined && (
+                    <span>{board.follower_count.toLocaleString()} followers</span>
+                  )}
+                  <span className={cn(
+                    'capitalize px-1.5 py-0.5 rounded-full text-[10px] font-medium',
+                    board.privacy === 'SECRET' ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-700'
+                  )}>
+                    {board.privacy.toLowerCase()}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

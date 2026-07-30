@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { refreshPinterestToken } from '@/lib/pinterest'
 import { encrypt, decrypt } from '@/lib/utils'
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const auth = request.headers.get('authorization')
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -11,8 +11,9 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createServiceClient()
 
-  // Refresh tokens expiring in the next 2 hours
-  const soon = new Date(Date.now() + 2 * 3600 * 1000).toISOString()
+  // Refresh tokens expiring in the next 25 hours (> cron interval of 20 h)
+  // Also catches already-expired tokens (past dates satisfy lte)
+  const soon = new Date(Date.now() + 25 * 3600 * 1000).toISOString()
   const { data: connections } = await supabase
     .from('pinterest_connections')
     .select('id, refresh_token')

@@ -1,13 +1,30 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, Sparkles, ChevronDown } from 'lucide-react'
+import { Upload, X, Sparkles, ChevronDown, CheckCircle2, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
+
+// Build datetime-local min string in LOCAL time (avoids UTC offset bug on iOS)
+function localDatetimeMin() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+// Format a datetime-local value for display after scheduling
+function fmtScheduled(iso: string) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
 
 export default function SchedulePage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -17,11 +34,32 @@ export default function SchedulePage() {
   const [link, setLink] = useState('')
   const [board, setBoard] = useState('')
   const [boards, setBoards] = useState<{ id: string; name: string }[]>([])
+  const [boardsLoading, setBoardsLoading] = useState(true)
+  const [boardsError, setBoardsError] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiOptions, setAiOptions] = useState<string[]>([])
-  const [boardsLoaded, setBoardsLoaded] = useState(false)
+  const [lastScheduled, setLastScheduled] = useState<{ title: string; boardName: string; at: string } | null>(null)
+
+  // Load boards on mount — don't wait for focus (mobile iOS opens native picker immediately)
+  useEffect(() => {
+    async function loadBoards() {
+      try {
+        const res = await fetch('/api/boards')
+        const data = await res.json()
+        if (data.error && !data.boards?.length) {
+          setBoardsError(data.error)
+        }
+        setBoards(data.boards ?? [])
+      } catch {
+        setBoardsError('Could not load boards')
+      } finally {
+        setBoardsLoading(false)
+      }
+    }
+    loadBoards()
+  }, [])
 
   const onDrop = useCallback((files: File[]) => {
     const file = files[0]
@@ -36,18 +74,6 @@ export default function SchedulePage() {
     maxFiles: 1,
     maxSize: 20 * 1024 * 1024,
   })
-
-  async function loadBoards() {
-    if (boardsLoaded) return
-    try {
-      const res = await fetch('/api/boards')
-      const data = await res.json()
-      setBoards(data.boards ?? [])
-      setBoardsLoaded(true)
-    } catch {
-      toast.error('Could not load boards. Is your Pinterest connected?')
-    }
-  }
 
   async function generateCaptions() {
     if (!title && !description) {
@@ -116,7 +142,15 @@ export default function SchedulePage() {
       })
 
       if (error) throw error
-      toast.success('Pin scheduled!')
+
+      // Remember what was scheduled for the success banner
+      setLastScheduled({
+        title: title || 'Untitled pin',
+        boardName: selectedBoard?.name ?? board,
+        at: scheduledAt,
+      })
+
+      // Reset form
       setImageFile(null)
       setImagePreview('')
       setTitle('')
@@ -138,36 +172,74 @@ export default function SchedulePage() {
         <p className="text-gray-500 text-sm mt-0.5">Upload, write, pick a board — done in 3 clicks</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-5">
+      {/* Success banner */}
+      {lastScheduled && (
+        <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl">
+          <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-green-800">Pin scheduled!</p>
+            <p className="text-xs text-green-700 mt-0.5 truncate">
+              &ldquo;{lastScheduled.title}&rdquo; → {lastScheduled.boardName}
+            </p>
+            <p className="text-xs text-green-600 mt-0.5">
+              {fmtScheduled(lastScheduled.at)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href="/dashboard/pins" className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1">
+              <Calendar size={12} />
+              View
+            </Link>
+            <button
+              onClick={() => setLastScheduled(null)}
+              className="text-green-500 hover:text-green-700 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* noValidate: validation is done in onSubmit with toasts — no browser :invalid borders */}
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {/* Image upload */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Image</p>
           {imagePreview ? (
-            <div className="relative inline-block">
+            <div className="relative inline-block w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imagePreview} alt="Preview" className="rounded-2xl max-h-64 object-cover border border-gray-100" />
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="rounded-2xl max-h-64 w-full object-cover border border-gray-100"
+              />
               <button
                 type="button"
                 onClick={() => { setImagePreview(''); setImageFile(null) }}
-                className="absolute top-2 right-2 w-7 h-7 bg-gray-900/70 text-white rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors"
+                className="absolute top-2 right-2 w-8 h-8 bg-gray-900/70 text-white rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors"
+                aria-label="Remove image"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             </div>
           ) : (
             <div
               {...getRootProps()}
               className={cn(
-                'border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-200',
+                'border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200',
+                'min-h-[120px] flex flex-col items-center justify-center',
                 isDragActive
                   ? 'border-[#E60023] bg-red-50'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100'
               )}
             >
               <input {...getInputProps()} />
-              <Upload size={24} className="mx-auto text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600 font-medium">Drop image here or click to upload</p>
-              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP up to 20MB</p>
+              <Upload size={24} className="text-gray-400 mb-3" />
+              <p className="text-sm text-gray-600 font-medium">
+                {isDragActive ? 'Drop it here' : 'Tap to upload or drag & drop'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP · max 20 MB</p>
             </div>
           )}
         </div>
@@ -179,6 +251,8 @@ export default function SchedulePage() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           hint="Keep it under 100 characters"
+          autoCapitalize="words"
+          autoCorrect="on"
         />
 
         {/* Description + AI */}
@@ -189,17 +263,19 @@ export default function SchedulePage() {
               type="button"
               onClick={generateCaptions}
               disabled={aiLoading}
-              className="flex items-center gap-1.5 text-xs text-[#E60023] font-medium hover:underline disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-[#E60023] font-medium hover:underline disabled:opacity-50 min-h-[44px] px-1"
             >
               <Sparkles size={13} />
               {aiLoading ? 'Generating…' : 'AI generate'}
             </button>
           </div>
           <Textarea
-            placeholder="Describe your pin (150-200 chars recommended, add hashtags)"
+            placeholder="Describe your pin (150–200 chars, add hashtags)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
+            autoCapitalize="sentences"
+            autoCorrect="on"
           />
 
           {/* AI options */}
@@ -211,7 +287,7 @@ export default function SchedulePage() {
                   key={i}
                   type="button"
                   onClick={() => setDescription(opt)}
-                  className="w-full text-left text-xs bg-gray-50 hover:bg-red-50 hover:border-red-200 border border-gray-100 rounded-xl p-3 transition-colors"
+                  className="w-full text-left text-xs bg-gray-50 hover:bg-red-50 hover:border-red-200 active:bg-red-100 border border-gray-100 rounded-xl p-3 transition-colors leading-relaxed"
                 >
                   {opt}
                 </button>
@@ -220,44 +296,66 @@ export default function SchedulePage() {
           )}
         </div>
 
-        {/* Link */}
+        {/* Destination URL */}
         <Input
           label="Destination URL (optional)"
           type="url"
           placeholder="https://your-blog.com/post"
           value={link}
           onChange={(e) => setLink(e.target.value)}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="url"
         />
 
-        {/* Board */}
+        {/* Board selector */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1.5">Board</label>
-          <div className="relative">
-            <select
-              value={board}
-              onChange={(e) => setBoard(e.target.value)}
-              onFocus={loadBoards}
-              required
-              className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent pr-9"
-            >
-              <option value="">Select a board</option>
-              {boards.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-          </div>
+          {boardsError && !boards.length ? (
+            <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-700">{boardsError}</p>
+              <Link href="/dashboard/settings" className="text-xs font-semibold text-amber-700 hover:underline shrink-0 ml-3">
+                Connect Pinterest
+              </Link>
+            </div>
+          ) : (
+            <div className="relative">
+              <select
+                value={board}
+                onChange={(e) => setBoard(e.target.value)}
+                disabled={boardsLoading}
+                className={cn(
+                  'w-full rounded-xl border bg-white px-4 py-2.5',
+                  'text-sm focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
+                  'pr-9 min-h-[44px] shadow-none transition-colors appearance-none',
+                  boardsLoading ? 'text-gray-400 border-gray-200' :
+                  board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
+                )}
+              >
+                <option value="">
+                  {boardsLoading ? 'Loading boards…' : boards.length === 0 ? 'No boards found' : 'Select a board'}
+                </option>
+                {boards.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          )}
         </div>
 
-        {/* Schedule time */}
-        <Input
-          label="Schedule date & time"
-          type="datetime-local"
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-          min={new Date().toISOString().slice(0, 16)}
-          required
-        />
+        {/* Schedule date & time */}
+        <div>
+          <Input
+            label="Schedule date & time"
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            min={localDatetimeMin()}
+            hint="Time is in your local timezone"
+          />
+        </div>
 
         <Button type="submit" loading={loading} size="lg" className="w-full">
           Schedule pin
