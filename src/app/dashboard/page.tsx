@@ -56,10 +56,17 @@ export default async function DashboardPage() {
   const publishedCount = allStatuses.filter((p) => p.status === 'published').length
   const failedCount = allStatuses.filter((p) => p.status === 'failed').length
 
-  // Detect if failures are due to missing Pinterest scopes → show reconnect banner
+  // Show reconnect banner if any failed pin has a scope/permission error.
+  // The OAuth callback now auto-resets these pins to 'pending' on reconnect,
+  // so this banner will disappear naturally after a successful reconnect.
   const needsReconnect = connected && recentPins.some(
-    (p) => p.status === 'failed' && p.error_message &&
-      (p.error_message.includes('permissions') || p.error_message.includes('boards:write') || p.error_message.includes('pins:write') || p.error_message.includes('Reconnect'))
+    (p) =>
+      p.status === 'failed' &&
+      p.error_message &&
+      (p.error_message.includes('permissions') ||
+       p.error_message.includes('boards:write') ||
+       p.error_message.includes('pins:write') ||
+       p.error_message.includes('Reconnect'))
   )
 
   const statusBadge = (status: string) => {

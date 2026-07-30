@@ -59,6 +59,15 @@ export async function GET(request: NextRequest) {
       expires_at: expiresAt,
     }, { onConflict: 'user_id' })
 
+    // After a fresh reconnect, reset any failed pins that had permission/scope
+    // errors back to pending so the next cron run retries them automatically.
+    await supabase
+      .from('scheduled_pins')
+      .update({ status: 'pending', error_message: null })
+      .eq('user_id', user.id)
+      .eq('status', 'failed')
+      .or('error_message.ilike.%permissions%,error_message.ilike.%boards:write%,error_message.ilike.%pins:write%,error_message.ilike.%Reconnect%,error_message.ilike.%token%')
+
     const response = NextResponse.redirect(`${appUrl}/dashboard?connected=pinterest`)
     response.cookies.delete('pinterest_oauth_state')
     return response
