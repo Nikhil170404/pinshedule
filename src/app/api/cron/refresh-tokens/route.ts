@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createServiceClient()
 
-  // Refresh tokens expiring in the next 2 hours
-  const soon = new Date(Date.now() + 2 * 3600 * 1000).toISOString()
+  // Refresh tokens expiring in the next 25 hours (> cron interval of 20 h)
+  // Also catches already-expired tokens (past dates satisfy lte)
+  const soon = new Date(Date.now() + 25 * 3600 * 1000).toISOString()
   const { data: connections } = await supabase
     .from('pinterest_connections')
     .select('id, refresh_token')
