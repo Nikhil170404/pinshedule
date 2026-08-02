@@ -3,39 +3,35 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { toast } from 'sonner'
-import { User, Bell, Trash2, ExternalLink } from 'lucide-react'
+import { Bell, Trash2, RefreshCw } from 'lucide-react'
 
 export default function SettingsPage() {
-  const [email, setEmail] = useState('')
+  const [pinterestUsername, setPinterestUsername] = useState('')
+  const [pinterestAvatar, setPinterestAvatar] = useState<string | null>(null)
   const [timezone, setTimezone] = useState('')
   const [notifications, setNotifications] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [pinterestConnected, setPinterestConnected] = useState(false)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) setEmail(user.email ?? '')
+      if (!user) return
 
-      const { data: meta } = await supabase
+      const meta = user.user_metadata
+      setPinterestUsername(meta?.pinterest_username ?? meta?.pinterest_id ?? '')
+      setPinterestAvatar(meta?.pinterest_avatar ?? null)
+
+      const { data: profile } = await supabase
         .from('user_profiles')
         .select('timezone, notifications_enabled')
-        .eq('id', user!.id)
+        .eq('id', user.id)
         .single()
-      if (meta) {
-        setTimezone(meta.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
-        setNotifications(meta.notifications_enabled ?? true)
+      if (profile) {
+        setTimezone(profile.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
+        setNotifications(profile.notifications_enabled ?? true)
       }
-
-      const { data: pc } = await supabase
-        .from('pinterest_connections')
-        .select('id')
-        .eq('user_id', user!.id)
-        .single()
-      setPinterestConnected(!!pc)
     }
     load()
   }, [])
@@ -52,27 +48,46 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
-  async function disconnectPinterest() {
-    if (!confirm('Disconnect Pinterest? Scheduled pins may fail to publish.')) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('pinterest_connections').delete().eq('user_id', user!.id)
-    setPinterestConnected(false)
-    toast.success('Pinterest disconnected')
-  }
-
   return (
     <div className="space-y-6 animate-fade-in max-w-xl">
       <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
-      {/* Profile */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <User size={16} className="text-[#E60023]" />
-          <h2 className="font-semibold text-gray-900">Profile</h2>
+      {/* Pinterest identity */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+        <h2 className="font-semibold text-gray-900">Pinterest Account</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {pinterestAvatar ? (
+              <img src={pinterestAvatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-[#E60023] flex items-center justify-center text-white font-bold text-sm">
+                {pinterestUsername.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900">@{pinterestUsername}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <p className="text-xs text-gray-500">Connected</p>
+              </div>
+            </div>
+          </div>
+          <a
+            href="/api/auth/pinterest?next=/dashboard/settings"
+            className="flex items-center gap-1.5 text-xs text-[#E60023] hover:underline"
+          >
+            <RefreshCw size={11} />
+            Reconnect
+          </a>
         </div>
+        <p className="text-xs text-gray-400">
+          Your Pinterest account is your Pinshedule identity. Reconnect if your token expires.
+        </p>
+      </div>
 
-        <Input label="Email" type="email" value={email} disabled />
+      {/* Profile preferences */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+        <h2 className="font-semibold text-gray-900">Preferences</h2>
 
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1.5">Timezone</label>
@@ -110,31 +125,6 @@ export default function SettingsPage() {
             <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${notifications ? 'translate-x-5' : 'translate-x-0.5'}`} />
           </button>
         </label>
-      </div>
-
-      {/* Pinterest */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Pinterest Connection</h2>
-        {pinterestConnected ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-sm text-gray-700">Pinterest connected</span>
-            </div>
-            <div className="flex gap-2">
-              <a href="/api/auth/pinterest" className="text-xs text-[#E60023] hover:underline flex items-center gap-1">
-                <ExternalLink size={12} /> Reconnect
-              </a>
-              <button onClick={disconnectPinterest} className="text-xs text-red-500 hover:underline">
-                Disconnect
-              </button>
-            </div>
-          </div>
-        ) : (
-          <a href="/api/auth/pinterest">
-            <Button variant="outline" className="w-full">Connect Pinterest account</Button>
-          </a>
-        )}
       </div>
 
       {/* Danger zone */}
