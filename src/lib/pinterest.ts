@@ -81,10 +81,10 @@ export async function getPinterestTrendingKeywords(accessToken: string, query: s
   return data.trends ?? []
 }
 
-export function buildPinterestAuthUrl(state: string) {
+export function buildPinterestAuthUrl(state: string, appUrl: string) {
   const params = new URLSearchParams({
     client_id: process.env.PINTEREST_CLIENT_ID!,
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/pinterest/callback`,
+    redirect_uri: `${appUrl}/api/auth/pinterest/callback`,
     response_type: 'code',
     scope: 'pins:read,pins:write,boards:read,boards:write,user_accounts:read',
     state,
