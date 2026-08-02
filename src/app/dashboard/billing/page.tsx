@@ -30,9 +30,9 @@ export default async function BillingPage() {
           <h2 className="font-semibold text-gray-900">Current plan</h2>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xl font-bold text-gray-900">{planDetails.name}</p>
               <Badge variant={isFree ? 'default' : 'success'}>
                 {isFree ? 'Free' : 'Active'}
@@ -45,7 +45,7 @@ export default async function BillingPage() {
             )}
           </div>
           {!isFree && (
-            <Link href="/dashboard/upgrade">
+            <Link href="/dashboard/upgrade" className="shrink-0">
               <Button variant="outline" size="sm">Change plan</Button>
             </Link>
           )}
