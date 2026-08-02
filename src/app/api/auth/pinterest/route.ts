@@ -4,7 +4,9 @@ import { generateState } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   const state = generateState()
-  const next = new URL(request.url).searchParams.get('next') ?? '/dashboard'
+  // Validate `next` is a relative path to prevent open-redirect attacks
+  const rawNext = new URL(request.url).searchParams.get('next') ?? ''
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
   const response = NextResponse.redirect(buildPinterestAuthUrl(state))
   response.cookies.set('pinterest_oauth_state', state, {

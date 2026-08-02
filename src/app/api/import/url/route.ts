@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { monthlyUsageIncr } from '@/lib/redis'
+import { PLANS } from '@/types'
+import type { Plan } from '@/types'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -25,6 +28,31 @@ function decodeHtmlEntities(s: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
+}
+
+// Block SSRF — prevent fetching internal/private network addresses
+function isPrivateHost(rawUrl: string): boolean {
+  try {
+    const { hostname } = new URL(rawUrl)
+    const h = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true
+    // IPv6 private/link-local
+    if (h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true
+    // IPv4 private ranges
+    const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (ipv4) {
+      const [a, b] = [Number(ipv4[1]), Number(ipv4[2])]
+      if (a === 10) return true                          // 10.x.x.x
+      if (a === 172 && b >= 16 && b <= 31) return true  // 172.16–31.x.x
+      if (a === 192 && b === 168) return true            // 192.168.x.x
+      if (a === 169 && b === 254) return true            // 169.254.x.x link-local
+      if (a === 0) return true                           // 0.x.x.x
+      if (a === 127) return true                         // 127.x.x.x loopback
+    }
+    return false
+  } catch {
+    return true // unparseable URL → block
+  }
 }
 
 function extractImages(html: string, baseUrl: string): string[] {
@@ -73,6 +101,27 @@ export async function POST(request: NextRequest) {
   const url: string = body?.url?.trim()
   if (!url || !/^https?:\/\//.test(url)) {
     return NextResponse.json({ error: 'A valid URL is required' }, { status: 400 })
+  }
+  if (isPrivateHost(url)) {
+    return NextResponse.json({ error: 'That URL is not accessible' }, { status: 400 })
+  }
+
+  // Check monthly website-import limit
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('plan')
+    .eq('id', user.id)
+    .single()
+  const plan = (profile?.plan ?? 'free_trial') as Plan
+  const importLimit = PLANS[plan].website_imports
+
+  const used = await monthlyUsageIncr('imports', user.id)
+  if (used !== null && used > importLimit) {
+    return NextResponse.json({
+      error: `Monthly website import limit reached. ${PLANS[plan].name} plan: ${importLimit} imports/month.`,
+      limit: importLimit,
+      upgrade_required: plan !== 'growth',
+    }, { status: 403 })
   }
 
   // Fetch the page

@@ -101,7 +101,13 @@ export default function SchedulePage() {
 
       let imageUrl = imagePreview
       if (imageFile) {
-        const ext = imageFile.name.split('.').pop()
+        const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif']
+        const ext = imageFile.name.split('.').pop()?.toLowerCase() ?? ''
+        if (!allowedExts.includes(ext)) {
+          toast.error('Only JPG, PNG, WEBP, or GIF images are allowed')
+          setLoading(false)
+          return
+        }
         const path = `${user.id}/${Date.now()}.${ext}`
         const { error: uploadErr } = await supabase.storage
           .from('pin-images')
@@ -112,20 +118,22 @@ export default function SchedulePage() {
       }
 
       const selectedBoard = boards.find((b) => b.id === board)
-      const { error } = await supabase.from('scheduled_pins').insert({
-        user_id: user.id,
-        image_url: imageUrl,
-        title,
-        description,
-        board_id: board,
-        board_name: selectedBoard?.name,
-        destination_url: link || null,
-        // Parse the local datetime string as local time (not UTC) by appending :00
-        scheduled_at: new Date(scheduledAt).toISOString(),
-        status: 'pending',
+      const res = await fetch('/api/pins/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: imageUrl,
+          title,
+          description,
+          board_id: board,
+          board_name: selectedBoard?.name,
+          destination_url: link || null,
+          scheduled_at: new Date(scheduledAt).toISOString(),
+        }),
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Scheduling failed')
 
-      if (error) throw error
       toast.success('Pin scheduled!')
       setImageFile(null)
       setImagePreview('')

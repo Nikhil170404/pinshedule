@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { toast } from 'sonner'
@@ -104,29 +103,29 @@ export default function ImportPage() {
 
     setScheduling(true)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
-      // Get time slots for all selected images (2-hr gap each)
+      // Build pins with 2-hour gaps
       let slotTime = new Date(startTime)
+      const boardName = boards.find((b) => b.id === board)?.name
       const pins = images.map((imageUrl, i) => {
         if (i > 0) slotTime = new Date(slotTime.getTime() + 2 * 60 * 60 * 1000)
         return {
-          user_id: user.id,
           image_url: imageUrl,
           title: chosenTitle,
           description,
           board_id: board,
-          board_name: boards.find((b) => b.id === board)?.name,
+          board_name: boardName,
           destination_url: url.trim(),
           scheduled_at: slotTime.toISOString(),
-          status: 'pending',
         }
       })
 
-      const { error } = await supabase.from('scheduled_pins').insert(pins)
-      if (error) throw error
+      const res = await fetch('/api/pins/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pins),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Scheduling failed')
 
       toast.success(`${pins.length} pin${pins.length > 1 ? 's' : ''} scheduled!`)
 
