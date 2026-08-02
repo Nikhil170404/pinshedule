@@ -117,19 +117,7 @@ export async function GET(request: NextRequest) {
       throw createErr
     }
 
-    // 5. Always refresh Pinterest metadata for returning users
-    const { data: existingUser } = await serviceClient.auth.admin.getUserByEmail(internalEmail)
-    if (existingUser?.user) {
-      await serviceClient.auth.admin.updateUserById(existingUser.user.id, {
-        user_metadata: {
-          pinterest_id: pinterestId,
-          pinterest_username: pinterestUsername,
-          pinterest_avatar: pinterestAvatar,
-        },
-      })
-    }
-
-    // 6. Sign in with derived password — this writes the session cookies onto `response`
+    // 5. Sign in — this writes the session cookies onto `response` and gives us the user ID
     const { data: sessionData, error: signInErr } = await anonClient.auth.signInWithPassword({
       email: internalEmail,
       password,
@@ -140,6 +128,15 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = sessionData.user.id
+
+    // 6. Refresh Pinterest metadata (keeps avatar/username current on re-login)
+    await serviceClient.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        pinterest_id: pinterestId,
+        pinterest_username: pinterestUsername,
+        pinterest_avatar: pinterestAvatar,
+      },
+    })
 
     // 7. Upsert user_profiles — sets free_trial only on first login
     await serviceClient.from('user_profiles').upsert(
