@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { encrypt } from '@/lib/utils'
 
-// Derive a deterministic, HMAC-keyed password from the Pinterest user ID.
-// Never stored anywhere — re-derived from the server secret on every login.
 async function deriveUserPassword(pinterestId: string): Promise<string> {
   const enc = new TextEncoder()
   const key = await crypto.subtle.importKey(
@@ -35,12 +33,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appUrl}/login?error=invalid_state`)
   }
 
-  // The response we'll write session cookies onto before returning
   const response = NextResponse.redirect(`${appUrl}${next}`)
   response.cookies.delete('pinterest_oauth_state')
   response.cookies.delete('pinterest_oauth_next')
 
-  // Cookie helpers — read from request, write to our response
   const cookieOpts = {
     getAll: () => request.cookies.getAll(),
     setAll: (cs: { name: string; value: string; options?: Record<string, unknown> }[]) =>
@@ -49,17 +45,14 @@ export async function GET(request: NextRequest) {
       ),
   }
 
-  const serviceClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: cookieOpts }
-  )
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  const anonClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: cookieOpts }
-  )
+  const anonClient = createServerClient(supabaseUrl, anonKey, { cookies: cookieOpts })
+  const serviceClient = serviceKey
+    ? createServerClient(supabaseUrl, serviceKey, { cookies: cookieOpts })
+    : null
 
   try {
     // 1. Exchange Pinterest code for tokens
@@ -101,64 +94,107 @@ export async function GET(request: NextRequest) {
     const internalEmail = `p_${pinterestId}@pin.pinshedule.internal`
     const password = await deriveUserPassword(pinterestId)
 
-    // 4. Create Supabase user (idempotent — ignore "already registered" error)
-    const { error: createErr } = await serviceClient.auth.admin.createUser({
-      email: internalEmail,
-      password,
-      email_confirm: true,
-      user_metadata: {
+    // 4. Try sign in first — works immediately for returning users
+    let signInResult = await anonClient.auth.signInWithPassword({ email: internalEmail, password })
+
+    // 5. New user: create account, then sign in
+    if (signInResult.error || !signInResult.data?.user) {
+      const userMeta = {
         pinterest_id: pinterestId,
         pinterest_username: pinterestUsername,
         pinterest_avatar: pinterestAvatar,
-      },
-    })
-    if (createErr && !createErr.message.toLowerCase().includes('already')) {
-      console.error('createUser error:', createErr.message)
-      throw createErr
+      }
+
+      if (serviceClient) {
+        // Preferred: admin API confirms the email automatically
+        const { error: createErr } = await serviceClient.auth.admin.createUser({
+          email: internalEmail,
+          password,
+          email_confirm: true,
+          user_metadata: userMeta,
+        })
+        if (createErr) {
+          const msg = createErr.message.toLowerCase()
+          // Treat "already exists" variants as success (idempotent)
+          if (!msg.includes('already') && !msg.includes('email_exists') && !msg.includes('registered')) {
+            console.error('createUser error:', createErr.message)
+            throw createErr
+          }
+        }
+      } else {
+        // Fallback: requires "Email Confirmations" disabled in Supabase Auth settings
+        console.warn('SUPABASE_SERVICE_ROLE_KEY not set — falling back to signUp; ensure email confirmation is disabled in Supabase')
+        const { error: signUpErr } = await anonClient.auth.signUp({
+          email: internalEmail,
+          password,
+          options: { data: userMeta },
+        })
+        if (signUpErr) {
+          const msg = signUpErr.message.toLowerCase()
+          if (!msg.includes('already') && !msg.includes('email_exists') && !msg.includes('registered')) {
+            console.error('signUp error:', signUpErr.message)
+            throw signUpErr
+          }
+        }
+      }
+
+      // Sign in after creation
+      signInResult = await anonClient.auth.signInWithPassword({ email: internalEmail, password })
+      if (signInResult.error || !signInResult.data?.user) {
+        console.error('signInWithPassword failed after user creation:', signInResult.error?.message)
+        throw signInResult.error ?? new Error('Sign-in failed after user creation')
+      }
     }
 
-    // 5. Sign in — this writes the session cookies onto `response` and gives us the user ID
-    const { data: sessionData, error: signInErr } = await anonClient.auth.signInWithPassword({
-      email: internalEmail,
-      password,
-    })
-    if (signInErr || !sessionData?.user) {
-      console.error('signInWithPassword error:', signInErr?.message)
-      throw signInErr ?? new Error('Sign-in returned no user')
-    }
+    // Auth succeeded — session cookies are now set on `response`
+    const userId = signInResult.data.user.id
 
-    const userId = sessionData.user.id
+    // 6. Enrichment (profile, tokens) — failures are logged but never block the redirect
+    const enrich = async () => {
+      if (!serviceClient) {
+        console.warn('Skipping enrichment: SUPABASE_SERVICE_ROLE_KEY not set')
+        return
+      }
 
-    // 6. Refresh Pinterest metadata (keeps avatar/username current on re-login)
-    await serviceClient.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        pinterest_id: pinterestId,
+      await serviceClient.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          pinterest_id: pinterestId,
+          pinterest_username: pinterestUsername,
+          pinterest_avatar: pinterestAvatar,
+        },
+      })
+
+      await serviceClient
+        .from('user_profiles')
+        .upsert(
+          { id: userId, plan: 'free_trial', timezone: 'UTC', notifications_enabled: true },
+          { onConflict: 'id', ignoreDuplicates: true }
+        )
+
+      const encSecret = process.env.ENCRYPTION_SECRET
+      if (!encSecret) {
+        console.warn('ENCRYPTION_SECRET not set — Pinterest tokens not stored')
+        return
+      }
+
+      const encryptedAccess = await encrypt(tokens.access_token, encSecret)
+      const encryptedRefresh = await encrypt(tokens.refresh_token ?? '', encSecret)
+      const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 86400) * 1000).toISOString()
+
+      await serviceClient.from('pinterest_connections').upsert({
+        user_id: userId,
+        pinterest_user_id: pinterestId,
         pinterest_username: pinterestUsername,
-        pinterest_avatar: pinterestAvatar,
-      },
-    })
+        access_token: encryptedAccess,
+        refresh_token: encryptedRefresh,
+        expires_at: expiresAt,
+      }, { onConflict: 'user_id' })
+    }
 
-    // 7. Upsert user_profiles — sets free_trial only on first login
-    await serviceClient.from('user_profiles').upsert(
-      { id: userId, plan: 'free_trial', timezone: 'UTC', notifications_enabled: true },
-      { onConflict: 'id', ignoreDuplicates: true }
-    )
-
-    // 8. Upsert pinterest_connections with fresh encrypted tokens
-    const encryptedAccess = await encrypt(tokens.access_token, process.env.ENCRYPTION_SECRET!)
-    const encryptedRefresh = await encrypt(tokens.refresh_token ?? '', process.env.ENCRYPTION_SECRET!)
-    const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 86400) * 1000).toISOString()
-
-    await serviceClient.from('pinterest_connections').upsert({
-      user_id: userId,
-      pinterest_user_id: pinterestId,
-      pinterest_username: pinterestUsername,
-      access_token: encryptedAccess,
-      refresh_token: encryptedRefresh,
-      expires_at: expiresAt,
-    }, { onConflict: 'user_id' })
+    await enrich().catch(err => console.error('Enrichment error (non-fatal):', err))
 
     return response
+
   } catch (err) {
     console.error('Pinterest auth callback error:', err)
     return NextResponse.redirect(`${appUrl}/login?error=auth_failed`)
