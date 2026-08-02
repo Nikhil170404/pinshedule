@@ -4,7 +4,7 @@ const testimonials = [
     role: 'Etsy seller, Mumbai',
     avatar: 'PS',
     color: '#E60023',
-    text: 'I went from 200 to 2,400 monthly visitors in 3 months just by scheduling consistently. PinScheduleKaro made that actually possible.',
+    text: 'I went from 200 to 2,400 monthly visitors in 3 months just by scheduling consistently. Pinshedule made that actually possible.',
   },
   {
     name: 'Ananya Kapoor',
@@ -18,7 +18,7 @@ const testimonials = [
     role: 'Shopify store owner, Delhi',
     avatar: 'RM',
     color: '#059669',
-    text: 'Tailwind was ₹1,400/mo and confusing. PinScheduleKaro is ₹399/mo and I set it up in an afternoon. Simple choice.',
+    text: 'Tailwind was $24.99/mo and confusing. Pinshedule is $15/mo and I set it up in an afternoon. Simple choice.',
   },
 ]
 

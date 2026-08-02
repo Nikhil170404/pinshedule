@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { monthlyUsageIncr } from '@/lib/redis'
+import { PLANS } from '@/types'
+import type { Plan } from '@/types'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -12,6 +15,24 @@ export async function POST(request: NextRequest) {
 
   const { success } = await rateLimit('ai', user.id)
   if (!success) return rateLimitResponse()
+
+  // Check monthly AI generation limit
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('plan')
+    .eq('id', user.id)
+    .single()
+  const plan = (profile?.plan ?? 'free_trial') as Plan
+  const aiLimit = PLANS[plan].ai_generations
+
+  const used = await monthlyUsageIncr('ai', user.id)
+  if (used !== null && used > aiLimit) {
+    return NextResponse.json({
+      error: `Monthly AI generation limit reached. ${PLANS[plan].name} plan: ${aiLimit} generations/month.`,
+      limit: aiLimit,
+      upgrade_required: plan !== 'growth',
+    }, { status: 403 })
+  }
 
   const { topic } = await request.json()
   if (!topic?.trim()) return NextResponse.json({ error: 'topic is required' }, { status: 400 })

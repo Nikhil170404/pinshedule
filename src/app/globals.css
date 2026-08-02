@@ -13,27 +13,106 @@
 
 * {
   box-sizing: border-box;
+  /* Remove iOS blue tap flash on tappable elements */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
+  /* iOS Safari: allow safe-area env() values to work (viewport-fit=cover is set in layout.tsx) */
+  height: -webkit-fill-available;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent text size adjust on orientation change (iOS) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   background: #ffffff;
   color: #111111;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* iOS: expand body to fill available height so fixed bottom bar clears the home indicator */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
 }
 
-/* Scrollbar */
+/* ─── Inputs & form controls ──────────────────────────────────────────────── */
+/*
+  iOS Safari renders OS-native chrome on inputs/selects/buttons unless we reset.
+  Also: font-size must be ≥ 16px or iOS auto-zooms the viewport on focus.
+*/
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  /* 16px prevents iOS auto-zoom; visually we still use text-sm via Tailwind,
+     but the browser sees ≥16px so it won't zoom */
+  font-size: max(16px, 1em);
+  border-radius: 0; /* iOS rounds corners on its own — we reset and re-apply */
+}
+
+/* Restore number input arrows on desktop */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: auto;
+}
+
+/* iOS date/time inputs — show the native picker but strip the OS box shadow */
+input[type='date'],
+input[type='datetime-local'],
+input[type='time'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 44px; /* iOS HIG minimum touch target */
+}
+
+/* Select arrow — iOS hides the native arrow when appearance:none, we draw our own via ChevronDown icon */
+select {
+  background-image: none;
+}
+
+/* ─── Touch interactions ──────────────────────────────────────────────────── */
+button,
+a,
+[role='button'] {
+  /* Remove 300 ms click delay on iOS < 13 */
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+/* ─── Overflow + rounded corners ─────────────────────────────────────────── */
+/*
+  Safari bug: overflow:hidden doesn't clip children on rounded containers.
+  Fix: force GPU compositing with transform or isolate.
+*/
+.rounded-2xl,
+.rounded-xl {
+  /* Promote to compositing layer so overflow:hidden clips correctly on WebKit */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Additionally, isolation:isolate creates a new stacking context */
+  isolation: isolate;
+}
+
+/* ─── Scrollable areas ────────────────────────────────────────────────────── */
+/* Momentum (inertia) scrolling on iOS */
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ─── Scrollbar (WebKit/Blink) ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #c0c0c0; }
 
-/* Animations */
+/* ─── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -59,9 +138,9 @@ body {
   100% { background-position: 200% 0; }
 }
 
-.animate-fade-in     { animation: fade-in 0.5s ease forwards; }
-.animate-fade-in-up  { animation: fade-in-up 0.6s ease forwards; }
-.animate-slide-left  { animation: slide-in-left 0.4s ease forwards; }
+.animate-fade-in     { animation: fade-in 0.5s ease both; }
+.animate-fade-in-up  { animation: fade-in-up 0.6s ease both; }
+.animate-slide-left  { animation: slide-in-left 0.4s ease both; }
 .animate-float       { animation: float 3s ease-in-out infinite; }
 
 .delay-100 { animation-delay: 0.1s; }
@@ -70,25 +149,49 @@ body {
 .delay-400 { animation-delay: 0.4s; }
 .delay-500 { animation-delay: 0.5s; }
 
-/* Skeleton loader */
+/* ─── Skeleton loader ────────────────────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Glass card */
+/* ─── Mobile safe area (notched iPhones, Dynamic Island) ─────────────────── */
+/*
+  env(safe-area-inset-bottom) only returns a non-zero value when the viewport
+  meta includes viewport-fit=cover (set via the `viewport` export in layout.tsx).
+*/
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-area-pl {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-area-pr {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ─── Glass card ─────────────────────────────────────────────────────────── */
 .glass {
   background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
-/* Red gradient text */
+/* ─── Gradient text ──────────────────────────────────────────────────────── */
 .gradient-text {
   background: linear-gradient(135deg, #E60023, #ff4d6d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ─── Flex gap fallback for iOS Safari < 14.5 ───────────────────────────── */
+/*
+  Safari 14.0 and below don't support gap in flex containers.
+  We use Tailwind's gap-* classes which output `gap` directly.
+  As a fallback for very old iOS, critical UI uses space-* or margin instead.
+  Modern Safari (14.5+, iOS 14.5+ released Apr 2021) fully supports flex gap,
+  so this only affects devices not updated since 2021.
+*/

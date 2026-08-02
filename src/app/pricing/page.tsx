@@ -5,8 +5,8 @@ import { FAQ } from '@/components/landing/FAQ'
 import { CTA } from '@/components/landing/CTA'
 
 export const metadata = {
-  title: 'Pricing — PinScheduleKaro',
-  description: 'Start free for 14 days. Then from ₹399/mo. No credit card required.',
+  title: 'Pricing — Pinshedule',
+  description: 'Free plan forever. Paid plans from $15/mo. The most affordable way to automate Pinterest traffic from your website.',
 }
 
 export default function PricingPage() {
@@ -19,7 +19,7 @@ export default function PricingPage() {
             Pricing that makes sense
           </h1>
           <p className="text-xl text-gray-500 max-w-xl mx-auto">
-            Start free for 14 days, no credit card. Then pick the plan that fits your growth.
+            Free plan forever. Upgrade when you need more pins, more accounts, or more automation.
           </p>
         </div>
         <PricingSection />

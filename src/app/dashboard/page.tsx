@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, formatNumber } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
+import { ClientTime } from '@/components/ui/ClientTime'
 import { Calendar, Image, BarChart3, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -122,7 +123,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{pin.title || 'Untitled pin'}</p>
-                  <p className="text-xs text-gray-500">{formatDate(pin.scheduled_at, { hour: '2-digit', minute: '2-digit' })}</p>
+                  <ClientTime iso={pin.scheduled_at} options={{ month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }} className="text-xs text-gray-500" />
                 </div>
                 <Badge variant={pin.status === 'published' ? 'success' : pin.status === 'failed' ? 'danger' : 'default'}>
                   {pin.status}
