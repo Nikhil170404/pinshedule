@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 
 const bullets = [
-  'No credit card required',
-  '14-day free trial',
+  'Free plan — no credit card',
+  'Start in 5 minutes',
   'Cancel anytime',
 ]
 
@@ -25,18 +25,17 @@ export function Hero() {
           <div className="animate-fade-in-up">
             <div className="inline-flex items-center gap-2 bg-red-50 text-[#E60023] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-[#E60023] animate-pulse" />
-              Trusted by 1,000+ creators worldwide
+              Pinterest automation — not another social media tool
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-[1.1] tracking-tight mb-5">
-              Schedule Pinterest
-              <span className="block gradient-text">Pins in Seconds</span>
+              Turn your website into
+              <span className="block gradient-text">Pinterest traffic</span>
             </h1>
 
             <p className="text-lg md:text-xl text-gray-600 leading-relaxed mb-8 max-w-lg">
-              AI captions. Bulk upload. Real analytics.{' '}
-              <strong className="text-gray-800">All for ₹399/mo.</strong>{' '}
-              Grow your Pinterest while you sleep.
+              Paste a URL. We extract your images, write Pinterest-optimized titles and descriptions, and schedule pins automatically.{' '}
+              <strong className="text-gray-800">Starting at $15/mo.</strong>
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -102,7 +101,7 @@ export function Hero() {
                     ))}
                   </div>
                   <div className="flex-1 mx-3 bg-gray-200 rounded-md px-3 py-1 text-[10px] text-gray-400">
-                    pinschedulekaro.com/dashboard
+                    pinshedule.com/dashboard
                   </div>
                 </div>
 

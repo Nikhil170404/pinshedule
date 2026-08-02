@@ -7,15 +7,15 @@ import { cn } from '@/lib/utils'
 const faqs = [
   {
     q: 'Is it safe to connect my Pinterest account?',
-    a: 'Yes. We use Pinterest\'s official OAuth API. We never see your Pinterest password. You can revoke access anytime from Pinterest settings. Your account is always safe.',
+    a: 'Yes. We use Pinterest\'s official OAuth API. We never see your Pinterest password. You can revoke access anytime from Pinterest settings.',
   },
   {
     q: 'Will my account get banned for using this?',
-    a: 'No. We follow Pinterest\'s developer guidelines and terms of service. Every pin you schedule is one you personally chose — we never auto-generate unsolicited content. Pinterest approves tools exactly like ours.',
+    a: 'No. We follow Pinterest\'s developer guidelines and terms of service. Every pin you schedule is one you personally chose — we never auto-generate unsolicited content.',
   },
   {
     q: 'Do I need a credit card to start?',
-    a: 'No. Your 14-day free trial starts immediately with no card needed. You get 20 scheduled pins to test everything.',
+    a: 'No. The Free plan is permanently free — 1 account, 100 pins/month, and 20 AI generations. No card ever required to use it.',
   },
   {
     q: 'What happens when I hit my pin limit?',
@@ -27,11 +27,19 @@ const faqs = [
   },
   {
     q: 'Is there a refund policy?',
-    a: 'Monthly plans: cancel before renewal to avoid the next charge. Yearly plans: full refund within 7 days if you\'ve scheduled fewer than 50 pins. After that, no refund but you keep access until the year ends.',
+    a: 'Monthly plans: cancel before renewal to avoid the next charge. Yearly plans: full refund within 7 days if you\'ve scheduled fewer than 50 pins.',
   },
   {
     q: 'Do you support multiple Pinterest accounts?',
-    a: 'Yes. Starter and Free plans support 1 account. Pro supports 3 accounts. Growth supports 10.',
+    a: 'Yes. Free and Starter support 1 account. Pro supports 5 accounts. Agency supports 20. You can also add extra accounts as an add-on ($5/mo each).',
+  },
+  {
+    q: 'What is Website → Pins?',
+    a: 'Paste any URL from your website — a blog post, product page, or landing page. We extract the images, title, and content, then AI writes Pinterest-optimized titles, descriptions, keywords, and hashtags. One click to schedule all the pins.',
+  },
+  {
+    q: 'How does the Sitemap import work?',
+    a: 'On Pro and Agency, you can submit your sitemap URL. We import all your pages and automatically spread pins across weeks or months so your schedule stays full without daily effort.',
   },
 ]
 

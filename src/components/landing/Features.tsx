@@ -1,47 +1,47 @@
 'use client'
 
-import { Calendar, Sparkles, BarChart3, Upload, Clock, Smartphone } from 'lucide-react'
+import { Calendar, Globe, Sparkles, Palette, BarChart3, Upload } from 'lucide-react'
 
 const features = [
   {
     icon: Calendar,
-    title: 'Schedule pins in advance',
-    desc: 'Plan your content weeks ahead. Set the exact date and time for every pin.',
+    title: 'Scheduler',
+    desc: 'Calendar, drag & drop, queue, auto-retry, bulk scheduling, best posting times, and multi-board support.',
     color: '#E60023',
     bg: '#fff0f2',
   },
   {
-    icon: Sparkles,
-    title: 'AI-generated captions',
-    desc: 'Describe your pin, get 3 SEO-optimized captions with hashtags instantly.',
+    icon: Globe,
+    title: 'Website → Pins',
+    desc: 'Paste any URL. We extract images, titles, and products — then AI writes your pin copy and schedules it in one click.',
     color: '#7C3AED',
     bg: '#f5f3ff',
   },
   {
-    icon: BarChart3,
-    title: 'Real analytics',
-    desc: 'Track clicks, saves, and impressions. Know which pins actually drive traffic.',
+    icon: Sparkles,
+    title: 'Pinterest AI',
+    desc: 'SEO titles, descriptions, keywords, hashtags, and ALT text. Helpful suggestions — not AI that takes over.',
     color: '#059669',
     bg: '#ecfdf5',
   },
   {
-    icon: Upload,
-    title: 'Bulk CSV upload',
-    desc: 'Schedule 50–500 pins at once. Upload a spreadsheet, review, done.',
+    icon: Palette,
+    title: 'Design',
+    desc: 'Resize to Pinterest format, templates, logo and watermark, brand colors, and font presets.',
     color: '#D97706',
     bg: '#fffbeb',
   },
   {
-    icon: Clock,
-    title: 'Pinterest keyword tool',
-    desc: 'Find trending Pinterest keywords for your niche. Add them in one click.',
+    icon: BarChart3,
+    title: 'Analytics',
+    desc: 'Track published and failed pins, queue status, clicks, best-performing boards, and growth trends.',
     color: '#2563EB',
     bg: '#eff6ff',
   },
   {
-    icon: Smartphone,
-    title: 'Works on all devices',
-    desc: 'Full-featured on mobile, tablet, and desktop. No app download required.',
+    icon: Upload,
+    title: 'Imports',
+    desc: 'CSV, Excel, ZIP, website URLs, sitemap, Shopify, WooCommerce, and WordPress — bring your content from anywhere.',
     color: '#0891B2',
     bg: '#ecfeff',
   },
