@@ -4,14 +4,14 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
 export const metadata = {
-  title: 'Blog — PinScheduleKaro',
+  title: 'Blog — Pinshedule',
   description: 'Pinterest tips, tutorials, and strategies for creators, bloggers, and Etsy sellers.',
 }
 
 const posts = [
   {
-    slug: 'tailwind-vs-pinschedulekaro',
-    title: 'Tailwind vs PinScheduleKaro: Honest Comparison 2026',
+    slug: 'tailwind-vs-pinshedule',
+    title: 'Tailwind vs Pinshedule: Honest Comparison 2026',
     excerpt: 'We compared every feature head-to-head. Here\'s what we found — and why we built this.',
     category: 'Comparison',
     readTime: '5 min read',

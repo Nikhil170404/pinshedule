@@ -2,7 +2,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 
 export const metadata = {
-  title: 'Privacy Policy — PinScheduleKaro',
+  title: 'Privacy Policy — Pinshedule',
 }
 
 export default function PrivacyPage() {
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Your rights</h2>
               <ul className="space-y-2 list-disc pl-5">
-                <li>Access your data: Email privacy@pinschedulekaro.com</li>
+                <li>Access your data: Email privacy@pinshedule.com</li>
                 <li>Delete your account: Settings → Delete Account (removes all your data within 30 days)</li>
                 <li>Export your data: Settings → Export Data</li>
               </ul>
@@ -84,8 +84,8 @@ export default function PrivacyPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Contact</h2>
               <p>
                 Questions? Email us at{' '}
-                <a href="mailto:privacy@pinschedulekaro.com" className="text-[#E60023] hover:underline">
-                  privacy@pinschedulekaro.com
+                <a href="mailto:privacy@pinshedule.com" className="text-[#E60023] hover:underline">
+                  privacy@pinshedule.com
                 </a>
               </p>
             </section>

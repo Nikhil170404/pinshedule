@@ -42,7 +42,7 @@ export function Navbar() {
             </svg>
           </div>
           <span className="font-semibold text-gray-900 text-[15px] tracking-tight">
-            PinScheduleKaro
+            Pinshedule
           </span>
         </Link>
 

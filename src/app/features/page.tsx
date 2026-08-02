@@ -4,64 +4,88 @@ import { Features } from '@/components/landing/Features'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { CTA } from '@/components/landing/CTA'
 import {
-  Sparkles, Calendar, BarChart3, Upload, Clock,
-  FileSpreadsheet, Bell, Shield
+  Calendar, Globe, Sparkles, Palette, BarChart3, Upload,
+  Link2, Map, FileSpreadsheet, Shield
 } from 'lucide-react'
 
 export const metadata = {
-  title: 'Features — PinScheduleKaro',
-  description: 'Everything you need to grow on Pinterest: AI captions, bulk upload, real analytics, and more.',
+  title: 'Features — Pinshedule',
+  description: 'Scheduler, Website → Pins, AI, design, analytics, and imports. Everything built specifically for Pinterest.',
 }
 
 const deepFeatures = [
   {
     icon: Calendar,
-    title: 'Smart Scheduling',
+    title: 'Scheduler',
     points: [
-      'Schedule pins to any board, any date and time',
-      'Visual calendar view — see your whole month at a glance',
-      'Edit or delete scheduled pins before they publish',
-      'Best time recommendations based on your audience (Pro+)',
+      'Drag & drop visual calendar — see your whole month at a glance',
+      'Queue mode: pins auto-fill your next available slot',
+      'Auto-retry failed pins so nothing falls through the cracks',
+      'Bulk schedule: upload a spreadsheet and schedule hundreds at once',
+      'Best posting time recommendations based on your audience',
+      'Pin to multiple boards in one action',
+      'Drafts so nothing is lost before it\'s ready',
+    ],
+  },
+  {
+    icon: Globe,
+    title: 'Website → Pins',
+    points: [
+      'Paste any URL — blog post, product page, or landing page',
+      'Auto-extracts title, images, and product details',
+      'AI writes multiple Pinterest-optimized title options',
+      'AI generates descriptions, keywords, and hashtags',
+      'Schedule all extracted pins in one click',
+      'Sitemap import: import all your pages at once (Pro+)',
+      'Auto-spread pins over weeks or months from your sitemap',
     ],
   },
   {
     icon: Sparkles,
-    title: 'AI Caption Generator',
+    title: 'Pinterest AI',
     points: [
-      'Describe your image → get 3 caption options instantly',
-      'Each caption is 150-200 chars with relevant hashtags',
-      'Built with Claude Haiku — the best AI for short creative copy',
-      'Edit any suggestion before using it',
+      'SEO-optimized titles written for Pinterest search',
+      'Descriptions that match Pinterest\'s algorithm preferences',
+      'Keyword and hashtag suggestions for your niche',
+      'ALT text generation for accessibility and SEO',
+      'Duplicate checker so you never repost the same pin',
+      'Rewrite tool to refresh existing copy',
+      'Seasonal suggestions and board recommendations',
+    ],
+  },
+  {
+    icon: Palette,
+    title: 'Design',
+    points: [
+      'Resize any image to the ideal Pinterest format (2:3)',
+      'Ready-made templates for products, quotes, and blog pins',
+      'Add your logo or watermark automatically',
+      'Brand kit: save your colors and font presets (Pro+)',
+      'Chrome extension to grab images from any website (Pro+)',
     ],
   },
   {
     icon: BarChart3,
-    title: 'Analytics Dashboard',
+    title: 'Analytics',
     points: [
-      'Track impressions, saves, and link clicks per pin',
-      '7-day and 30-day trend charts',
-      'See your best performing pins at a glance',
-      'Export analytics to PDF (Growth plan)',
+      'Track published and failed pins in one dashboard',
+      'Live queue status so you always know what\'s next',
+      'Click data where available via Pinterest API',
+      'Best-performing boards ranked by engagement',
+      'Growth trends over time',
+      'Advanced analytics with breakdowns (Pro & Agency)',
     ],
   },
   {
-    icon: FileSpreadsheet,
-    title: 'Bulk CSV Upload',
+    icon: Upload,
+    title: 'Imports',
     points: [
-      'Download our template, fill it in with your pins',
-      'Upload one CSV to schedule 50–500 pins at once',
-      'Preview all pins before confirming — full control',
-      'Available on Pro (50 pins) and Growth (500 pins)',
-    ],
-  },
-  {
-    icon: Clock,
-    title: 'Keyword Tool',
-    points: [
-      'Enter your niche → see trending Pinterest keywords',
-      'Relative popularity score for each keyword',
-      'Click any keyword to add it to your caption instantly',
-      'Updated monthly from Pinterest Trends API',
+      'CSV — download our template, fill in your pins, upload',
+      'Excel — same flow, .xlsx supported',
+      'ZIP — upload a folder of images with a manifest',
+      'Website URL — paste a page and extract automatically',
+      'Sitemap — import your whole site at once (Pro+)',
+      'Shopify, WooCommerce, and WordPress integrations',
     ],
   },
   {

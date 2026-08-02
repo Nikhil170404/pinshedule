@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getPinterestBoards } from '@/lib/pinterest'
 import { decrypt } from '@/lib/utils'
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { cacheGet, cacheSet } from '@/lib/redis'
+
+const CACHE_TTL = 5 * 60 // 5 minutes
 
 export async function GET() {
   const supabase = await createClient()
@@ -11,6 +14,10 @@ export async function GET() {
 
   const { success } = await rateLimit('pinterest', user.id)
   if (!success) return rateLimitResponse()
+
+  const cacheKey = `boards:${user.id}`
+  const cached = await cacheGet<{ id: string; name: string }[]>(cacheKey)
+  if (cached) return NextResponse.json({ boards: cached })
 
   const { data: connection } = await supabase
     .from('pinterest_connections')
@@ -29,6 +36,8 @@ export async function GET() {
   }
 
   const boards = await getPinterestBoards(accessToken)
+
+  await cacheSet(cacheKey, boards, CACHE_TTL)
 
   return NextResponse.json({ boards })
 }
