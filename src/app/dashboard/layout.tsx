@@ -14,11 +14,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         ml-14 on tablet (icon sidebar), ml-56 on desktop (full sidebar).
         pb accounts for the mobile tab bar (≈64px) + iOS home indicator via safe area.
       */}
-      <main
-        className="ml-14 lg:ml-56 min-h-screen md:pb-6"
-        style={{ paddingBottom: 'max(80px, calc(64px + env(safe-area-inset-bottom, 0px)))' }}
-      >
-        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 md:pb-0">
+      <main className="md:ml-14 lg:ml-56 min-h-screen">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 pb-28 md:pb-8">
           {children}
         </div>
       </main>

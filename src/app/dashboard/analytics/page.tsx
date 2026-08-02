@@ -100,15 +100,22 @@ export default async function AnalyticsPage() {
           <div className="px-5 py-4 border-b border-gray-50">
             <h2 className="font-semibold text-gray-900 text-sm">Recent snapshots</h2>
           </div>
+          {/* Header row */}
+          <div className="grid grid-cols-4 gap-2 px-5 py-2 bg-gray-50/60 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+            <span>Date</span>
+            <span>Impressions</span>
+            <span>Saves</span>
+            <span>Clicks</span>
+          </div>
           <div className="divide-y divide-gray-50">
             {snapshots.slice(0, 10).map((s) => (
-              <div key={s.id} className="grid grid-cols-4 gap-4 px-5 py-3 text-sm">
-                <span className="text-gray-500">
+              <div key={s.id} className="grid grid-cols-4 gap-2 px-5 py-3 text-sm">
+                <span className="text-gray-500 text-xs sm:text-sm">
                   {new Date(s.snapshot_date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
                 </span>
-                <span className="text-gray-900 font-medium">{formatNumber(s.impressions ?? 0)}</span>
-                <span className="text-green-600">{formatNumber(s.saves ?? 0)}</span>
-                <span className="text-orange-600">{formatNumber(s.clicks ?? 0)}</span>
+                <span className="text-gray-900 font-medium text-xs sm:text-sm">{formatNumber(s.impressions ?? 0)}</span>
+                <span className="text-green-600 text-xs sm:text-sm">{formatNumber(s.saves ?? 0)}</span>
+                <span className="text-orange-600 text-xs sm:text-sm">{formatNumber(s.clicks ?? 0)}</span>
               </div>
             ))}
           </div>

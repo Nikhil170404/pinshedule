@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { formatNumber } from '@/lib/utils'
 import { ClientTime } from '@/components/ui/ClientTime'
-import { Calendar, Image, BarChart3, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { Calendar, Image, BarChart3, AlertCircle, CheckCircle2, Clock, Sparkles, Search } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -41,12 +41,12 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">Welcome back — here&apos;s your Pinterest overview</p>
         </div>
-        <Link href="/dashboard/schedule">
+        <Link href="/dashboard/schedule" className="shrink-0">
           <Button size="md">
             <Image size={15} />
             Schedule pin
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
 
       {/* Pinterest connect banner */}
       {!connected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between gap-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <AlertCircle size={20} className="text-amber-600 mt-0.5 shrink-0" />
             <div>
@@ -66,8 +66,8 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <Link href="/api/auth/pinterest">
-            <Button size="sm" className="shrink-0">Connect Pinterest</Button>
+          <Link href="/api/auth/pinterest" className="shrink-0">
+            <Button size="sm">Connect Pinterest</Button>
           </Link>
         </div>
       )}
@@ -137,16 +137,18 @@ export default async function DashboardPage() {
       {/* Quick links */}
       <div className="grid sm:grid-cols-3 gap-4">
         {[
-          { href: '/dashboard/ai-caption', label: 'Generate AI captions', icon: '✨', desc: 'Write 3 options in seconds' },
-          { href: '/dashboard/keywords', label: 'Find keywords', icon: '🔍', desc: 'Pinterest trending keywords' },
-          { href: '/dashboard/calendar', label: 'View calendar', icon: '📅', desc: 'See all scheduled pins' },
-        ].map(({ href, label, icon, desc }) => (
+          { href: '/dashboard/ai-caption', label: 'Generate AI captions', icon: Sparkles, desc: 'Write 3 options in seconds' },
+          { href: '/dashboard/keywords', label: 'Find keywords', icon: Search, desc: 'Pinterest trending keywords' },
+          { href: '/dashboard/calendar', label: 'View calendar', icon: Calendar, desc: 'See all scheduled pins' },
+        ].map(({ href, label, icon: Icon, desc }) => (
           <Link
             key={href}
             href={href}
             className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"
           >
-            <p className="text-2xl mb-2">{icon}</p>
+            <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center mb-3 group-hover:bg-red-50 transition-colors">
+              <Icon size={17} className="text-gray-500 group-hover:text-[#E60023] transition-colors" />
+            </div>
             <p className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-[#E60023] transition-colors">{label}</p>
             <p className="text-xs text-gray-500">{desc}</p>
           </Link>

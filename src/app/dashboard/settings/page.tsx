@@ -55,26 +55,26 @@ export default function SettingsPage() {
       {/* Pinterest identity */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
         <h2 className="font-semibold text-gray-900">Pinterest Account</h2>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
             {pinterestAvatar ? (
-              <img src={pinterestAvatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+              <img src={pinterestAvatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-[#E60023] flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-10 h-10 rounded-full bg-[#E60023] flex items-center justify-center text-white font-bold text-sm shrink-0">
                 {pinterestUsername.slice(0, 1).toUpperCase()}
               </div>
             )}
-            <div>
-              <p className="text-sm font-medium text-gray-900">@{pinterestUsername}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">@{pinterestUsername}</p>
               <div className="flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
                 <p className="text-xs text-gray-500">Connected</p>
               </div>
             </div>
           </div>
           <a
             href="/api/auth/pinterest?next=/dashboard/settings"
-            className="flex items-center gap-1.5 text-xs text-[#E60023] hover:underline"
+            className="flex items-center gap-1.5 text-xs text-[#E60023] hover:underline shrink-0 min-h-[44px]"
           >
             <RefreshCw size={11} />
             Reconnect
