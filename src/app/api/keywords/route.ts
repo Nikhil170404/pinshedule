@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getPinterestTrendingKeywords } from '@/lib/pinterest'
 import { decrypt } from '@/lib/utils'
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { cacheGet, cacheSet } from '@/lib/redis'
+
+const CACHE_TTL = 60 * 60 // 1 hour — keywords change slowly
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -12,8 +15,12 @@ export async function GET(request: NextRequest) {
   const { success } = await rateLimit('pinterest', user.id)
   if (!success) return rateLimitResponse()
 
-  const q = request.nextUrl.searchParams.get('q')
+  const q = request.nextUrl.searchParams.get('q')?.trim().toLowerCase()
   if (!q) return NextResponse.json({ error: 'q is required' }, { status: 400 })
+
+  const cacheKey = `kw:${q}`
+  const cached = await cacheGet<unknown[]>(cacheKey)
+  if (cached) return NextResponse.json({ keywords: cached })
 
   const { data: connection } = await supabase
     .from('pinterest_connections')
@@ -32,6 +39,8 @@ export async function GET(request: NextRequest) {
   }
 
   const keywords = await getPinterestTrendingKeywords(accessToken, q)
+
+  await cacheSet(cacheKey, keywords, CACHE_TTL)
 
   return NextResponse.json({ keywords })
 }

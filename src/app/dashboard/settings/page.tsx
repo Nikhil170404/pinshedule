@@ -151,7 +151,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={() => {
             if (confirm('Are you sure? This will permanently delete your account.')) {
-              toast.error('Contact support@pinschedulekaro.com to delete your account.')
+              toast.error('Contact support@pinshedule.com to delete your account.')
             }
           }}
         >

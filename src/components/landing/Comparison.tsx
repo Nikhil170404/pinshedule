@@ -5,7 +5,7 @@ const rows = [
   { feature: 'AI captions included', us: true, tailwind: 'credits', buffer: false },
   { feature: 'Bulk upload', us: true, tailwind: true, buffer: false },
   { feature: 'Keyword tool', us: true, tailwind: false, buffer: false },
-  { feature: 'Starting price (INR)', us: '₹399/mo', tailwind: '₹1,499/mo', buffer: '₹499/channel' },
+  { feature: 'Starting price', us: '$15/mo', tailwind: '$24.99/mo', buffer: '$18/channel' },
   { feature: 'Credit system', us: false, tailwind: true, buffer: false },
   { feature: 'Free trial (no card)', us: true, tailwind: false, buffer: false },
 ]
@@ -27,7 +27,7 @@ export function Comparison() {
             Simpler and cheaper — always
           </h2>
           <p className="text-gray-500">
-            We built PinScheduleKaro because Tailwind is expensive and confusing, and Buffer isn't really for Pinterest.
+            We built Pinshedule because Tailwind is expensive and confusing, and Buffer isn't really for Pinterest.
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export function Comparison() {
                 <th className="px-4 py-4 text-center w-[18%]">
                   <div className="inline-flex flex-col items-center gap-1">
                     <div className="bg-[#E60023] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">Us</div>
-                    <span className="text-xs text-gray-500">PinScheduleKaro</span>
+                    <span className="text-xs text-gray-500">Pinshedule</span>
                   </div>
                 </th>
                 <th className="px-4 py-4 text-center text-sm font-medium text-gray-500 w-[18%]">Tailwind</th>

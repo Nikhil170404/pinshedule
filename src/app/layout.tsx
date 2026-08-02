@@ -7,16 +7,16 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'PinScheduleKaro — Schedule Pinterest Pins in Seconds',
+  title: 'Pinshedule — Turn Your Website into Pinterest Traffic',
   description:
-    'AI captions. Bulk upload. Real analytics. Schedule Pinterest pins automatically. Simpler than Tailwind, cheaper than Buffer.',
+    'The fastest and most affordable Pinterest automation. Paste a URL, get AI-optimized pins, schedule automatically. From $15/mo.',
   keywords:
-    'pinterest scheduler, schedule pinterest pins, pinterest automation, ai caption generator, bulk pin scheduler',
+    'pinterest scheduler, pinterest automation, website to pins, bulk pin scheduler, ai pinterest captions',
   openGraph: {
-    title: 'PinScheduleKaro — Schedule Pinterest Pins in Seconds',
-    description: 'AI captions. Bulk upload. Real analytics. All for ₹399/mo.',
+    title: 'Pinshedule — Turn Your Website into Pinterest Traffic',
+    description: 'Paste a URL, get pins. The fastest and most affordable Pinterest automation. Starting at $15/mo.',
     type: 'website',
-    url: 'https://pinschedulekaro.com',
+    url: 'https://pinshedule.com',
   },
 }
 
