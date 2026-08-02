@@ -134,15 +134,19 @@ export function MobileTabBar() {
         />
       )}
 
-      {/* More drawer — slides up from above the tab bar */}
+      {/* More drawer — standard bottom sheet, slides up over tab bar */}
       <div
         className={cn(
-          'md:hidden fixed inset-x-0 z-50 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out',
+          'md:hidden fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out overflow-hidden',
           moreOpen ? 'translate-y-0' : 'translate-y-full'
         )}
-        style={{ bottom: 'calc(56px + max(env(safe-area-inset-bottom, 0px), 4px))' }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
           <p className="font-semibold text-gray-900">Menu</p>
           <button
             onClick={() => setMoreOpen(false)}
@@ -162,21 +166,21 @@ export function MobileTabBar() {
                 href={href}
                 onClick={() => setMoreOpen(false)}
                 className={cn(
-                  'flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl text-center min-h-[72px] justify-center',
-                  active ? 'bg-red-50 text-[#E60023]' : 'text-gray-500 hover:bg-gray-50'
+                  'flex flex-col items-center gap-1.5 py-4 px-1 rounded-2xl text-center',
+                  active ? 'bg-red-50 text-[#E60023]' : 'text-gray-500 active:bg-gray-100'
                 )}
               >
-                <Icon size={20} />
+                <Icon size={22} />
                 <span className="text-[10px] font-medium leading-tight">{label}</span>
               </Link>
             )
           })}
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="px-4 pt-1" style={{ paddingBottom: 'max(20px, calc(12px + env(safe-area-inset-bottom, 0px)))' }}>
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 min-h-[48px] rounded-2xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+            className="w-full flex items-center justify-center gap-2 min-h-[48px] rounded-2xl text-sm font-semibold text-red-600 bg-red-50 active:bg-red-100 transition-colors"
           >
             <LogOut size={17} />
             Log out
