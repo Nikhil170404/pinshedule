@@ -1,12 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { CheckCircle2, Clock } from 'lucide-react'
 import { buttonStyles } from '@/components/ui/button-styles'
+import { examplePins } from './example-pins'
 
-const sample = [
-  { title: 'Small kitchen storage ideas', time: 'Today, 8:15 PM', status: 'Scheduled', done: false },
-  { title: 'Easy weeknight pasta recipes', time: 'Tomorrow, 2:19 PM', status: 'Scheduled', done: false },
-  { title: 'Cozy reading nook on a budget', time: 'Yesterday, 8:02 PM', status: 'Published', done: true },
-]
+const sample = examplePins.slice(0, 3)
 
 export function Hero() {
   return (
@@ -33,13 +31,13 @@ export function Hero() {
         <div className="divide-y divide-line rounded-xl border border-line">
           {sample.map((s) => (
             <div key={s.title} className="flex items-center gap-3 p-3">
-              <div className="h-14 w-10 shrink-0 rounded-md bg-gradient-to-b from-stone-200 to-stone-300" />
+              <Image src={s.src} alt="" width={80} height={120} className="h-14 w-10 shrink-0 rounded-md border border-line object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-ink">{s.title}</p>
                 <p className="mt-0.5 text-xs text-muted">{s.time}</p>
               </div>
               <span className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${s.done ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>
-                {s.done ? <CheckCircle2 size={12} /> : <Clock size={12} />}{s.status}
+                {s.done ? <CheckCircle2 size={12} /> : <Clock size={12} />}{s.done ? 'Published' : 'Scheduled'}
               </span>
             </div>
           ))}

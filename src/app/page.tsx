@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { Hero } from '@/components/landing/Hero'
+import { PinGallery } from '@/components/landing/PinGallery'
 import { Features } from '@/components/landing/Features'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { PricingSection } from '@/components/landing/PricingSection'
@@ -34,6 +35,7 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <PinGallery />
         <Features />
         <HowItWorks />
         <PricingSection />
