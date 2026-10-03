@@ -48,7 +48,7 @@ export default function OverviewPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <section className="lg:col-span-3">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Up next</h2>
@@ -73,7 +73,7 @@ export default function OverviewPage() {
         </section>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           { href: '/dashboard/import', icon: Globe, title: 'Import from a website', text: 'Turn a blog post or product page into pins.' },
           { href: '/dashboard/bulk', icon: Layers, title: 'Bulk schedule', text: 'Upload images or a CSV and spread them over days.' },

@@ -24,7 +24,7 @@ export function PlanCards({ cycle, current, renderCta, highlight = 'pro' }: {
   highlight?: Plan
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {ORDER.map((id) => {
         const p = PLANS[id]
         const price = monthlyEquivalent(p, cycle)

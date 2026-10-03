@@ -5,8 +5,15 @@ function isPrivateIp(ip: string): boolean {
   if (ip.includes(':')) {
     const l = ip.toLowerCase()
     if (l === '::1' || l === '::' || l.startsWith('fe80') || l.startsWith('fc') || l.startsWith('fd')) return true
-    const mapped = l.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-    return mapped ? isPrivateIp(mapped[1]) : false
+    const dotted = l.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+    if (dotted) return isPrivateIp(dotted[1])
+    // URL parsing normalises IPv4-mapped addresses to hex groups (::ffff:7f00:1)
+    const hex = l.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+    if (hex) {
+      const hi = parseInt(hex[1], 16), lo = parseInt(hex[2], 16)
+      return isPrivateIp(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`)
+    }
+    return false
   }
   const [a, b] = ip.split('.').map(Number)
   return (

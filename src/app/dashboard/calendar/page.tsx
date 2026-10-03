@@ -42,7 +42,7 @@ export default function CalendarPage() {
   return (
     <div>
       <PageHeader title="Calendar" description="Tap a day to see or edit its pins." />
-      <div className="grid gap-5 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
         <Card className="p-3 sm:p-4 lg:col-span-3">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">{format(month, 'MMMM yyyy')}</h2>

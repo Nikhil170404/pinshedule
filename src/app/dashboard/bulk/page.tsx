@@ -66,7 +66,7 @@ export default function BulkPage() {
       {!allowed && <div className="mb-5"><UpgradeNote>Bulk scheduling is included in paid plans.</UpgradeNote></div>}
 
       {rows.length === 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {[
             { dz: img, icon: ImagePlus, title: 'Upload images', text: 'Select up to 200 images, then write titles and descriptions.' },
             { dz: csv, icon: FileSpreadsheet, title: 'Import a CSV', text: 'Columns: image_url, title, description, link. Images must be public https links.' },

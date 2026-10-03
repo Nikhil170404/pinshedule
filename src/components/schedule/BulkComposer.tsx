@@ -109,14 +109,14 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
             ))}
           </div>
           {mode === 'interval' ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="First pin" type="datetime-local" value={start} min={toLocalInput(new Date())} onChange={(e) => setStart(e.target.value)} />
               <Select label="Then one pin every" value={everyHours} onChange={(e) => setEveryHours(e.target.value)}>
                 {[1, 2, 3, 4, 6, 8, 12, 24, 48].map((h) => <option key={h} value={h}>{h < 24 ? `${h} hour${h > 1 ? 's' : ''}` : `${h / 24} day${h > 24 ? 's' : ''}`}</option>)}
               </Select>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select label="Pins per day" value={perDay} onChange={(e) => setPerDay(e.target.value)}
                 hint="Steady daily pinning outperforms big bursts. 1 to 5 a day is typical.">
                 {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}
