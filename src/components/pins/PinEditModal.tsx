@@ -52,7 +52,7 @@ function EditForm({ pin, onClose }: { pin: ScheduledPin; onClose: () => void }) 
         <Input label="Title" value={title} maxLength={PIN_LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
         <Textarea label="Description" rows={4} value={description} maxLength={PIN_LIMITS.description} onChange={(e) => setDescription(e.target.value)} />
         <Input label="Destination link" type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" />
-        <BoardSelect value={board.id} onChange={(id, name) => setBoard({ id, name })} />
+        <BoardSelect value={board.id} onChange={(id, name) => setBoard({ id, name })} suggestText={`${title} ${description}`} />
         <Input label="Publish time" type="datetime-local" value={when} min={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} />
       </div>
     </Modal>

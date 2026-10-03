@@ -20,6 +20,12 @@ Pinterest scheduler. Two deployables:
 5. A reconciler (every 30s, leader-locked) re-queues anything Redis lost and recovers pins stuck in `processing`, so Postgres stays the source of truth.
 6. Status changes reach the dashboard instantly through Supabase Realtime.
 
+## AI and vector search
+
+- **Model:** OpenAI `gpt-4o-mini` for writing, `text-embedding-3-small` for vectors (`OPENAI_API_KEY` on Railway).
+- **Focused prompts, not one big context:** titles, description and alt text are three small parallel calls with strict JSON schemas; scraped page text is fenced as data so injected instructions are ignored. Page copy is cached in Redis for a day.
+- **Vectors (pgvector):** each scheduled pin is embedded and stored in `pin_embeddings` (HNSW index). The New pin screen warns about near-duplicates (`/v1/ai/similar`) and suggests the best-matching boards (`/v1/ai/suggest-board`). Embeddings are cached in Redis, so identical text is never embedded twice.
+
 ## Deploy
 
 ### 1. Supabase

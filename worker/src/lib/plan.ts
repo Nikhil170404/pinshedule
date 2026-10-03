@@ -40,7 +40,7 @@ export async function getProfile(userId: string): Promise<Profile> {
   return profile
 }
 
-export const invalidateProfile = (userId: string) => redis.del(`profile:${userId}`).catch(() => {})
+export const invalidateProfile = (userId: string) => redis.del(`profile:${userId}`, `summary:${userId}`).catch(() => {})
 
 export async function consumeUsage(userId: string, kind: 'ai' | 'imports', limit: number, amount = 1): Promise<boolean> {
   const { data, error } = await db.rpc('consume_usage', { p_user: userId, p_kind: kind, p_limit: limit, p_amount: amount })

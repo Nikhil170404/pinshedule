@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
+import { bodyLimit } from 'hono/body-limit'
 import { serve } from '@hono/node-server'
 import { env } from './env'
 import { requireUser, type AppEnv } from './lib/auth'
@@ -19,6 +20,9 @@ const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
 
 app.use('*', secureHeaders())
+app.use('*', bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }))
+// API responses are per-user: never let a shared cache keep them (routes may override with a private max-age).
+app.use('/v1/*', async (c, next) => { await next(); if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store') })
 app.use('/v1/*', cors({
   origin: (o) => (origins.has(o) ? o : null),
   allowHeaders: ['Authorization', 'Content-Type'],

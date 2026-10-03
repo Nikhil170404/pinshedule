@@ -19,7 +19,7 @@ export const env = {
   pinterestClientSecret: req('PINTEREST_CLIENT_SECRET'),
   /** Use https://api-sandbox.pinterest.com/v5 while on Trial access. */
   pinterestApi: opt('PINTEREST_API_BASE', 'https://api.pinterest.com/v5').replace(/\/$/, ''),
-  anthropicKey: opt('ANTHROPIC_API_KEY'),
+  openaiKey: opt('OPENAI_API_KEY'),
   razorpayKeyId: opt('RAZORPAY_KEY_ID'),
   razorpayKeySecret: opt('RAZORPAY_KEY_SECRET'),
   razorpayWebhookSecret: opt('RAZORPAY_WEBHOOK_SECRET'),

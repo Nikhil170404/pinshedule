@@ -253,9 +253,9 @@ begin
   end loop;
 
   return query
-  insert into scheduled_pins (user_id, image_url, title, description, alt_text, board_id, board_name,
+  insert into scheduled_pins (id, user_id, image_url, title, description, alt_text, board_id, board_name,
                               destination_url, scheduled_at, batch_id, status)
-  select p_user, r->>'image_url', r->>'title', r->>'description', nullif(r->>'alt_text', ''),
+  select coalesce(nullif(r->>'id', '')::uuid, gen_random_uuid()), p_user, r->>'image_url', r->>'title', r->>'description', nullif(r->>'alt_text', ''),
          r->>'board_id', nullif(r->>'board_name', ''), nullif(r->>'destination_url', ''),
          (r->>'scheduled_at')::timestamptz, nullif(r->>'batch_id', '')::uuid, 'pending'
     from jsonb_array_elements(p_rows) r
@@ -302,3 +302,34 @@ returns setof public.scheduled_pins language sql security definer set search_pat
   returning *;
 $$;
 revoke execute on function public.claim_pins(uuid[]) from public, anon, authenticated;
+
+-- ───────────────────────── vector search (pgvector) ─────────────────────────
+-- One embedding per pin (OpenAI text-embedding-3-small, 1536 dims) powers
+-- "similar pin" warnings so users do not repost near-duplicates (which Pinterest treats as spam).
+create extension if not exists vector;
+
+create table if not exists public.pin_embeddings (
+  pin_id uuid primary key references public.scheduled_pins(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  embedding vector(1536) not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists pin_embeddings_user_idx on public.pin_embeddings (user_id);
+create index if not exists pin_embeddings_hnsw_idx on public.pin_embeddings using hnsw (embedding vector_cosine_ops);
+
+alter table public.pin_embeddings enable row level security;
+revoke all on public.pin_embeddings from anon, authenticated; -- worker only (service role)
+
+create or replace function public.match_pins(p_user uuid, p_embedding vector(1536), p_threshold float, p_limit int default 3)
+returns table (pin_id uuid, title text, status text, scheduled_at timestamptz, similarity float)
+language sql stable security definer set search_path = public as $$
+  select sp.id, sp.title, sp.status, sp.scheduled_at, 1 - (pe.embedding <=> p_embedding) as similarity
+    from pin_embeddings pe
+    join scheduled_pins sp on sp.id = pe.pin_id
+   where pe.user_id = p_user
+     and sp.scheduled_at > now() - interval '120 days'
+     and 1 - (pe.embedding <=> p_embedding) >= p_threshold
+   order by pe.embedding <=> p_embedding
+   limit p_limit;
+$$;
+revoke execute on function public.match_pins(uuid, vector, float, int) from public, anon, authenticated;

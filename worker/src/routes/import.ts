@@ -6,7 +6,7 @@ import { db, mapLimit } from '../lib/clients'
 import { safeFetchText, assertPublicUrl } from '../lib/safe-fetch'
 import { extractImages, metaContent, pageTitle, parseSitemapUrls } from '../lib/html'
 import { aiEnabled, pinCopy } from '../lib/ai'
-import { consumeUsage, getProfile, refundUsage } from '../lib/plan'
+import { consumeUsage, getProfile, invalidateProfile, refundUsage } from '../lib/plan'
 import { errMsg } from '../lib/log'
 
 export const importer = new Hono<AppEnv>()
@@ -47,9 +47,12 @@ importer.post('/url', async (c) => {
   }
   try {
     await assertPublicUrl(parsed.data.url)
-    return c.json(await importOne(userId, parsed.data.url))
+    const out = await importOne(userId, parsed.data.url)
+    await invalidateProfile(userId)
+    return c.json(out)
   } catch (e) {
     await refundUsage(userId, 'imports').catch(() => {})
+    await invalidateProfile(userId)
     return c.json({ error: `Could not import that page: ${errMsg(e)}` }, 422)
   }
 })
@@ -72,6 +75,7 @@ importer.post('/bulk', async (c) => {
   })
   const failed = results.filter((r) => !r.ok).length
   if (failed) await refundUsage(userId, 'imports', failed).catch(() => {})
+  await invalidateProfile(userId)
   return c.json({ results })
 })
 

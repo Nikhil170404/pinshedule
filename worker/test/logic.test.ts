@@ -6,7 +6,9 @@ import { encrypt, decrypt } from '../../shared/crypto'
 import { extractImages, metaContent, parseSitemapUrls } from '../src/lib/html'
 
 process.env.APP_URL ??= 'http://x'
-for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'ENCRYPTION_SECRET', 'PINTEREST_CLIENT_ID', 'PINTEREST_CLIENT_SECRET']) process.env[k] ??= 'x'
+process.env.SUPABASE_URL ??= 'https://example.supabase.co'
+process.env.UPSTASH_REDIS_REST_URL ??= 'https://example.upstash.io'
+for (const k of ['SUPABASE_SERVICE_ROLE_KEY', 'UPSTASH_REDIS_REST_TOKEN', 'ENCRYPTION_SECRET', 'PINTEREST_CLIENT_ID', 'PINTEREST_CLIENT_SECRET']) process.env[k] ??= 'x'
 
 test('slots are in the future, ordered, and land in the user local evening', () => {
   const after = new Date()
@@ -58,4 +60,11 @@ test('SSRF guard blocks private and loopback targets', async () => {
   const { assertPublicUrl } = await import('../src/lib/safe-fetch')
   for (const u of ['http://127.0.0.1/', 'http://10.0.0.5/x', 'http://192.168.1.1', 'http://169.254.169.254/latest', 'http://localhost:3000', 'http://[::1]/', 'file:///etc/passwd', 'http://[::ffff:127.0.0.1]/'])
     await assert.rejects(assertPublicUrl(u), undefined, u)
+})
+
+test('cosine similarity: identical = 1, orthogonal = 0, opposite = -1', async () => {
+  const { cosine } = await import('../src/lib/ai')
+  assert.ok(Math.abs(cosine([1, 2, 3], [1, 2, 3]) - 1) < 1e-9)
+  assert.equal(cosine([1, 0], [0, 1]), 0)
+  assert.ok(Math.abs(cosine([1, 1], [-1, -1]) + 1) < 1e-9)
 })

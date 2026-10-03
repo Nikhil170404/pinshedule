@@ -15,6 +15,8 @@ account.use('*', limit('default'))
 /** One call powering plan/usage meters and the connection banner. */
 account.get('/summary', async (c) => {
   const userId = c.get('userId')
+  const hit = await redis.get(`summary:${userId}`).catch(() => null)
+  if (hit) return c.json(hit)
   const profile = await getProfile(userId)
   const plan = PLANS[profile.plan]
   const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))
@@ -28,12 +30,14 @@ account.get('/summary', async (c) => {
     db.from('pinterest_connections').select('pinterest_username, status').eq('user_id', userId).maybeSingle(),
   ])
   const usage = Object.fromEntries((usageRes.data ?? []).map((u) => [u.kind, u.count as number]))
-  return c.json({
+  const body = {
     plan: profile.plan, plan_name: plan.name, plan_status: profile.plan_status, expires_at: profile.expires_at, timezone: profile.timezone,
     limits: { pins: plan.pins_per_month, ai: plan.ai_generations, imports: plan.website_imports },
     used: { pins: pinsRes.count ?? 0, ai: usage.ai ?? 0, imports: usage.imports ?? 0 },
     pinterest: connRes.data ? { username: connRes.data.pinterest_username, status: connRes.data.status } : null,
-  })
+  }
+  redis.set(`summary:${userId}`, body as never, { ex: 30 }).catch(() => {})
+  return c.json(body)
 })
 
 account.patch('/settings', async (c) => {
@@ -63,6 +67,7 @@ account.post('/disconnect', async (c) => {
   const userId = c.get('userId')
   await db.from('pinterest_connections').delete().eq('user_id', userId)
   await redis.del(`boards:${userId}`).catch(() => {})
+  await invalidateProfile(userId)
   return c.json({ ok: true })
 })
 

@@ -10,6 +10,24 @@ boards.use('*', limit('pinterest'))
 
 const key = (u: string) => `boards:${u}`
 
+export interface BoardOut {
+  id: string; name: string; description: string; privacy: string; pin_count: number; follower_count: number; image_url: string | null
+}
+
+/** Boards for a user: Redis first (10 min), Pinterest on a miss. */
+export async function loadBoards(userId: string, force = false): Promise<BoardOut[]> {
+  if (!force) {
+    const hit = await redis.get<BoardOut[]>(key(userId)).catch(() => null)
+    if (hit) return hit
+  }
+  const list = (await withPinterest(userId, listBoards)).map((b) => ({
+    id: b.id, name: b.name, description: b.description ?? '', privacy: b.privacy ?? 'PUBLIC',
+    pin_count: b.pin_count ?? 0, follower_count: b.follower_count ?? 0, image_url: b.media?.image_cover_url ?? null,
+  }))
+  redis.set(key(userId), list as never, { ex: 600 }).catch(() => {})
+  return list
+}
+
 function fail(c: import('hono').Context, e: unknown) {
   if (e instanceof NotConnectedError) return c.json({ error: e.message, reconnect: true }, 409)
   if (e instanceof PinterestError) return c.json({ error: e.message }, e.status === 429 ? 429 : 502)
@@ -17,18 +35,9 @@ function fail(c: import('hono').Context, e: unknown) {
 }
 
 boards.get('/', async (c) => {
-  const userId = c.get('userId')
-  if (c.req.query('refresh') !== '1') {
-    const hit = await redis.get(key(userId)).catch(() => null)
-    if (hit) return c.json({ boards: hit })
-  }
   try {
-    const list = (await withPinterest(userId, listBoards)).map((b) => ({
-      id: b.id, name: b.name, description: b.description ?? '', privacy: b.privacy ?? 'PUBLIC',
-      pin_count: b.pin_count ?? 0, follower_count: b.follower_count ?? 0, image_url: b.media?.image_cover_url ?? null,
-    }))
-    redis.set(key(userId), list as never, { ex: 600 }).catch(() => {})
-    return c.json({ boards: list })
+    c.header('Cache-Control', 'private, max-age=30')
+    return c.json({ boards: await loadBoards(c.get('userId'), c.req.query('refresh') === '1') })
   } catch (e) {
     return fail(c, e)
   }

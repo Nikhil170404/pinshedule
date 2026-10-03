@@ -11,6 +11,7 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { BoardSelect } from '@/components/pins/BoardSelect'
 import { AiWriter } from '@/components/pins/AiWriter'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
+import { SimilarNotice } from '@/components/pins/SimilarNotice'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { uploadImage, validateImage } from '@/lib/upload'
@@ -106,6 +107,7 @@ function NewPin() {
             <div className="mt-3">
               <AiWriter topic={title || description} onPick={(o) => { setTitle(o.title); setDescription(o.description) }} />
             </div>
+            <div className="mt-3"><SimilarNotice text={`${title}\n${description}`} /></div>
           </div>
           <Input label="Destination link (optional)" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" value={link}
             onChange={(e) => setLink(e.target.value)} placeholder="https://your-site.com/post" />
@@ -114,7 +116,7 @@ function NewPin() {
         </Card>
 
         <Card className="space-y-4 p-4 sm:p-5">
-          <BoardSelect value={board.id} onChange={(id, name) => setBoard({ id, name })} />
+          <BoardSelect value={board.id} onChange={(id, name) => setBoard({ id, name })} suggestText={`${title} ${description}`} />
           <div>
             <p className="mb-2 text-sm font-medium text-ink">When to publish</p>
             <div className="mb-3 inline-flex rounded-lg bg-stone-100 p-1" role="tablist">

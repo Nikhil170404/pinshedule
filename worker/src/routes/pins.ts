@@ -7,6 +7,9 @@ import { db } from '../lib/clients'
 import { limit, type AppEnv } from '../lib/auth'
 import { getProfile } from '../lib/plan'
 import { dequeue, enqueue } from '../lib/queue'
+import { aiEnabled, embed } from '../lib/ai'
+import { invalidateProfile } from '../lib/plan'
+import { errMsg, log } from '../lib/log'
 
 export const pins = new Hono<AppEnv>()
 pins.use('*', limit('default'))
@@ -75,6 +78,7 @@ pins.post('/schedule', async (c) => {
     if (at.getTime() < now - 60_000) return c.json({ error: 'Scheduled time must be in the future.' }, 400)
     if (at.getTime() > now + 365 * 86_400_000) return c.json({ error: 'Pins can be scheduled up to 1 year ahead.' }, 400)
     rows.push({
+      id: randomUUID(),
       image_url: p.image_url,
       title: p.title,
       description: p.description,
@@ -102,6 +106,8 @@ pins.post('/schedule', async (c) => {
   const created = (data ?? []) as { id: string; scheduled_at: string }[]
   // Fast path for the dispatcher; the reconciler covers us if this fails.
   await enqueue(created.map((r) => ({ id: r.id, at: r.scheduled_at }))).catch(() => {})
+  await invalidateProfile(userId)
+  void indexPins(userId, rows)
   return c.json({ created: created.length, ids: created.map((r) => r.id), first_at: rows[0].scheduled_at })
 })
 
@@ -114,6 +120,19 @@ const patchBody = z.object({
   destination_url: optionalUrl,
   scheduled_at: z.string().datetime({ offset: true }).optional(),
 })
+
+/** Store vectors for similarity warnings. Best effort and off the request path. */
+async function indexPins(userId: string, rows: { id: string; title: string; description: string }[]) {
+  if (!aiEnabled()) return
+  try {
+    const usable = rows.filter((r) => `${r.title}${r.description}`.trim().length > 8)
+    if (usable.length === 0) return
+    const vecs = await embed(usable.map((r) => `${r.title}\n${r.description}`))
+    await db.from('pin_embeddings').upsert(usable.map((r, i) => ({ pin_id: r.id, user_id: userId, embedding: JSON.stringify(vecs[i]) })), { onConflict: 'pin_id' })
+  } catch (e) {
+    log.warn('pin indexing failed', { error: errMsg(e) })
+  }
+}
 
 pins.patch('/:id', async (c) => {
   const userId = c.get('userId')
@@ -156,6 +175,7 @@ pins.post('/delete', async (c) => {
     .select('id')
   if (error) return c.json({ error: 'Delete failed' }, 500)
   await dequeue((data ?? []).map((r) => r.id as string)).catch(() => {})
+  await invalidateProfile(userId)
   return c.json({ deleted: data?.length ?? 0 })
 })
 
