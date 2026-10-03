@@ -118,9 +118,9 @@ export default function ImportPage() {
           </div>
 
           <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void (mode === 'page' ? importPage() : readSitemap()) }}>
-            <Input className="flex-1" label={mode === 'page' ? 'Page URL' : 'Website or sitemap URL'} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off"
+            <Input wrapperClassName="min-w-0 flex-1" label={mode === 'page' ? 'Page URL' : 'Website or sitemap URL'} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off"
               placeholder={mode === 'page' ? 'https://yourblog.com/best-pasta-recipes' : 'https://yourblog.com'} value={url} onChange={(e) => setUrl(e.target.value)} />
-            <Button type="submit" size="lg" loading={busy} disabled={mode === 'sitemap' && !!plan && !plan.sitemap_import}>{mode === 'page' ? 'Import page' : 'Read sitemap'}</Button>
+            <Button type="submit" loading={busy} disabled={mode === 'sitemap' && !!plan && !plan.sitemap_import}>{mode === 'page' ? 'Import page' : 'Read sitemap'}</Button>
           </form>
           {mode === 'sitemap' && plan && !plan.sitemap_import && <UpgradeNote>Sitemap import is included in the Pro plan and above.</UpgradeNote>}
           {plan && <p className="text-xs text-muted">{plan.website_imports - (summary?.used.imports ?? 0)} of {plan.website_imports} page imports left this month.</p>}
