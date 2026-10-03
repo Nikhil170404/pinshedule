@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import { limit, type AppEnv } from '../lib/auth'
 import { redis } from '../lib/clients'
-import { PinterestError, trendingKeywords, type TrendingKeyword } from '../lib/pinterest'
-import { NotConnectedError, withPinterest } from '../lib/tokens'
+import { trendingKeywords, type TrendingKeyword } from '../lib/pinterest'
+import { withPinterest } from '../lib/tokens'
+import { pinterestFailure } from '../lib/http-errors'
 
 export const keywords = new Hono<AppEnv>()
 keywords.use('*', limit('pinterest'))
@@ -27,8 +28,6 @@ keywords.get('/', async (c) => {
     return c.json({ keywords: await getKeywords(c.get('userId'), c.req.query('region') ?? 'US', c.req.query('q') ?? '') })
   } catch (e) {
     if (e instanceof Error && e.message === 'Unsupported region') return c.json({ error: e.message }, 400)
-    if (e instanceof NotConnectedError) return c.json({ error: e.message, reconnect: true }, 409)
-    if (e instanceof PinterestError) return c.json({ error: e.message }, e.status === 429 ? 429 : 502)
-    return c.json({ error: 'Could not reach Pinterest' }, 502)
+    return pinterestFailure(c, e, 'keywords')
   }
 })
