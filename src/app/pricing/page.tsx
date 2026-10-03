@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer'
 import { PricingSection } from '@/components/landing/PricingSection'
 import { FAQ } from '@/components/landing/FAQ'
 import { CTA } from '@/components/landing/CTA'
+import { SiteJsonLd } from '@/components/seo/SiteJsonLd'
 
 export const metadata: Metadata = pageMeta({
   title: 'Pricing: free plan and paid plans from $9 a month',
@@ -15,6 +16,7 @@ export const metadata: Metadata = pageMeta({
 export default function PricingPage() {
   return (
     <>
+      <SiteJsonLd />
       <Navbar />
       <main>
         <PricingSection />
