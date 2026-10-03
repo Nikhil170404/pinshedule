@@ -36,17 +36,17 @@ export default function BoardsPage() {
         actions={<><Button variant="outline" onClick={reload} loading={loading}>{!loading && <RefreshCw size={15} aria-hidden />} Refresh</Button><Button onClick={() => setOpen(true)}><Plus size={16} aria-hidden /> New board</Button></>} />
 
       {!loaded && !error ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-44" />)}</div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-44" />)}</div>
       ) : error ? (
         <Card><EmptyState icon={Columns3} title="Could not load boards" description={error.message}
           action={error.reconnect ? <a href="/api/auth/pinterest?next=/dashboard/boards" className="text-sm font-medium text-brand hover:underline">Reconnect Pinterest</a> : <Button variant="outline" onClick={reload}>Try again</Button>} /></Card>
       ) : boards.length === 0 ? (
         <Card><EmptyState icon={Columns3} title="No boards yet" description="Create your first board to start pinning." action={<Button onClick={() => setOpen(true)}>New board</Button>} /></Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {boards.map((b) => (
             <Card key={b.id} className="overflow-hidden">
-              <div className="aspect-[16/10] bg-stone-100">
+              <div className="aspect-[4/3] bg-stone-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {b.image_url && <img src={b.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />}
               </div>

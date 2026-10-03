@@ -141,7 +141,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
             <div className="min-w-0 flex-1 space-y-2">
               <Input aria-label={`Title for pin ${i + 1}`} placeholder="Title" value={r.title} maxLength={PIN_LIMITS.title} onChange={(e) => update(r.id, { title: e.target.value })} />
               <Textarea aria-label={`Description for pin ${i + 1}`} placeholder="Description" rows={2} value={r.description} maxLength={PIN_LIMITS.description} onChange={(e) => update(r.id, { description: e.target.value })} className="min-h-[64px]" />
-              <Input aria-label={`Destination link for pin ${i + 1}`} placeholder="Destination link (optional)" type="url" inputMode="url" value={r.link} onChange={(e) => update(r.id, { link: e.target.value })} />
+              <Input aria-label={`Destination link for pin ${i + 1}`} placeholder="Link (optional)" type="url" inputMode="url" value={r.link} onChange={(e) => update(r.id, { link: e.target.value })} />
             </div>
             <button type="button" onClick={() => remove(r.id)} aria-label={`Remove pin ${i + 1}`}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-red-600">
@@ -151,7 +151,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
         ))}
       </div>
 
-      <div className="sticky bottom-20 z-20 flex items-center justify-between gap-3 rounded-xl border border-line bg-white/95 p-3 shadow-lg backdrop-blur lg:bottom-4">
+      <div className="sticky bottom-20 z-20 flex items-center justify-between gap-3 rounded-xl border border-line bg-white/95 p-3 pr-[4.5rem] shadow-lg backdrop-blur sm:pr-40 lg:bottom-4 xl:pr-3">
         <p className="text-sm text-muted">{busy ?? `${rows.length} ready to schedule`}</p>
         <Button size="lg" onClick={submit} loading={!!busy} disabled={rows.length === 0}>
           Schedule {rows.length} {rows.length === 1 ? 'pin' : 'pins'}
