@@ -306,7 +306,7 @@ revoke execute on function public.claim_pins(uuid[]) from public, anon, authenti
 -- ───────────────────────── vector search (pgvector) ─────────────────────────
 -- One embedding per pin (OpenAI text-embedding-3-small, 1536 dims) powers
 -- "similar pin" warnings so users do not repost near-duplicates (which Pinterest treats as spam).
-create extension if not exists vector;
+create extension if not exists vector with schema extensions;
 
 create table if not exists public.pin_embeddings (
   pin_id uuid primary key references public.scheduled_pins(id) on delete cascade,
@@ -322,7 +322,7 @@ revoke all on public.pin_embeddings from anon, authenticated; -- worker only (se
 
 create or replace function public.match_pins(p_user uuid, p_embedding vector(1536), p_threshold float, p_limit int default 3)
 returns table (pin_id uuid, title text, status text, scheduled_at timestamptz, similarity float)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select sp.id, sp.title, sp.status, sp.scheduled_at, 1 - (pe.embedding <=> p_embedding) as similarity
     from pin_embeddings pe
     join scheduled_pins sp on sp.id = pe.pin_id
