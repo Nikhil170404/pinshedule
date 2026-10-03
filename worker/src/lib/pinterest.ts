@@ -42,7 +42,7 @@ export interface Board {
   privacy?: string
   pin_count?: number
   follower_count?: number
-  media?: { image_cover_url?: string }
+  media?: { image_cover_url?: string; pin_thumbnail_urls?: string[] }
 }
 
 export async function listBoards(token: string): Promise<Board[]> {

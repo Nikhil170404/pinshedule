@@ -12,7 +12,7 @@ boards.use('*', limit('pinterest'))
 const key = (u: string) => `boards:${u}`
 
 export interface BoardOut {
-  id: string; name: string; description: string; privacy: string; pin_count: number; follower_count: number; image_url: string | null
+  id: string; name: string; description: string; privacy: string; pin_count: number; follower_count: number; image_url: string | null; thumbnails: string[]
 }
 
 /** Boards for a user: Redis first (10 min), Pinterest on a miss. */
@@ -23,7 +23,10 @@ export async function loadBoards(userId: string, force = false): Promise<BoardOu
   }
   const list = (await withPinterest(userId, listBoards)).map((b) => ({
     id: b.id, name: b.name, description: b.description ?? '', privacy: b.privacy ?? 'PUBLIC',
-    pin_count: b.pin_count ?? 0, follower_count: b.follower_count ?? 0, image_url: b.media?.image_cover_url ?? null,
+    pin_count: b.pin_count ?? 0, follower_count: b.follower_count ?? 0,
+    // Pinterest does not always send a cover; pin thumbnails make a good fallback.
+    image_url: b.media?.image_cover_url ?? b.media?.pin_thumbnail_urls?.[0] ?? null,
+    thumbnails: (b.media?.pin_thumbnail_urls ?? []).slice(0, 4),
   }))
   redis.set(key(userId), list as never, { ex: 600 }).catch(() => {})
   return list
