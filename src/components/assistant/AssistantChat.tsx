@@ -93,7 +93,7 @@ export function AssistantChat({ onClose, className, showTitle = true }: { onClos
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4" aria-live="polite">
         {messages.length === 0 ? (
           <div>
-            <p className="text-sm font-medium text-ink">Ask me to do things in Pinshedule.</p>
+            <p className="text-sm font-medium text-ink">Ask me to do things in GoPinKaro.</p>
             <p className="mt-1 text-sm text-muted">I can schedule pins in bulk, import pages from your site, fix failed pins, manage boards and settings, and report on performance. I always ask before changing anything.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (

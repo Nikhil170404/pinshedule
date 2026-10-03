@@ -29,7 +29,7 @@ export default function UpgradePage() {
       const rzp = new window.Razorpay({
         key: key_id,
         subscription_id,
-        name: 'Pinshedule',
+        name: 'GoPinKaro',
         description: `${plan} plan, billed ${cycle}`,
         theme: { color: '#e60023' },
         modal: { ondismiss: () => setLoading(null) },

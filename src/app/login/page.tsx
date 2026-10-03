@@ -25,8 +25,8 @@ function LoginCard() {
   const href = redirect ? `/api/auth/pinterest?next=${encodeURIComponent(redirect)}` : '/api/auth/pinterest'
   return (
     <div className="rounded-2xl border border-line bg-white p-6 sm:p-8">
-      <h1 className="text-xl font-semibold text-ink">Sign in to Pinshedule</h1>
-      <p className="mt-2 text-sm leading-relaxed text-muted">Your Pinterest account is your Pinshedule account. New here? Signing in creates your free workspace.</p>
+      <h1 className="text-xl font-semibold text-ink">Sign in to GoPinKaro</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">Your Pinterest account is your GoPinKaro account. New here? Signing in creates your free workspace.</p>
       {err && (
         <div className="mt-5 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">
           <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden />{ERRORS[err] ?? 'Something went wrong. Please try again.'}

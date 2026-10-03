@@ -1,14 +1,19 @@
 import type { Metadata } from 'next'
+import { pageMeta } from '@/lib/site'
 import { LegalPage } from '@/components/layout/LegalPage'
 
-export const metadata: Metadata = { title: 'Privacy Policy' }
+export const metadata: Metadata = pageMeta({
+  title: 'Privacy Policy',
+  description: 'What GoPinKaro collects, how your Pinterest connection and content are stored, and how to access or delete your data.',
+  path: '/privacy',
+})
 
 const sections = [
   { title: 'What we collect', body: [
     'Account: your Pinterest user ID, username and profile image URL, received when you sign in with Pinterest. We do not ask for or store your email address or a password.',
     'Pinterest connection: OAuth access and refresh tokens, stored encrypted (AES-256-GCM). Tokens are never exposed to your browser.',
-    'Your content: images you upload, titles, descriptions, links, boards and schedules that you create in Pinshedule.',
-    'Performance data: impressions, saves and clicks for your account and for pins published through Pinshedule, retrieved from Pinterest with your permission.',
+    'Your content: images you upload, titles, descriptions, links, boards and schedules that you create in GoPinKaro.',
+    'Performance data: impressions, saves and clicks for your account and for pins published through GoPinKaro, retrieved from Pinterest with your permission.',
     'Billing: handled by Razorpay. We store your plan, subscription ID and renewal date, never card numbers.',
     'Technical logs: request logs and error information used to keep the service secure and reliable.',
   ] },

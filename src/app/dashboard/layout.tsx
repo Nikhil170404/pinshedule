@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar, MobileHeader, MobileTabBar } from '@/components/layout/Sidebar'
 import { TimezoneSync } from '@/components/layout/TimezoneSync'
 import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
 import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
+
+export const metadata: Metadata = { title: 'Overview', robots: { index: false, follow: false } }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

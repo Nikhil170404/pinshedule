@@ -132,7 +132,7 @@ function NewPin() {
             {effectiveMode === 'custom' ? (
               <Input aria-label="Publish date and time" type="datetime-local" value={when} min={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} className="sm:max-w-xs" />
             ) : (
-              <p className="text-sm text-muted">Pinshedule picks the next high-engagement slot after your last scheduled pin, in {summary?.timezone ?? 'your'} time.</p>
+              <p className="text-sm text-muted">GoPinKaro picks the next high-engagement slot after your last scheduled pin, in {summary?.timezone ?? 'your'} time.</p>
             )}
             {!canAuto && summary && <div className="mt-3"><UpgradeNote>Best-time scheduling is included in paid plans.</UpgradeNote></div>}
           </div>

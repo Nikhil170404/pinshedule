@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
+import { site } from '@/lib/site'
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pinshedule.com'
-  return { rules: { userAgent: '*', allow: '/', disallow: ['/dashboard', '/api'] }, sitemap: `${base}/sitemap.xml` }
+  return { rules: { userAgent: '*', allow: '/', disallow: ['/dashboard', '/api'] }, sitemap: `${site.url}/sitemap.xml`, host: site.url }
 }
