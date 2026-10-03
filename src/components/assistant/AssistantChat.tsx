@@ -63,7 +63,7 @@ function Bubble({ m }: { m: ChatMessage }) {
   )
 }
 
-export function AssistantChat({ onClose, className }: { onClose?: () => void; className?: string }) {
+export function AssistantChat({ onClose, className, showTitle = true }: { onClose?: () => void; className?: string; showTitle?: boolean }) {
   const { messages, busy, status } = useAssistant()
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
@@ -80,8 +80,10 @@ export function AssistantChat({ onClose, className }: { onClose?: () => void; cl
 
   return (
     <div className={cn('flex min-h-0 flex-col bg-white', className)}>
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-ink"><Sparkles size={16} className="text-brand" aria-hidden /> Assistant</div>
+      <div className={cn('flex shrink-0 items-center justify-between border-b border-line px-4', showTitle ? 'h-14' : 'h-11')}>
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+          {showTitle ? <><Sparkles size={16} className="text-brand" aria-hidden /> Assistant</> : <span className="text-xs font-medium text-muted">{messages.length ? 'Conversation' : 'New conversation'}</span>}
+        </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && <button onClick={clearChat} aria-label="Clear conversation" className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100"><Trash2 size={16} /></button>}
           {onClose && <button onClick={onClose} aria-label="Close assistant" className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100"><X size={18} /></button>}

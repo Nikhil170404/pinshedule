@@ -40,8 +40,8 @@ export default function AiWriterPage() {
       <PageHeader title="AI writer" description="Describe your pin and get three search-friendly titles and descriptions." />
       <Card className="mb-5 p-4 sm:p-5">
         <form onSubmit={generate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <Input className="flex-1" label="What is the pin about?" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} placeholder="Healthy meal prep for busy weeknights" />
-          <Button type="submit" size="lg" loading={busy}>{!busy && <Wand2 size={16} aria-hidden />} Write</Button>
+          <Input wrapperClassName="min-w-0 flex-1" label="What is the pin about?" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} placeholder="Healthy meal prep for busy weeknights" />
+          <Button type="submit" loading={busy}>{!busy && <Wand2 size={16} aria-hidden />} Write</Button>
         </form>
         {summary && <div className="mt-4"><Meter label="AI generations this month" value={summary.used.ai} max={summary.limits.ai} /></div>}
       </Card>

@@ -2,8 +2,9 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { limit, type AppEnv } from '../lib/auth'
 import { redis } from '../lib/clients'
-import { createBoard, listBoards, PinterestError } from '../lib/pinterest'
-import { NotConnectedError, withPinterest } from '../lib/tokens'
+import { createBoard, listBoards } from '../lib/pinterest'
+import { withPinterest } from '../lib/tokens'
+import { pinterestFailure } from '../lib/http-errors'
 
 export const boards = new Hono<AppEnv>()
 boards.use('*', limit('pinterest'))
@@ -28,11 +29,7 @@ export async function loadBoards(userId: string, force = false): Promise<BoardOu
   return list
 }
 
-function fail(c: import('hono').Context, e: unknown) {
-  if (e instanceof NotConnectedError) return c.json({ error: e.message, reconnect: true }, 409)
-  if (e instanceof PinterestError) return c.json({ error: e.message }, e.status === 429 ? 429 : 502)
-  return c.json({ error: 'Could not reach Pinterest' }, 502)
-}
+const fail = (c: import('hono').Context, e: unknown) => pinterestFailure(c, e, 'boards')
 
 boards.get('/', async (c) => {
   try {

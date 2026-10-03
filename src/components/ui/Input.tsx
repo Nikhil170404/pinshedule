@@ -18,39 +18,39 @@ export function Field({ label, hint, error, htmlFor, children, className }: {
   )
 }
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> { label?: string; hint?: string; error?: string }
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> { label?: string; hint?: string; error?: string; wrapperClassName?: string }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, hint, error, className, id, ...props }, ref) => {
+export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, hint, error, className, wrapperClassName, id, ...props }, ref) => {
   const auto = useId()
   const fid = id ?? auto
   return (
-    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+    <Field label={label} hint={hint} error={error} htmlFor={fid} className={wrapperClassName}>
       <input ref={ref} id={fid} className={cn(field, 'h-10', error && 'border-red-400', className)} {...props} />
     </Field>
   )
 })
 Input.displayName = 'Input'
 
-interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label?: string; hint?: string; error?: string }
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label?: string; hint?: string; error?: string; wrapperClassName?: string }
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, hint, error, className, id, ...props }, ref) => {
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, hint, error, className, wrapperClassName, id, ...props }, ref) => {
   const auto = useId()
   const fid = id ?? auto
   return (
-    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+    <Field label={label} hint={hint} error={error} htmlFor={fid} className={wrapperClassName}>
       <textarea ref={ref} id={fid} className={cn(field, 'py-2.5 resize-y min-h-[88px]', error && 'border-red-400', className)} {...props} />
     </Field>
   )
 })
 Textarea.displayName = 'Textarea'
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> { label?: string; hint?: string; error?: string }
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> { label?: string; hint?: string; error?: string; wrapperClassName?: string }
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ label, hint, error, className, id, children, ...props }, ref) => {
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ label, hint, error, className, wrapperClassName, id, children, ...props }, ref) => {
   const auto = useId()
   const fid = id ?? auto
   return (
-    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+    <Field label={label} hint={hint} error={error} htmlFor={fid} className={wrapperClassName}>
       <div className="relative">
         <select ref={ref} id={fid} className={cn(field, 'h-10 appearance-none pr-9', error && 'border-red-400', className)} {...props}>
           {children}

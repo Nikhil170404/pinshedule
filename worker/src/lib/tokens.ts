@@ -31,11 +31,11 @@ export async function refreshConnection(userId: string): Promise<string> {
   if (got !== 'OK') {
     // Another worker is refreshing: wait briefly, then re-read the result.
     await new Promise((r) => setTimeout(r, 2500))
-    return decrypt((await load(userId)).access_token, env.encryptionSecret)
+    return open(userId, (await load(userId)).access_token)
   }
   try {
     const conn = await load(userId)
-    const refreshToken = await decrypt(conn.refresh_token, env.encryptionSecret)
+    const refreshToken = await open(userId, conn.refresh_token)
     let tokens
     try {
       tokens = await refreshAccessToken(refreshToken)
@@ -69,11 +69,24 @@ export async function refreshConnection(userId: string): Promise<string> {
   }
 }
 
+/** Decrypt a stored token. A failure means the secret changed or the data is corrupt: ask the user to reconnect. */
+async function open(userId: string, value: string): Promise<string> {
+  try {
+    return await decrypt(value, env.encryptionSecret)
+  } catch {
+    await db.from('pinterest_connections')
+      .update({ status: 'needs_reconnect', last_error: 'Stored token could not be decrypted (ENCRYPTION_SECRET changed?)', updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+    log.error('token decrypt failed: ENCRYPTION_SECRET on this service does not match the one used at login', { userId })
+    throw new NotConnectedError('Your Pinterest connection needs to be renewed. Please reconnect your account.')
+  }
+}
+
 /** A valid access token for the user, refreshing it first when it is about to expire. */
 export async function getAccessToken(userId: string): Promise<string> {
   const conn = await load(userId)
   if (new Date(conn.expires_at).getTime() - Date.now() < 5 * 60_000) return refreshConnection(userId)
-  return decrypt(conn.access_token, env.encryptionSecret)
+  return open(userId, conn.access_token)
 }
 
 /** Run an API call; on 401 refresh the token once and retry. */

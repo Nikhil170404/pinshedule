@@ -40,9 +40,9 @@ export function Meter({ value, max, label, detail }: { value: number; max: numbe
   const tone = pct >= 100 ? 'bg-red-500' : pct >= 85 ? 'bg-amber-500' : 'bg-ink'
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
         <span className="font-medium text-ink">{label}</span>
-        <span className="tabular-nums text-muted">{detail ?? `${value.toLocaleString()} / ${max.toLocaleString()}`}</span>
+        <span className="whitespace-nowrap tabular-nums text-muted">{detail ?? `${value.toLocaleString()} / ${max.toLocaleString()}`}</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}>
         <div className={cn('h-full rounded-full transition-all', tone)} style={{ width: `${pct}%` }} />

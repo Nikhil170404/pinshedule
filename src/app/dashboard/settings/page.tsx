@@ -80,7 +80,7 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-ink">Timezone</h2>
         <p className="mb-3 mt-1 text-sm text-muted">Best-time scheduling uses this to pick evening and afternoon slots for you.</p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <Select className="flex-1" aria-label="Timezone" value={tz} onChange={(e) => setTz(e.target.value)}>
+          <Select wrapperClassName="min-w-0 flex-1" aria-label="Timezone" value={tz} onChange={(e) => setTz(e.target.value)}>
             {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
           </Select>
           <Button onClick={saveTz} loading={saving} disabled={tz === summary.timezone}>Save</Button>

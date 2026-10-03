@@ -1,7 +1,8 @@
+const missing: string[] = []
 function req(name: string): string {
   const v = process.env[name]
-  if (!v) throw new Error(`Missing required env var ${name}`)
-  return v
+  if (!v) missing.push(name)
+  return v ?? ''
 }
 const opt = (name: string, fallback = '') => process.env[name] ?? fallback
 
@@ -33,4 +34,10 @@ export const env = {
   } as Record<string, string>,
   /** Set to "false" to run only the HTTP API (e.g. a second replica). */
   runJobs: opt('RUN_JOBS', 'true') !== 'false',
+}
+
+// Report every missing variable at once instead of crashing on the first one.
+if (missing.length) {
+  console.error(`Missing required environment variables:\n  ${missing.join('\n  ')}\nSet them in Railway > Variables (see worker/.env.example).`)
+  process.exit(1)
 }
