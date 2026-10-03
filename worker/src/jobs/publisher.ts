@@ -63,7 +63,7 @@ async function publishOne(pin: PinRow) {
 
 /** Claim everything that is due and publish it. Pins of one user run in order; users run in parallel. */
 export async function dispatchDue() {
-  const ids = await claimDue(100)
+  const ids = await claimDue(60)
   if (ids.length === 0) return { published: 0, failed: 0, retried: 0 }
 
   // Atomic DB claim: only rows still pending and actually due flip to processing.
@@ -92,7 +92,7 @@ export async function dispatchDue() {
   await mapLimit([...byUser.values()], 8, async (list) => {
     for (const pin of list) {
       tally[await publishOne(pin)]++
-      if (list.length > 1) await new Promise((r) => setTimeout(r, 1500)) // be gentle per account
+      if (list.length > 1) await new Promise((r) => setTimeout(r, 400)) // small gap per account
     }
   })
   if (pins.length) log.info('dispatch', { claimed: pins.length, ...tally })
