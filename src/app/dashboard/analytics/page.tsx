@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
             <TrendChart data={days.map((d) => ({ day: d.day, value: d[metric] }))} label={METRICS.find((m) => m.key === metric)!.label} />
           </Card>
 
-          <h2 className="mb-2 mt-6 text-sm font-semibold text-ink">Top pins published with Pinshedule</h2>
+          <h2 className="mb-2 mt-6 text-sm font-semibold text-ink">Top pins published with GoPinKaro</h2>
           <Card className="overflow-hidden">
             {top.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted">Per-pin numbers appear once pins have collected impressions.</p> : (
               <div className="divide-y divide-line">

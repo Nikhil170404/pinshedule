@@ -26,8 +26,8 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-10 flex flex-col gap-2 border-t border-line pt-6 text-xs text-muted sm:flex-row sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} Pinshedule</p>
-          <p>Pinshedule is an independent product and is not affiliated with or endorsed by Pinterest. Pinterest is a trademark of Pinterest, Inc.</p>
+          <p>&copy; {new Date().getFullYear()} GoPinKaro</p>
+          <p>GoPinKaro is an independent product and is not affiliated with or endorsed by Pinterest. Pinterest is a trademark of Pinterest, Inc.</p>
         </div>
       </div>
     </footer>

@@ -16,7 +16,7 @@ export function Hero() {
           Pinterest scheduling that keeps your queue full.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-stone-600">
-          Paste a page from your site, review the pins, and let Pinshedule publish them over the coming weeks at the times your audience is online. Bulk upload, CSV import and a live calendar included.
+          Paste a page from your site, review the pins, and let GoPinKaro publish them over the coming weeks at the times your audience is online. Bulk upload, CSV import and a live calendar included.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href="/login" className={buttonStyles('primary', 'lg')}>Start free with Pinterest</Link>

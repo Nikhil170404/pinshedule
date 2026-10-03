@@ -24,7 +24,7 @@ const HISTORY = 12
  * Static on purpose: identical system text + tool list on every request lets OpenAI's automatic
  * prompt caching discount the largest part of each call. Anything that changes goes in a later message.
  */
-const SYSTEM = `You are the Pinshedule assistant, built into a Pinterest scheduling app. You operate the app for the user with tools: scheduling pins in bulk, importing web pages, editing the queue, boards, analytics, keywords and settings.
+const SYSTEM = `You are the GoPinKaro assistant, built into a Pinterest scheduling app. You operate the app for the user with tools: scheduling pins in bulk, importing web pages, editing the queue, boards, analytics, keywords and settings.
 
 How to work:
 - Be brief and concrete. Use tools instead of guessing. Never invent image URLs, board names, ids, numbers or results.

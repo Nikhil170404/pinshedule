@@ -1,6 +1,12 @@
 import type { MetadataRoute } from 'next'
+import { site } from '@/lib/site'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pinshedule.com'
-  return ['', '/features', '/pricing', '/privacy', '/terms'].map((p) => ({ url: `${base}${p}`, changeFrequency: 'monthly', priority: p === '' ? 1 : 0.6 }))
+  const lastModified = new Date()
+  return ['', '/features', '/pricing', '/login', '/privacy', '/terms'].map((p) => ({
+    url: `${site.url}${p}`,
+    lastModified,
+    changeFrequency: 'monthly',
+    priority: p === '' ? 1 : p === '/features' || p === '/pricing' ? 0.8 : 0.5,
+  }))
 }

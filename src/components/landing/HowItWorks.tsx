@@ -1,7 +1,7 @@
 const steps = [
-  { title: 'Connect Pinterest', text: 'Sign in with your Pinterest account. That is your Pinshedule login, so there is no password to manage.' },
+  { title: 'Connect Pinterest', text: 'Sign in with your Pinterest account. That is your GoPinKaro login, so there is no password to manage.' },
   { title: 'Add your pins', text: 'Upload images, import a CSV, or paste a page from your site. Review and edit the titles and descriptions.' },
-  { title: 'Choose the pace', text: 'Pick a board, then a fixed interval or best-time slots. Pinshedule publishes while you do other work.' },
+  { title: 'Choose the pace', text: 'Pick a board, then a fixed interval or best-time slots. GoPinKaro publishes while you do other work.' },
 ]
 
 export function HowItWorks() {
