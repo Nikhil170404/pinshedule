@@ -3,6 +3,7 @@
 import { ExternalLink, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { cn, formatDateTime } from '@/lib/utils'
+import { SafeImage } from '@/components/ui/SafeImage'
 import type { ScheduledPin } from '@/types'
 
 export function PinRow({ pin, selected, onSelect, onEdit, onDelete, onRetry, tz }: {
@@ -22,8 +23,7 @@ export function PinRow({ pin, selected, onSelect, onEdit, onDelete, onRetry, tz 
         <input type="checkbox" aria-label="Select pin" checked={!!selected} onChange={(e) => onSelect(e.target.checked)}
           className="mt-1 h-4 w-4 shrink-0 accent-[#e60023]" disabled={pin.status === 'processing'} />
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={pin.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-16 w-11 shrink-0 rounded-md border border-line bg-stone-100 object-cover" />
+      <SafeImage src={pin.image_url} className="h-16 w-11 shrink-0 rounded-md border border-line" iconSize={16} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="min-w-0 max-w-full truncate text-sm font-medium text-ink">{pin.title || 'Untitled pin'}</p>

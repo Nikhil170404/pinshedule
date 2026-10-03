@@ -10,6 +10,7 @@ import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
 import { api, errorText } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 import { useSummary } from '@/lib/hooks'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { PLANS } from '@/types'
 import { cn, formatNumber } from '@/lib/utils'
 
@@ -114,8 +115,7 @@ export default function AnalyticsPage() {
               <div className="divide-y divide-line">
                 {top.map((p) => (
                   <div key={p.pin_id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="h-14 w-10 shrink-0 rounded-md border border-line object-cover" />}
+                    <SafeImage src={p.image_url} className="h-14 w-10 shrink-0 rounded-md border border-line" iconSize={14} />
                     <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{p.title || 'Untitled pin'}</p>
                     <dl className="flex shrink-0 gap-4 text-right text-xs">
                       <div><dt className="text-muted">Views</dt><dd className="font-medium tabular-nums text-ink">{formatNumber(p.impressions)}</dd></div>

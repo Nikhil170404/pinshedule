@@ -29,6 +29,7 @@ export interface PinterestBoard {
   pin_count: number
   follower_count: number
   image_url: string | null
+  thumbnails?: string[]
 }
 
 export interface Summary {

@@ -12,6 +12,7 @@ import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { uploadImage } from '@/lib/upload'
+import { SafeImage } from '@/components/ui/SafeImage'
 import { mapLimit } from '@/lib/async'
 import { PIN_LIMITS, PLANS } from '@/types'
 import { toLocalInput } from '@/lib/utils'
@@ -136,8 +137,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
       <div className="space-y-3">
         {rows.map((r, i) => (
           <Card key={r.id} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={r.preview} alt="" className="h-24 w-16 shrink-0 rounded-lg border border-line object-cover sm:h-32 sm:w-20" loading="lazy" />
+            <SafeImage src={r.preview} className="h-24 w-16 shrink-0 rounded-lg border border-line sm:h-32 sm:w-20" iconSize={20} />
             <div className="min-w-0 flex-1 space-y-2">
               <Input aria-label={`Title for pin ${i + 1}`} placeholder="Title" value={r.title} maxLength={PIN_LIMITS.title} onChange={(e) => update(r.id, { title: e.target.value })} />
               <Textarea aria-label={`Description for pin ${i + 1}`} placeholder="Description" rows={2} value={r.description} maxLength={PIN_LIMITS.description} onChange={(e) => update(r.id, { description: e.target.value })} className="min-h-[64px]" />

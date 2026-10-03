@@ -9,6 +9,22 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { api, errorText } from '@/lib/api'
 import { useBoards } from '@/lib/hooks'
+import { SafeImage } from '@/components/ui/SafeImage'
+import type { PinterestBoard } from '@/types'
+
+/** Cover image, else a 2x2 collage of pin thumbnails, else a neutral placeholder. */
+function BoardCover({ board }: { board: PinterestBoard }) {
+  const thumbs = (board.thumbnails ?? []).filter(Boolean)
+  if (board.image_url && thumbs.length < 2) return <SafeImage src={board.image_url} alt="" className="h-full w-full" iconSize={28} />
+  if (thumbs.length >= 2) {
+    return (
+      <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-white">
+        {[0, 1, 2, 3].map((i) => <SafeImage key={i} src={thumbs[i]} className="h-full w-full" iconSize={16} />)}
+      </div>
+    )
+  }
+  return <SafeImage src={board.image_url} className="h-full w-full" iconSize={28} />
+}
 
 export default function BoardsPage() {
   const { boards, loaded, loading, error, reload } = useBoards()
@@ -46,10 +62,7 @@ export default function BoardsPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {boards.map((b) => (
             <Card key={b.id} className="overflow-hidden">
-              <div className="aspect-[4/3] bg-stone-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {b.image_url && <img src={b.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />}
-              </div>
+              <div className="aspect-[4/3] overflow-hidden bg-stone-100"><BoardCover board={b} /></div>
               <div className="p-3">
                 <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">{b.privacy === 'SECRET' && <Lock size={13} className="shrink-0 text-stone-400" aria-label="Secret board" />}<span className="truncate">{b.name}</span></p>
                 <p className="mt-0.5 text-xs text-muted">{b.pin_count.toLocaleString()} pins</p>
