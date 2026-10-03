@@ -3,6 +3,7 @@ import { pageMeta } from '@/lib/site'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { Features } from '@/components/landing/Features'
+import { PinGallery } from '@/components/landing/PinGallery'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { CTA } from '@/components/landing/CTA'
 
@@ -19,6 +20,7 @@ export default function FeaturesPage() {
       <main>
         <Features />
         <HowItWorks />
+        <PinGallery />
         <CTA />
       </main>
       <Footer />

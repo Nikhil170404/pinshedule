@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertCircle } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
+import { examplePins } from '@/components/landing/example-pins'
 
 const PinterestMark = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -46,9 +48,19 @@ function LoginCard() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex justify-center"><Logo /></div>
-        <Suspense fallback={<div className="h-64 rounded-2xl border border-line bg-white" />}><LoginCard /></Suspense>
+      <div className="grid w-full max-w-sm items-center gap-12 lg:max-w-4xl lg:grid-cols-2">
+        <div>
+          <div className="mb-6 flex justify-center"><Logo /></div>
+          <Suspense fallback={<div className="h-64 rounded-2xl border border-line bg-white" />}><LoginCard /></Suspense>
+        </div>
+        <div className="hidden lg:block" aria-hidden>
+          <div className="grid grid-cols-3 gap-3">
+            {examplePins.map((p) => (
+              <Image key={p.src} src={p.src} alt="" width={300} height={450} className="h-auto w-full rounded-xl border border-line" />
+            ))}
+          </div>
+          <p className="mt-4 text-center text-sm text-muted">Plan a week of pins in one sitting. Example pins shown.</p>
+        </div>
       </div>
     </div>
   )
