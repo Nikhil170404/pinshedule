@@ -1,27 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { buildPinterestAuthUrl } from '@/lib/pinterest'
-import { generateState } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
-  const state = generateState()
-  // Validate `next` is a relative path to prevent open-redirect attacks
+  const state = crypto.randomUUID()
+  // Only same-site relative paths, to prevent open redirects.
   const rawNext = new URL(request.url).searchParams.get('next') ?? ''
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('\\') ? rawNext : '/dashboard'
 
   const response = NextResponse.redirect(buildPinterestAuthUrl(state))
-  response.cookies.set('pinterest_oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600,
-    path: '/',
-  })
-  response.cookies.set('pinterest_oauth_next', next, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600,
-    path: '/',
-  })
+  const cookie = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, maxAge: 600, path: '/' }
+  response.cookies.set('pinterest_oauth_state', state, cookie)
+  response.cookies.set('pinterest_oauth_next', next, cookie)
   return response
 }

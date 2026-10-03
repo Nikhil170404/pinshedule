@@ -1,30 +1,30 @@
 import { cn } from '@/lib/utils'
 
-interface BadgeProps {
-  children: React.ReactNode
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'outline'
-  className?: string
+const tones = {
+  neutral: 'bg-stone-100 text-stone-700',
+  success: 'bg-emerald-50 text-emerald-700',
+  warning: 'bg-amber-50 text-amber-800',
+  danger: 'bg-red-50 text-red-700',
+  info: 'bg-sky-50 text-sky-700',
+  brand: 'bg-brand-soft text-brand-dark',
 }
 
-export function Badge({ children, variant = 'default', className }: BadgeProps) {
-  const variants = {
-    default: 'bg-gray-100 text-gray-700',
-    success: 'bg-green-50 text-green-700',
-    warning: 'bg-orange-50 text-orange-700',
-    danger: 'bg-red-50 text-red-700',
-    info: 'bg-blue-50 text-blue-700',
-    outline: 'border border-gray-200 text-gray-600',
-  }
-
+export function Badge({ children, tone = 'neutral', className }: { children: React.ReactNode; tone?: keyof typeof tones; className?: string }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
-        variants[variant],
-        className
-      )}
-    >
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium', tones[tone], className)}>
       {children}
     </span>
   )
+}
+
+const statusMap = {
+  pending: { tone: 'info', label: 'Scheduled' },
+  processing: { tone: 'warning', label: 'Publishing' },
+  published: { tone: 'success', label: 'Published' },
+  failed: { tone: 'danger', label: 'Failed' },
+} as const
+
+export function StatusBadge({ status }: { status: keyof typeof statusMap }) {
+  const s = statusMap[status] ?? statusMap.pending
+  return <Badge tone={s.tone}>{s.label}</Badge>
 }

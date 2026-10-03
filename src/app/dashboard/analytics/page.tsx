@@ -1,118 +1,133 @@
-import { createClient } from '@/lib/supabase/server'
-import { formatNumber } from '@/lib/utils'
-import { BarChart3, TrendingUp, Eye, Heart, MousePointer } from 'lucide-react'
+'use client'
 
-export default async function AnalyticsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import dynamic from 'next/dynamic'
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BarChart3, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/Button'
+import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
+import { api, errorText } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
+import { useSummary } from '@/lib/hooks'
+import { PLANS } from '@/types'
+import { cn, formatNumber } from '@/lib/utils'
 
-  const { data: snapshots } = await supabase
-    .from('analytics_snapshots')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('snapshot_date', { ascending: false })
-    .limit(30)
+const TrendChart = dynamic(() => import('@/components/charts/TrendChart'), { ssr: false, loading: () => <Skeleton className="h-60" /> })
 
-  const totals = (snapshots ?? []).reduce(
-    (acc, s) => ({
-      impressions: acc.impressions + (s.impressions ?? 0),
-      saves: acc.saves + (s.saves ?? 0),
-      clicks: acc.clicks + (s.clicks ?? 0),
-    }),
-    { impressions: 0, saves: 0, clicks: 0 }
-  )
+interface Day { day: string; impressions: number; saves: number; pin_clicks: number; outbound_clicks: number; engagements: number }
+interface TopPin { pin_id: string; impressions: number; saves: number; clicks: number; outbound_clicks: number; title: string | null; image_url: string | null }
 
-  const stats = [
-    { label: 'Total Impressions', value: formatNumber(totals.impressions), icon: Eye, color: '#E60023', bg: '#fff0f2' },
-    { label: 'Total Saves', value: formatNumber(totals.saves), icon: Heart, color: '#00A400', bg: '#f0fdf4' },
-    { label: 'Link Clicks', value: formatNumber(totals.clicks), icon: MousePointer, color: '#FF6B00', bg: '#fff7ed' },
-    {
-      label: 'Click Rate',
-      value: totals.impressions > 0 ? `${((totals.clicks / totals.impressions) * 100).toFixed(1)}%` : '—',
-      icon: TrendingUp,
-      color: '#2563EB',
-      bg: '#eff6ff',
-    },
-  ]
+const METRICS = [
+  { key: 'impressions', label: 'Impressions' },
+  { key: 'saves', label: 'Saves' },
+  { key: 'pin_clicks', label: 'Pin clicks' },
+  { key: 'outbound_clicks', label: 'Outbound clicks' },
+] as const
 
-  // Group by date for mini bar chart
-  const byDate = (snapshots ?? []).slice(0, 7).reverse()
+export default function AnalyticsPage() {
+  const { summary } = useSummary()
+  const maxDays = summary ? PLANS[summary.plan].analytics_days : 7
+  const [range, setRange] = useState(30)
+  const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('impressions')
+  const [days, setDays] = useState<Day[] | null>(null)
+  const [top, setTop] = useState<TopPin[]>([])
+  const [syncing, setSyncing] = useState(false)
+
+  const load = useCallback(async () => {
+    const supabase = createClient()
+    const since = new Date(Date.now() - Math.min(range, maxDays) * 86_400_000).toISOString().slice(0, 10)
+    const [a, s] = await Promise.all([
+      supabase.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks,engagements').gte('day', since).order('day'),
+      supabase.from('analytics_snapshots').select('pin_id,impressions,saves,clicks,outbound_clicks,snapshot_date').order('snapshot_date', { ascending: false }).limit(300),
+    ])
+    setDays((a.data ?? []) as Day[])
+
+    const latest = new Map<string, TopPin>()
+    for (const r of s.data ?? []) if (r.pin_id && !latest.has(r.pin_id)) latest.set(r.pin_id, { pin_id: r.pin_id, impressions: r.impressions ?? 0, saves: r.saves ?? 0, clicks: r.clicks ?? 0, outbound_clicks: r.outbound_clicks ?? 0, title: null, image_url: null })
+    const ranked = [...latest.values()].sort((x, y) => y.impressions - x.impressions).slice(0, 10)
+    if (ranked.length) {
+      const { data: pins } = await supabase.from('scheduled_pins').select('id,title,image_url').in('id', ranked.map((r) => r.pin_id))
+      const meta = new Map((pins ?? []).map((p) => [p.id, p]))
+      ranked.forEach((r) => { r.title = meta.get(r.pin_id)?.title ?? null; r.image_url = meta.get(r.pin_id)?.image_url ?? null })
+    }
+    setTop(ranked)
+  }, [range, maxDays])
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount and when the range changes
+  useEffect(() => { void load() }, [load])
+
+  const totals = useMemo(() => {
+    const t = { impressions: 0, saves: 0, pin_clicks: 0, outbound_clicks: 0 }
+    for (const d of days ?? []) { t.impressions += d.impressions; t.saves += d.saves; t.pin_clicks += d.pin_clicks; t.outbound_clicks += d.outbound_clicks }
+    return t
+  }, [days])
+
+  async function sync() {
+    setSyncing(true)
+    try {
+      await api('/account/analytics/sync', { method: 'POST', body: {} })
+      await load()
+      toast.success('Analytics updated from Pinterest.')
+    } catch (e) { toast.error(errorText(e)) }
+    setSyncing(false)
+  }
+
+  const ranges = [7, 30, 90].filter((r) => r <= Math.max(maxDays, 7))
+  const empty = days !== null && days.length === 0
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Track how your pins perform on Pinterest</p>
+    <div>
+      <PageHeader title="Analytics" description="Performance of your Pinterest account. Pinterest reports data with a delay of one to two days."
+        actions={<Button variant="outline" onClick={sync} loading={syncing}>{!syncing && <RefreshCw size={15} aria-hidden />} Refresh</Button>} />
+
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg bg-stone-100 p-1">
+          {ranges.map((r) => (
+            <button key={r} onClick={() => setRange(r)} className={cn('h-8 rounded-md px-3 text-[13px] font-medium', range === r ? 'bg-white text-ink shadow-sm' : 'text-stone-600')}>{r} days</button>
+          ))}
+        </div>
+        {maxDays < 90 && <Link href="/dashboard/upgrade" className="text-xs font-medium text-brand hover:underline">Longer history on paid plans</Link>}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: bg }}>
-              <Icon size={18} style={{ color }} />
-            </div>
-            <p className="text-2xl font-bold text-gray-900 mb-0.5">{value}</p>
-            <p className="text-xs text-gray-500">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Bar chart (last 7 days) */}
-      {byDate.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <BarChart3 size={18} className="text-[#E60023]" />
-            <h2 className="font-semibold text-gray-900">Last 7 days — Impressions</h2>
-          </div>
-          <div className="flex items-end gap-3 h-32">
-            {byDate.map((s, i) => {
-              const maxImp = Math.max(...byDate.map((d) => d.impressions ?? 0), 1)
-              const pct = ((s.impressions ?? 0) / maxImp) * 100
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div
-                    className="w-full rounded-t-lg bg-[#E60023] transition-all duration-500"
-                    style={{ height: `${Math.max(pct, 4)}%` }}
-                  />
-                  <span className="text-[9px] text-gray-400">
-                    {new Date(s.snapshot_date).toLocaleDateString('en', { weekday: 'short' })}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!snapshots?.length && (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center">
-          <BarChart3 size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No analytics yet</p>
-          <p className="text-gray-400 text-sm mt-1">Analytics will appear after your first pin is published.</p>
-        </div>
-      )}
-
-      {/* Recent snapshots table */}
-      {snapshots && snapshots.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-50">
-            <h2 className="font-semibold text-gray-900 text-sm">Recent snapshots</h2>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {snapshots.slice(0, 10).map((s) => (
-              <div key={s.id} className="grid grid-cols-4 gap-4 px-5 py-3 text-sm">
-                <span className="text-gray-500">
-                  {new Date(s.snapshot_date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-                </span>
-                <span className="text-gray-900 font-medium">{formatNumber(s.impressions ?? 0)}</span>
-                <span className="text-green-600">{formatNumber(s.saves ?? 0)}</span>
-                <span className="text-orange-600">{formatNumber(s.clicks ?? 0)}</span>
-              </div>
+      {days === null ? <Skeleton className="h-80" /> : empty ? (
+        <Card><EmptyState icon={BarChart3} title="No analytics yet" description="Numbers appear after your first published pins have been on Pinterest for a day or two."
+          action={<Button onClick={sync} loading={syncing}>Fetch from Pinterest</Button>} /></Card>
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {METRICS.map((m) => (
+              <button key={m.key} onClick={() => setMetric(m.key)} aria-pressed={metric === m.key}
+                className={cn('rounded-xl border bg-white p-4 text-left transition-colors', metric === m.key ? 'border-ink' : 'border-line hover:border-stone-300')}>
+                <p className="text-sm text-muted">{m.label}</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{formatNumber(totals[m.key])}</p>
+              </button>
             ))}
           </div>
-        </div>
+          <Card className="p-4">
+            <TrendChart data={days.map((d) => ({ day: d.day, value: d[metric] }))} label={METRICS.find((m) => m.key === metric)!.label} />
+          </Card>
+
+          <h2 className="mb-2 mt-6 text-sm font-semibold text-ink">Top pins published with Pinshedule</h2>
+          <Card className="overflow-hidden">
+            {top.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted">Per-pin numbers appear once pins have collected impressions.</p> : (
+              <div className="divide-y divide-line">
+                {top.map((p) => (
+                  <div key={p.pin_id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="h-14 w-10 shrink-0 rounded-md border border-line object-cover" />}
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{p.title || 'Untitled pin'}</p>
+                    <dl className="flex shrink-0 gap-4 text-right text-xs">
+                      <div><dt className="text-muted">Views</dt><dd className="font-medium tabular-nums text-ink">{formatNumber(p.impressions)}</dd></div>
+                      <div><dt className="text-muted">Saves</dt><dd className="font-medium tabular-nums text-ink">{formatNumber(p.saves)}</dd></div>
+                      <div className="hidden sm:block"><dt className="text-muted">Clicks</dt><dd className="font-medium tabular-nums text-ink">{formatNumber(p.outbound_clicks)}</dd></div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </>
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { encrypt } from '@/lib/utils'
+import { encrypt } from '@shared/crypto'
+import { PINTEREST_API } from '@/lib/pinterest'
 
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!
@@ -14,7 +15,8 @@ export async function GET(request: NextRequest) {
   }
 
   const storedState = request.cookies.get('pinterest_oauth_state')?.value
-  const next = request.cookies.get('pinterest_oauth_next')?.value ?? '/dashboard'
+  const rawNext = request.cookies.get('pinterest_oauth_next')?.value ?? ''
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
   if (!code || !state || state !== storedState) {
     return NextResponse.redirect(`${appUrl}/login?error=invalid_state`)
@@ -55,7 +57,7 @@ export async function GET(request: NextRequest) {
       `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`
     ).toString('base64')
 
-    const tokenRes = await fetch('https://api.pinterest.com/v5/oauth/token', {
+    const tokenRes = await fetch(`${PINTEREST_API}/oauth/token`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -65,13 +67,14 @@ export async function GET(request: NextRequest) {
         grant_type: 'authorization_code',
         code,
         redirect_uri: `${appUrl}/api/auth/pinterest/callback`,
+        continuous_refresh: 'true', // long-lived refresh tokens so users stay connected
       }),
     })
     if (!tokenRes.ok) throw new Error('Pinterest token exchange failed')
     const tokens = await tokenRes.json()
 
     // 2. Get Pinterest user profile
-    const userRes = await fetch('https://api.pinterest.com/v5/user_account', {
+    const userRes = await fetch(`${PINTEREST_API}/user_account`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     })
     if (!userRes.ok) throw new Error('Failed to fetch Pinterest user')
@@ -116,14 +119,14 @@ export async function GET(request: NextRequest) {
 
     // 8. Upsert user_profiles — insert on first login, ignore on re-login to preserve plan/settings
     await serviceClient.from('user_profiles').upsert(
-      { id: userId, plan: 'free_trial', timezone: 'UTC', notifications_enabled: true },
+      { id: userId },
       { onConflict: 'id', ignoreDuplicates: true }
     )
 
     // 9. Upsert pinterest_connections with fresh encrypted tokens
     const encryptedAccess = await encrypt(tokens.access_token, process.env.ENCRYPTION_SECRET!)
     const encryptedRefresh = await encrypt(tokens.refresh_token ?? '', process.env.ENCRYPTION_SECRET!)
-    const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 86400) * 1000).toISOString()
+    const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 2_592_000) * 1000).toISOString()
 
     await serviceClient.from('pinterest_connections').upsert({
       user_id: userId,
@@ -132,6 +135,13 @@ export async function GET(request: NextRequest) {
       access_token: encryptedAccess,
       refresh_token: encryptedRefresh,
       expires_at: expiresAt,
+      refresh_expires_at: tokens.refresh_token_expires_in
+        ? new Date(Date.now() + tokens.refresh_token_expires_in * 1000).toISOString()
+        : null,
+      scope: tokens.scope ?? null,
+      status: 'active',
+      last_error: null,
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 
     return response

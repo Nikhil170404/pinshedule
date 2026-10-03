@@ -1,12 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/publish-pins",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/refresh-tokens",
-      "schedule": "0 */20 * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs"
 }

@@ -1,28 +1,26 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Sidebar, MobileTabBar } from '@/components/layout/Sidebar'
+import { Sidebar, MobileHeader, MobileTabBar } from '@/components/layout/Sidebar'
+import { TimezoneSync } from '@/components/layout/TimezoneSync'
+import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data } = await supabase.auth.getClaims()
+  if (!data?.claims?.sub) redirect('/login')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-dvh bg-canvas">
       <Sidebar />
-      {/*
-        ml-14 on tablet (icon sidebar), ml-56 on desktop (full sidebar).
-        pb accounts for the mobile tab bar (≈64px) + iOS home indicator via safe area.
-      */}
-      <main
-        className="ml-14 lg:ml-56 min-h-screen md:pb-6"
-        style={{ paddingBottom: 'max(80px, calc(64px + env(safe-area-inset-bottom, 0px)))' }}
-      >
-        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 md:pb-0">
+      <div className="lg:pl-60">
+        <MobileHeader />
+        <main className="mx-auto max-w-5xl px-4 pb-24 pt-5 sm:px-6 sm:pt-8 lg:pb-12">
+          <ConnectionBanner />
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
       <MobileTabBar />
+      <TimezoneSync />
     </div>
   )
 }

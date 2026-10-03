@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# worker
+worker/dist
+worker/node_modules
+worker/.env
+
+!.env.example

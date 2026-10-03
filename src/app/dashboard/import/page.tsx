@@ -1,372 +1,200 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { useState } from 'react'
+import { Check, Globe, Map, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  Globe, Sparkles, Check, ChevronDown, AlertTriangle, RefreshCw, X, Calendar
-} from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Card, PageHeader } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { UpgradeNote } from '@/components/pins/UpgradeNote'
+import { BulkComposer, type DraftRow } from '@/components/schedule/BulkComposer'
+import { api, errorText } from '@/lib/api'
+import { refreshSummary, useSummary } from '@/lib/hooks'
+import { PLANS } from '@/types'
 import { cn } from '@/lib/utils'
 
-interface AIResult {
-  titles: string[]
-  description: string
-  keywords: string[]
-  alt_text: string
-}
-
-interface ImportResult {
+interface Imported {
+  url: string
   page_title: string
-  og_image: string | null
   images: string[]
-  ai: AIResult
+  ai: { titles: string[]; description: string; alt_text: string }
   is_duplicate: boolean
 }
-
-function localDatetimeMin() {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
-}
+type PageState = Imported & { selected: Set<string>; title: string }
 
 export default function ImportPage() {
+  const { summary } = useSummary()
+  const plan = summary ? PLANS[summary.plan] : null
+  const [mode, setMode] = useState<'page' | 'sitemap'>('page')
   const [url, setUrl] = useState('')
-  const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<ImportResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [sitemapUrls, setSitemapUrls] = useState<string[]>([])
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState('')
+  const [pages, setPages] = useState<PageState[]>([])
+  const [rows, setRows] = useState<DraftRow[] | null>(null)
 
-  // Step 2 form state
-  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
-  const [chosenTitle, setChosenTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [boards, setBoards] = useState<{ id: string; name: string }[]>([])
-  const [boardsLoaded, setBoardsLoaded] = useState(false)
-  const [board, setBoard] = useState('')
-  const [startTime, setStartTime] = useState('')
-  const [scheduling, setScheduling] = useState(false)
+  const toPage = (r: Imported): PageState => ({ ...r, selected: new Set(r.images.slice(0, 1)), title: r.ai.titles[0] ?? r.page_title })
 
-  async function handleImport() {
-    if (!url.trim() || !/^https?:\/\//.test(url.trim())) {
-      toast.error('Enter a valid URL starting with https://')
-      return
-    }
-    setImporting(true)
-    setResult(null)
+  async function importPage() {
+    if (!/^https?:\/\//i.test(url.trim())) return toast.error('Enter a full URL starting with https://')
+    setBusy(true)
     try {
-      const res = await fetch('/api/import/url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Import failed')
-      setResult(data)
-
-      // Pre-select og:image or first image
-      const firstImg = data.og_image ?? data.images[0]
-      if (firstImg) setSelectedImages(new Set([firstImg]))
-
-      setChosenTitle(data.ai.titles[0] ?? data.page_title ?? '')
-      setDescription(data.ai.description ?? '')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Import failed')
-    }
-    setImporting(false)
+      const res = await api<Imported>('/import/url', { body: { url: url.trim() } })
+      setPages([toPage(res)])
+      void refreshSummary()
+      if (res.is_duplicate) toast.message('You already have pins linking to this page.')
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
   }
 
-  function toggleImage(src: string) {
-    setSelectedImages((prev) => {
-      const next = new Set(prev)
-      if (next.has(src)) next.delete(src)
-      else next.add(src)
-      return next
-    })
-  }
-
-  async function loadBoards() {
-    if (boardsLoaded) return
+  async function readSitemap() {
+    if (!/^https?:\/\//i.test(url.trim())) return toast.error('Enter your website address, for example https://example.com')
+    setBusy(true)
     try {
-      const res = await fetch('/api/boards')
-      const data = await res.json()
-      setBoards(data.boards ?? [])
-      setBoardsLoaded(true)
-    } catch {
-      toast.error('Could not load boards. Is Pinterest connected?')
-    }
+      const res = await api<{ urls: string[] }>('/import/sitemap', { body: { url: url.trim() } })
+      setSitemapUrls(res.urls)
+      setPicked(new Set())
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
   }
 
-  async function handleSchedule() {
-    const images = [...selectedImages]
-    if (images.length === 0) { toast.error('Select at least one image'); return }
-    if (!board) { toast.error('Select a board'); return }
-    if (!startTime) { toast.error('Set a start time'); return }
-
-    setScheduling(true)
+  async function importPicked() {
+    const urls = [...picked].slice(0, 25)
+    setBusy(true)
     try {
-      // Build pins with 2-hour gaps
-      let slotTime = new Date(startTime)
-      const boardName = boards.find((b) => b.id === board)?.name
-      const pins = images.map((imageUrl, i) => {
-        if (i > 0) slotTime = new Date(slotTime.getTime() + 2 * 60 * 60 * 1000)
-        return {
-          image_url: imageUrl,
-          title: chosenTitle,
-          description,
-          board_id: board,
-          board_name: boardName,
-          destination_url: url.trim(),
-          scheduled_at: slotTime.toISOString(),
-        }
-      })
-
-      const res = await fetch('/api/pins/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pins),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Scheduling failed')
-
-      toast.success(`${pins.length} pin${pins.length > 1 ? 's' : ''} scheduled!`)
-
-      // Reset
-      setResult(null)
-      setUrl('')
-      setSelectedImages(new Set())
-      setChosenTitle('')
-      setDescription('')
-      setBoard('')
-      setStartTime('')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Scheduling failed')
-    }
-    setScheduling(false)
+      const res = await api<{ results: ({ ok: true } & Imported | { ok: false; url: string; error: string })[] }>('/import/bulk', { body: { urls } })
+      const ok = res.results.filter((r): r is { ok: true } & Imported => r.ok)
+      setPages(ok.map(toPage))
+      const failed = res.results.length - ok.length
+      if (failed) toast.error(`${failed} page${failed > 1 ? 's' : ''} could not be read.`)
+      void refreshSummary()
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
   }
 
-  const allImages = result ? [
-    ...(result.og_image && !result.images.includes(result.og_image) ? [result.og_image] : []),
-    ...result.images,
-  ] : []
+  function toggleImage(i: number, src: string) {
+    setPages((all) => all.map((p, idx) => {
+      if (idx !== i) return p
+      const s = new Set(p.selected)
+      if (s.has(src)) s.delete(src)
+      else s.add(src)
+      return { ...p, selected: s }
+    }))
+  }
 
+  function build() {
+    const out: DraftRow[] = pages.flatMap((p) => [...p.selected].map((src) => ({
+      id: crypto.randomUUID(), imageUrl: src, preview: src, title: p.title, description: p.ai.description, link: p.url,
+    })))
+    if (out.length === 0) return toast.error('Select at least one image.')
+    setRows(out.slice(0, 200))
+  }
+
+  if (rows) {
+    return (
+      <div className="max-w-3xl">
+        <PageHeader title="Review and schedule" description="Edit anything you like, then pick a board and spacing." actions={<Button variant="ghost" size="sm" onClick={() => setRows(null)}>Back</Button>} />
+        <BulkComposer rows={rows} setRows={setRows as React.Dispatch<React.SetStateAction<DraftRow[]>>} />
+      </div>
+    )
+  }
+
+  const visible = sitemapUrls.filter((u) => u.toLowerCase().includes(filter.toLowerCase()))
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Website → Pins</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Paste any URL — we extract images and write your pin copy automatically
-        </p>
-      </div>
+    <div className="max-w-3xl">
+      <PageHeader title="From website" description="Paste a page or a sitemap. We pull the images and write Pinterest-ready titles and descriptions." />
 
-      {/* URL input */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <Input
-              placeholder="https://yourblog.com/post-title"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleImport()}
-              type="url"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              label="Page URL"
-            />
+      {pages.length === 0 && (
+        <Card className="space-y-4 p-4 sm:p-5">
+          <div className="inline-flex rounded-lg bg-stone-100 p-1" role="tablist">
+            {([['page', 'Single page', Globe], ['sitemap', 'Whole sitemap', Map]] as const).map(([k, label, Icon]) => (
+              <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
+                className={cn('flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium', mode === k ? 'bg-white text-ink shadow-sm' : 'text-stone-600')}>
+                <Icon size={14} aria-hidden />{label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-end">
-            <Button onClick={handleImport} loading={importing} disabled={!url.trim()}>
-              <Globe size={15} />
-              Import
-            </Button>
-          </div>
-        </div>
 
-        {importing && (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <RefreshCw size={14} className="animate-spin" />
-            Fetching page and generating Pinterest copy…
-          </div>
-        )}
-      </div>
+          <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void (mode === 'page' ? importPage() : readSitemap()) }}>
+            <Input className="flex-1" label={mode === 'page' ? 'Page URL' : 'Website or sitemap URL'} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off"
+              placeholder={mode === 'page' ? 'https://yourblog.com/best-pasta-recipes' : 'https://yourblog.com'} value={url} onChange={(e) => setUrl(e.target.value)} />
+            <Button type="submit" size="lg" loading={busy} disabled={mode === 'sitemap' && !!plan && !plan.sitemap_import}>{mode === 'page' ? 'Import page' : 'Read sitemap'}</Button>
+          </form>
+          {mode === 'sitemap' && plan && !plan.sitemap_import && <UpgradeNote>Sitemap import is included in the Pro plan and above.</UpgradeNote>}
+          {plan && <p className="text-xs text-muted">{plan.website_imports - (summary?.used.imports ?? 0)} of {plan.website_imports} page imports left this month.</p>}
 
-      {/* Results */}
-      {result && (
-        <div className="space-y-5">
-          {result.is_duplicate && (
-            <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-              <AlertTriangle size={15} className="shrink-0" />
-              You&apos;ve already scheduled a pin from this URL. Duplicate pins can hurt your reach.
+          {sitemapUrls.length > 0 && (
+            <div className="space-y-3 border-t border-line pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="relative w-full sm:w-64">
+                  <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" aria-hidden />
+                  <input aria-label="Filter pages" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter pages"
+                    className="h-9 w-full rounded-lg border border-line pl-8 pr-3 text-sm focus:border-stone-400 focus:outline-none" />
+                </div>
+                <p className="text-xs text-muted">{picked.size}/25 selected of {sitemapUrls.length} found</p>
+              </div>
+              <ul className="max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line">
+                {visible.slice(0, 300).map((u) => (
+                  <li key={u}>
+                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-stone-50">
+                      <input type="checkbox" className="h-4 w-4 accent-[#e60023]" checked={picked.has(u)}
+                        onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(u)) n.delete(u); else if (n.size < 25) n.add(u); return n })} />
+                      <span className="min-w-0 truncate">{u.replace(/^https?:\/\//, '')}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <Button onClick={importPicked} loading={busy} disabled={picked.size === 0}>Import {picked.size || ''} selected</Button>
             </div>
           )}
+        </Card>
+      )}
 
-          {/* Image selector */}
-          {allImages.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <p className="text-sm font-semibold text-gray-900 mb-3">
-                Select images to pin
-                <span className="ml-2 text-xs text-gray-400 font-normal">
-                  {selectedImages.size} selected · each becomes a separate pin
-                </span>
-              </p>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {allImages.map((src, i) => {
-                  const selected = selectedImages.has(src)
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => toggleImage(src)}
-                      className={cn(
-                        'relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-150',
-                        selected ? 'border-[#E60023] ring-2 ring-red-100' : 'border-gray-100 hover:border-gray-300'
-                      )}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }}
-                      />
-                      {selected && (
-                        <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-[#E60023] rounded-full flex items-center justify-center">
-                          <Check size={11} className="text-white" />
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
+      {pages.length > 0 && (
+        <div className="space-y-4">
+          {pages.map((p, i) => (
+            <Card key={p.url} className="p-4 sm:p-5">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{p.page_title}</p>
+                {p.is_duplicate && <Badge tone="warning">Already pinned</Badge>}
               </div>
-            </div>
-          )}
-
-          {/* AI title options */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles size={15} className="text-[#E60023]" />
-              <p className="text-sm font-semibold text-gray-900">AI title options</p>
-            </div>
-            <div className="space-y-2">
-              {result.ai.titles.map((t, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setChosenTitle(t)}
-                  className={cn(
-                    'w-full text-left text-sm px-4 py-3 rounded-xl border transition-all duration-150',
-                    chosenTitle === t
-                      ? 'border-[#E60023] bg-red-50 text-gray-900 font-medium'
-                      : 'border-gray-100 hover:border-gray-200 text-gray-700'
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-              {/* Custom title input */}
-              {!result.ai.titles.includes(chosenTitle) && chosenTitle && (
-                <div className="relative">
-                  <input
-                    value={chosenTitle}
-                    onChange={(e) => setChosenTitle(e.target.value)}
-                    className="w-full text-sm px-4 py-3 rounded-xl border border-[#E60023] bg-red-50 text-gray-900 outline-none"
-                    maxLength={100}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setChosenTitle(result.ai.titles[0] ?? '')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={14} />
-                  </button>
+              <p className="mb-3 truncate text-xs text-muted">{p.url}</p>
+              <div className="mb-4 flex flex-col gap-3">
+                <Input label="Pin title" value={p.title} maxLength={100} onChange={(e) => setPages((all) => all.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
+                {p.ai.titles.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.ai.titles.map((t) => (
+                      <button key={t} type="button" onClick={() => setPages((all) => all.map((x, j) => (j === i ? { ...x, title: t } : x)))}
+                        className="max-w-full truncate rounded-md border border-line px-2 py-1 text-xs text-stone-600 hover:border-stone-400">{t}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="mb-2 text-sm font-medium text-ink">Images to pin ({p.selected.size} selected)</p>
+              {p.images.length === 0 ? (
+                <p className="text-sm text-muted">No usable images were found on that page.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                  {p.images.map((src) => {
+                    const on = p.selected.has(src)
+                    return (
+                      <button key={src} type="button" onClick={() => toggleImage(i, src)} aria-pressed={on}
+                        className={cn('relative aspect-[2/3] overflow-hidden rounded-lg border-2 bg-stone-100', on ? 'border-brand' : 'border-transparent')}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
+                        {on && <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white"><Check size={12} /></span>}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
-              <p className="text-xs text-gray-400">Click to select, or type your own below</p>
-              <input
-                placeholder="Or write a custom title…"
-                value={chosenTitle}
-                onChange={(e) => setChosenTitle(e.target.value)}
-                className="w-full text-sm px-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#E60023]"
-                maxLength={100}
-              />
-            </div>
-
-            <div className="pt-1">
-              <p className="text-xs font-medium text-gray-500 mb-2">AI description</p>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full text-sm px-4 py-3 rounded-xl border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#E60023] resize-none"
-              />
-            </div>
-
-            {result.ai.keywords.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">Keywords</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.ai.keywords.map((kw) => (
-                    <span key={kw} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Scheduling */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Calendar size={15} className="text-[#E60023]" />
-              <p className="text-sm font-semibold text-gray-900">Schedule</p>
-              {selectedImages.size > 1 && (
-                <span className="text-xs text-gray-400 ml-auto">
-                  Pins auto-spaced 2 hrs apart
-                </span>
-              )}
-            </div>
-
-            {/* Board */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">Board</label>
-              <div className="relative">
-                <select
-                  value={board}
-                  onChange={(e) => setBoard(e.target.value)}
-                  onFocus={loadBoards}
-                  className={cn(
-                    'w-full rounded-xl border bg-white px-4 py-2.5 text-sm pr-9 min-h-[44px]',
-                    'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent transition-colors',
-                    board ? 'border-gray-200 text-gray-900' : 'border-gray-200 text-gray-400'
-                  )}
-                >
-                  <option value="">Select a board</option>
-                  {boards.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Start time */}
-            <Input
-              label={selectedImages.size > 1 ? `Start time (first of ${selectedImages.size} pins)` : 'Schedule time'}
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              min={localDatetimeMin()}
-            />
-
-            <Button
-              onClick={handleSchedule}
-              loading={scheduling}
-              size="lg"
-              className="w-full"
-              disabled={selectedImages.size === 0 || !board || !startTime}
-            >
-              Schedule {selectedImages.size > 1 ? `${selectedImages.size} pins` : 'pin'}
-            </Button>
+            </Card>
+          ))}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setPages([])}>Start over</Button>
+            <Button size="lg" onClick={build}>Continue</Button>
           </div>
         </div>
       )}

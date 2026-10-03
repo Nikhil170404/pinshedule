@@ -1,101 +1,74 @@
-import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/Badge'
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { CreditCard, Zap } from 'lucide-react'
+import { buttonStyles } from '@/components/ui/button-styles'
+import { Card, Meter, PageHeader, Skeleton } from '@/components/ui/Card'
+import { api, errorText } from '@/lib/api'
+import { refreshSummary, useSummary } from '@/lib/hooks'
 import { PLANS } from '@/types'
 
-export default async function BillingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('plan, razorpay_subscription_id')
-    .eq('id', user!.id)
-    .single()
+export default function BillingPage() {
+  const { summary } = useSummary()
+  const [busy, setBusy] = useState(false)
 
-  const plan = (profile?.plan ?? 'free_trial') as keyof typeof PLANS
-  const planDetails = PLANS[plan]
-  const isFree = plan === 'free_trial'
+  async function cancel() {
+    if (!confirm('Cancel your subscription? You keep your plan until the end of the current period.')) return
+    setBusy(true)
+    try {
+      await api('/billing/cancel', { method: 'POST', body: {} })
+      await refreshSummary()
+      toast.success('Subscription cancelled. Your plan stays active until the period ends.')
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
+  }
+
+  if (!summary) return <div><PageHeader title="Plan and billing" /><Skeleton className="h-64" /></div>
+  const plan = PLANS[summary.plan]
+  const paid = summary.plan !== 'free_trial'
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-xl">
-      <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
-
-      {/* Current plan */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <CreditCard size={16} className="text-[#E60023]" />
-          <h2 className="font-semibold text-gray-900">Current plan</h2>
-        </div>
-
-        <div className="flex items-center justify-between">
+    <div className="max-w-2xl">
+      <PageHeader title="Plan and billing" />
+      <Card className="mb-5 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-gray-900">{planDetails.name}</p>
-              <Badge variant={isFree ? 'default' : 'success'}>
-                {isFree ? 'Free' : 'Active'}
-              </Badge>
+              <h2 className="text-lg font-semibold text-ink">{plan.name}</h2>
+              {summary.plan_status === 'cancelling' && <Badge tone="warning">Cancels at period end</Badge>}
+              {summary.plan_status === 'payment_failed' && <Badge tone="danger">Payment failed</Badge>}
             </div>
-            {!isFree && (
-              <p className="text-sm text-gray-500 mt-1">
-                ${planDetails.price_monthly_usd}/mo
-              </p>
-            )}
+            <p className="mt-1 text-sm text-muted">
+              {paid ? (summary.expires_at ? `${summary.plan_status === 'cancelling' ? 'Access until' : 'Renews on'} ${fmt(summary.expires_at)}` : 'Active') : 'Free forever, no card on file.'}
+            </p>
           </div>
-          {!isFree && (
-            <Link href="/dashboard/upgrade">
-              <Button variant="outline" size="sm">Change plan</Button>
-            </Link>
-          )}
+          <Link href="/dashboard/upgrade" className={buttonStyles(paid ? 'outline' : 'primary')}>{paid ? 'Change plan' : 'Upgrade'}</Link>
         </div>
-
-        {isFree && (
-          <Link href="/dashboard/upgrade">
-            <Button className="w-full">
-              <Zap size={15} />
-              Upgrade — from $15/mo
-            </Button>
-          </Link>
+        {summary.plan_status === 'payment_failed' && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Your last payment did not go through. Update your payment method with Razorpay or choose a plan again to keep your access.</p>
         )}
-      </div>
+      </Card>
 
-      {/* Plan limits */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900 text-sm">Your plan includes</h2>
-        <div className="space-y-3">
-          {[
-            { label: 'Pins/month', value: planDetails.pins_per_month.toLocaleString() },
-            { label: 'Pinterest accounts', value: planDetails.accounts },
-            { label: 'Website imports/month', value: planDetails.website_imports.toLocaleString() },
-            { label: 'AI generations/month', value: planDetails.ai_generations.toLocaleString() },
-            { label: 'AI image credits/month', value: planDetails.ai_image_credits || 'Not included' },
-            { label: 'Bulk CSV upload', value: planDetails.bulk_upload ? 'Included' : 'Not included' },
-            { label: 'Sitemap import', value: planDetails.sitemap_import ? 'Included' : 'Not included' },
-            { label: 'Brand kit', value: planDetails.brand_kit ? 'Included' : 'Not included' },
-            { label: 'Team seats', value: planDetails.team_users === 'unlimited' ? 'Unlimited' : planDetails.team_users },
-            { label: 'White label', value: planDetails.white_label ? 'Included' : 'Not included' },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">{label}</span>
-              <span className="font-medium text-gray-900">{value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card className="mb-5 space-y-4 p-5">
+        <h2 className="text-sm font-semibold text-ink">Usage this month</h2>
+        <Meter label="Pins scheduled" value={summary.used.pins} max={summary.limits.pins} />
+        <Meter label="AI generations" value={summary.used.ai} max={summary.limits.ai} />
+        <Meter label="Website imports" value={summary.used.imports} max={summary.limits.imports} />
+        <p className="text-xs text-muted">Counters reset on the first day of each month (UTC).</p>
+      </Card>
 
-      {/* Payment info */}
-      <div className="bg-gray-50 rounded-2xl p-5 text-sm text-gray-600 space-y-1">
-        <p>Payments are processed securely via Razorpay.</p>
-        <p>We never store your card details.</p>
-        <p>
-          Questions?{' '}
-          <a href="mailto:support@pinshedule.com" className="text-[#E60023] hover:underline">
-            support@pinshedule.com
-          </a>
-        </p>
-      </div>
+      {paid && summary.plan_status !== 'cancelling' && (
+        <Card className="p-5">
+          <h2 className="text-sm font-semibold text-ink">Cancel subscription</h2>
+          <p className="mt-1 text-sm text-muted">You keep your current plan until the end of the period you already paid for. Scheduled pins stay in your queue.</p>
+          <Button variant="outline" className="mt-3" onClick={cancel} loading={busy}>Cancel subscription</Button>
+        </Card>
+      )}
     </div>
   )
 }
