@@ -1,0 +1,105 @@
+import { FACTS, CHECKED } from './facts'
+import { callout, h2, p, plansTable, steps, ul, type SeoPage } from './types'
+
+const { free, starter } = FACTS
+
+export const useCasePages: SeoPage[] = [
+  {
+    path: 'use-cases/bloggers',
+    kind: 'use-case',
+    label: 'Pinterest scheduler for bloggers',
+    title: "Pinterest scheduler for bloggers",
+    description: 'How bloggers use GoPinKaro to turn new and old blog posts into scheduled Pinterest pins: import posts, draft titles, space pins over weeks and track what works.',
+    h1: 'A Pinterest scheduler for bloggers',
+    intro: 'Pinterest can send steady traffic to blog posts for months, but only if each post has pins and new pins keep appearing. GoPinKaro helps bloggers turn each post into several pins quickly, then spreads them over days so the account stays active without daily effort.',
+    updated: CHECKED,
+    blocks: [
+      h2('workflow', 'A simple blogger workflow'),
+      steps(
+        ['Publish the post', 'Make sure the post has at least one tall, readable image. Add more than one if you can, with different headlines.'],
+        ['Import the URL', 'Paste the post URL into GoPinKaro. It reads the title and description, collects the images and drafts three titles, a description and alt text.'],
+        ['Pick and edit', 'Choose the images and wording you like. Keep the main keyword near the start of the title.'],
+        ['Schedule across days', `Choose a board and spacing, for example two pins a day, so the post is pinned repeatedly over a couple of weeks.`],
+      ),
+      h2('backlog', 'Pin your back catalogue'),
+      p('Most blogs have far more old posts than they have ever pinned. On the Pro plan, paste your website address, let GoPinKaro read your sitemap, pick up to 25 posts at a time and import them. A few sessions turn a hundred old posts into weeks of scheduled pins.'),
+      h2('consistency', 'Keep a steady rhythm'),
+      p('A steady trickle of pins is easier to maintain than occasional big pushes. Queue a week or two of pins at a time, glance at the calendar to confirm there are no gaps, and use the Pins page to see anything that failed.'),
+      callout('GoPinKaro schedules the pins you create. It does not write your blog posts or design your images. Pair it with a design tool for fresh pin graphics.', 'What it does and does not do'),
+      h2('pick-plan', 'Which plan'),
+      p(`A blogger publishing a few posts a week will usually fit within ${free.pins} pins a month on the Free plan while testing, or Starter ($${starter.price} a month) when pinning each post several times. Pro adds sitemap import for older content.`),
+      plansTable(),
+    ],
+    faqs: [
+      { q: 'How many pins should a blogger make per post?', a: 'More than one. Different images and headlines for the same post reach different searches. Space them over days or weeks rather than publishing them together.' },
+      { q: 'Can I schedule pins for old blog posts?', a: 'Yes. Import any public post URL, or read your sitemap on Pro and above, and schedule the pins as you would for a new post.' },
+      { q: 'Does it work with WordPress?', a: 'It works with any public page, including WordPress posts, as long as the page has images the importer can read.' },
+    ],
+    related: ['website-to-pinterest-pins', 'pinterest-scheduler', 'guides/how-often-to-pin-on-pinterest', 'guides/pinterest-seo-basics'],
+  },
+  {
+    path: 'use-cases/etsy-sellers',
+    kind: 'use-case',
+    label: 'Pinterest scheduler for Etsy sellers',
+    title: "Pinterest scheduler for Etsy sellers",
+    description: 'How Etsy sellers can use GoPinKaro to schedule pins for listings in bulk, using product images and listing links, at a steady pace without daily manual work.',
+    h1: 'A Pinterest scheduler for Etsy sellers',
+    intro: 'Shoppers use Pinterest to find ideas and products. For an Etsy shop, that means each listing is worth several pins that link back to it. GoPinKaro lets you bulk schedule those pins from your product images and listing links, and keep them going at a steady pace.',
+    updated: CHECKED,
+    blocks: [
+      h2('approach', 'The approach'),
+      p('Collect your listing photos and the URL of each listing, put them in a CSV, and import it. Each row becomes a pin that links to the listing. Write a title that names the product and what it is for, and a description a shopper would find useful.'),
+      h2('csv', 'Prepare the CSV'),
+      ul(
+        '**image_url:** a public https link to the product image.',
+        '**title:** the product and its use, with the main keyword first.',
+        '**description:** two natural sentences, then a few hashtags.',
+        '**link:** the Etsy listing URL.',
+      ),
+      p('Import the file on the Bulk schedule page, review the pins, choose a board such as the collection the product belongs to, and schedule the batch.'),
+      h2('variety', 'Keep it varied'),
+      p('Pinterest favours fresh content, so vary images (lifestyle shots, close-ups, flat lays) and wording rather than repeating one image. GoPinKaro warns you when a new pin is nearly identical to a recent one.'),
+      callout('GoPinKaro does not connect to your Etsy account or read your listings automatically. You provide the images and listing links, either by CSV or by pasting listing page URLs into the website importer.', 'How it connects to Etsy'),
+      h2('plan', 'Which plan'),
+      p(`Bulk and CSV scheduling start on the Starter plan ($${starter.price} a month, ${starter.pins} pins a month). The Free plan lets you test with up to ${FACTS.freeBatchMax} pins per request.`),
+      plansTable(),
+    ],
+    faqs: [
+      { q: 'Can I schedule Etsy listings to Pinterest?', a: 'Yes. Add your listing images and links with a CSV or the bulk image uploader, or paste listing URLs into the website importer, then schedule them.' },
+      { q: 'Does GoPinKaro sync with Etsy?', a: 'No, there is no automatic Etsy sync. You supply images and links yourself.' },
+      { q: 'How many pins per listing?', a: 'Several, with different images and wording, spread over days or weeks.' },
+    ],
+    related: ['pinterest-bulk-scheduler', 'use-cases/shopify-stores', 'pinterest-scheduler', 'guides/pinterest-image-size-and-specs'],
+  },
+  {
+    path: 'use-cases/shopify-stores',
+    kind: 'use-case',
+    label: 'Pinterest scheduler for Shopify stores',
+    title: "Pinterest scheduler for Shopify stores",
+    description: 'Turn product and collection pages into scheduled Pinterest pins. Import product URLs, bulk schedule images and keep your catalogue pinned at a steady pace.',
+    h1: 'A Pinterest scheduler for Shopify and online stores',
+    intro: 'A store with hundreds of products has hundreds of pin opportunities. GoPinKaro turns product and collection pages into drafted pins, then schedules them at a steady pace so your catalogue is pinned continuously rather than in occasional bursts.',
+    updated: CHECKED,
+    blocks: [
+      h2('two-routes', 'Two routes from catalogue to pins'),
+      ul(
+        '**Product page import.** Paste product or collection page URLs (or read your sitemap on Pro and above). GoPinKaro collects the images and drafts titles and descriptions that link back to the page.',
+        '**CSV or image upload.** Export your product images and links to a CSV, or upload a folder of lifestyle images, and schedule them in bulk.',
+      ),
+      h2('copy', 'Write pins for shoppers, not for catalogues'),
+      p('Product feeds usually produce titles like a catalogue entry. Pins perform better when the title says what the product is and what it helps with. Use the AI writer to draft alternatives, then edit them to sound like your brand.'),
+      h2('pacing', 'Pace the catalogue'),
+      p('Rather than scheduling everything at once, spread products over weeks. Use best-time slots on a paid plan to choose how many pins a day go out. Check the Pins page for anything that failed and retry in one click.'),
+      callout('GoPinKaro does not connect to Shopify or sync inventory. If a product is removed, delete its scheduled pins from the Pins page or ask the assistant to find and delete them.', 'Keep your queue accurate'),
+      h2('plans', 'Plans'),
+      plansTable(),
+    ],
+    faqs: [
+      { q: 'Can I create Pinterest pins from Shopify product pages?', a: 'Yes. Paste product page URLs and GoPinKaro collects the images and drafts titles and descriptions. Sitemap import on Pro and above lets you read your whole store.' },
+      { q: 'Is there a Shopify app?', a: 'No. GoPinKaro works from public page URLs, CSV files and image uploads.' },
+      { q: 'How do I remove pins for sold-out products?', a: 'Open the Pins page, select the pins and delete them, or ask the assistant to find them by title and propose deleting them.' },
+    ],
+    related: ['website-to-pinterest-pins', 'use-cases/etsy-sellers', 'pinterest-bulk-scheduler', 'pinterest-automation-tool'],
+  },
+]
+void starter
