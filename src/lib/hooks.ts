@@ -36,6 +36,11 @@ export function useSummary() {
 const boardsStore = createStore<PinterestBoard[]>()
 let boardsInflight: Promise<void> | null = null
 
+/** Refetch boards for everyone using them (e.g. after the assistant creates one). */
+export function reloadBoards() {
+  return api<{ boards: PinterestBoard[] }>('/boards?refresh=1').then((r) => boardsStore.set(r.boards)).catch(() => {})
+}
+
 export function useBoards() {
   const boards = useSyncExternalStore(boardsStore.subscribe, boardsStore.get, () => null)
   const [error, setError] = useState<{ message: string; reconnect: boolean } | null>(null)

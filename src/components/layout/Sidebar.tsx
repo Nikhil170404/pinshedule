@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   LayoutDashboard, CalendarDays, ListChecks, BarChart3, Wand2, Hash, Columns3, Settings, CreditCard,
-  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle,
+  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -19,6 +19,7 @@ const groups = [
   {
     label: 'Create',
     items: [
+      { href: '/dashboard/assistant', label: 'Assistant', icon: Sparkles },
       { href: '/dashboard/schedule', label: 'New pin', icon: PlusSquare },
       { href: '/dashboard/bulk', label: 'Bulk schedule', icon: Layers },
       { href: '/dashboard/import', label: 'From website', icon: Globe },

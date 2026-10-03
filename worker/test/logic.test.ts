@@ -68,3 +68,27 @@ test('cosine similarity: identical = 1, orthogonal = 0, opposite = -1', async ()
   assert.equal(cosine([1, 0], [0, 1]), 0)
   assert.ok(Math.abs(cosine([1, 1], [-1, -1]) + 1) < 1e-9)
 })
+
+test('assistant: every tool shown to the model has a handler, and vice versa', async () => {
+  const { TOOL_DEFS, registeredToolNames } = await import('../src/lib/assistant-tools')
+  const defs = TOOL_DEFS.map((d) => d.function.name).sort()
+  assert.deepEqual(defs, registeredToolNames().sort())
+  for (const d of TOOL_DEFS) assert.equal(d.function.parameters.additionalProperties, false, d.function.name)
+})
+
+test('assistant: write tools never execute from runTool, bad input is reported not thrown', async () => {
+  const { runTool } = await import('../src/lib/assistant-tools')
+  const ctx = { userId: 'u', tz: 'UTC', planId: 'starter' as const }
+  const save = async () => { throw new Error('must not be reached for invalid input') }
+  const bad = await runTool(ctx, 'delete_pins', '{}', save)
+  assert.equal(bad.kind, 'result')
+  assert.match(bad.text, /error/)
+  const junk = await runTool(ctx, 'schedule_pins', '{not json', save)
+  assert.match(junk.text, /not valid JSON/)
+  const unknown = await runTool(ctx, 'drop_database', '{}', save)
+  assert.match(unknown.text, /Unknown tool/)
+  const ui = await runTool(ctx, 'open_page', '{"page":"calendar"}', save)
+  assert.equal(ui.kind, 'ui')
+  const badPage = await runTool(ctx, 'open_page', '{"page":"https://evil.example"}', save)
+  assert.equal(badPage.kind, 'result')
+})

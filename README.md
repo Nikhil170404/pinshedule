@@ -26,6 +26,15 @@ Pinterest scheduler. Two deployables:
 - **Focused prompts, not one big context:** titles, description and alt text are three small parallel calls with strict JSON schemas; scraped page text is fenced as data so injected instructions are ignored. Page copy is cached in Redis for a day.
 - **Vectors (pgvector):** each scheduled pin is embedded and stored in `pin_embeddings` (HNSW index). The New pin screen warns about near-duplicates (`/v1/ai/similar`) and suggests the best-matching boards (`/v1/ai/suggest-board`). Embeddings are cached in Redis, so identical text is never embedded twice.
 
+## Assistant (chat that operates the app)
+
+Open it from any dashboard page (button or Ctrl/Cmd+K) or at `/dashboard/assistant`. It uses OpenAI tool calling (`gpt-4o-mini`) over 18 tools in `worker/src/lib/assistant-tools.ts`.
+
+- **Read tools run immediately:** account and usage, boards, pins, queue stats, analytics, trending keywords, page import, copywriting, similar-pin search, board suggestions, best times.
+- **Write tools only propose.** Scheduling (single or bulk, fixed interval or best times), editing, deleting, retrying, creating boards and changing the timezone each produce a confirmation card. Nothing executes until the user clicks Confirm, which calls `POST /v1/assistant/execute` with a single-use, user-bound, 15-minute proposal id. Injected text on a scraped page therefore cannot change anything.
+- **Same rules as the UI:** the assistant calls the same service layer (`pin-service.ts`) as the REST API, so plan limits, quotas, validation and the atomic quota RPC all apply.
+- **Cost control:** one user message = one AI action, however many tools it uses. The system prompt and tool list are byte-identical on every call so OpenAI's prompt cache discounts them; per-turn context is only the last 12 messages plus a one-line account summary; tool outputs are capped; at most 5 model steps and 10 tool calls per message.
+
 ## Deploy
 
 ### 1. Supabase

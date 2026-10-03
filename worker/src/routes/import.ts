@@ -8,6 +8,7 @@ import { extractImages, metaContent, pageTitle, parseSitemapUrls } from '../lib/
 import { aiEnabled, pinCopy } from '../lib/ai'
 import { consumeUsage, getProfile, invalidateProfile, refundUsage } from '../lib/plan'
 import { errMsg } from '../lib/log'
+import { ServiceError } from '../lib/pin-service'
 
 export const importer = new Hono<AppEnv>()
 importer.use('*', limit('heavy'))
@@ -36,24 +37,32 @@ async function importOne(userId: string, url: string) {
 
 const urlSchema = z.string().trim().url().max(2048)
 
-importer.post('/url', async (c) => {
-  const userId = c.get('userId')
-  const parsed = z.object({ url: urlSchema }).safeParse(await c.req.json().catch(() => null))
-  if (!parsed.success) return c.json({ error: 'Enter a valid URL starting with https://' }, 400)
-
+/** One metered page import (used by the REST route and the assistant). */
+export async function importPageMetered(userId: string, url: string) {
   const plan = PLANS[(await getProfile(userId)).plan]
   if (!(await consumeUsage(userId, 'imports', plan.website_imports))) {
-    return c.json({ error: `You have used all ${plan.website_imports} website imports on the ${plan.name} plan this month.`, upgrade_required: plan.id !== 'growth' }, 403)
+    throw new ServiceError(`You have used all ${plan.website_imports} website imports on the ${plan.name} plan this month.`, 403, { upgrade_required: plan.id !== 'growth' })
   }
   try {
-    await assertPublicUrl(parsed.data.url)
-    const out = await importOne(userId, parsed.data.url)
+    await assertPublicUrl(url)
+    const out = await importOne(userId, url)
     await invalidateProfile(userId)
-    return c.json(out)
+    return out
   } catch (e) {
     await refundUsage(userId, 'imports').catch(() => {})
     await invalidateProfile(userId)
-    return c.json({ error: `Could not import that page: ${errMsg(e)}` }, 422)
+    throw new ServiceError(`Could not import that page: ${errMsg(e)}`, 422)
+  }
+}
+
+importer.post('/url', async (c) => {
+  const parsed = z.object({ url: urlSchema }).safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: 'Enter a valid URL starting with https://' }, 400)
+  try {
+    return c.json(await importPageMetered(c.get('userId'), parsed.data.url))
+  } catch (e) {
+    if (e instanceof ServiceError) return c.json({ error: e.message, ...e.extra }, e.status as 400)
+    throw e
   }
 })
 

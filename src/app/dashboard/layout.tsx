@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar, MobileHeader, MobileTabBar } from '@/components/layout/Sidebar'
 import { TimezoneSync } from '@/components/layout/TimezoneSync'
 import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
+import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -21,6 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
       <MobileTabBar />
       <TimezoneSync />
+      <AssistantLauncher />
     </div>
   )
 }

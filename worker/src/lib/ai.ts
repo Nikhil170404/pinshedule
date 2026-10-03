@@ -4,10 +4,11 @@ import { env } from '../env'
 import { cached } from './clients'
 
 const client = env.openaiKey ? new OpenAI({ apiKey: env.openaiKey, timeout: 25_000, maxRetries: 2 }) : null
-const CHAT_MODEL = 'gpt-4o-mini'
+export const CHAT_MODEL = 'gpt-4o-mini'
 const EMBED_MODEL = 'text-embedding-3-small'
 
 export const aiEnabled = () => client !== null
+export const openai = () => client
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 32)
 

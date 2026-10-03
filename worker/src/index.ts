@@ -15,6 +15,7 @@ import { ai } from './routes/ai'
 import { keywords } from './routes/keywords'
 import { account } from './routes/account'
 import { billing, razorpayWebhook } from './routes/billing'
+import { assistant } from './routes/assistant'
 
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
@@ -47,6 +48,7 @@ v1.route('/ai', ai)
 v1.route('/keywords', keywords)
 v1.route('/account', account)
 v1.route('/billing', billing)
+v1.route('/assistant', assistant)
 app.route('/v1', v1)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
