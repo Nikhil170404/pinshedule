@@ -1,98 +1,26 @@
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import type { Metadata } from 'next'
+import { LegalPage } from '@/components/layout/LegalPage'
 
-export const metadata = {
-  title: 'Privacy Policy — Pinshedule',
-}
+export const metadata: Metadata = { title: 'Privacy Policy' }
+
+const sections = [
+  { title: 'What we collect', body: [
+    'Account: your Pinterest user ID, username and profile image URL, received when you sign in with Pinterest. We do not ask for or store your email address or a password.',
+    'Pinterest connection: OAuth access and refresh tokens, stored encrypted (AES-256-GCM). Tokens are never exposed to your browser.',
+    'Your content: images you upload, titles, descriptions, links, boards and schedules that you create in Pinshedule.',
+    'Performance data: impressions, saves and clicks for your account and for pins published through Pinshedule, retrieved from Pinterest with your permission.',
+    'Billing: handled by Razorpay. We store your plan, subscription ID and renewal date, never card numbers.',
+    'Technical logs: request logs and error information used to keep the service secure and reliable.',
+  ] },
+  { title: 'How we use it', body: ['To publish the pins you schedule, show your boards and analytics, enforce plan limits, process payments, prevent abuse and fix problems. We do not sell your data, use your Pinterest content for advertising, or share it with third parties except the processors listed below.'] },
+  { title: 'AI features', body: ['The in-app assistant keeps your conversation in your own browser only (local storage); the recent messages of a conversation are sent to OpenAI each time you send one, together with a short account summary (plan, usage, timezone) and the results of the actions it looks up for you, such as pin titles and board names. Changes the assistant proposes are only carried out after you confirm them. When you use the AI writer or import a web page, the topic you type, or the title and description of the page you import, is sent to OpenAI to generate suggestions. To warn you about near-duplicate pins and suggest boards, the title and description of your pins and the names and descriptions of your boards are also converted to numeric embeddings by OpenAI and stored in our database. We do not send your Pinterest tokens, images or analytics to the AI provider, and OpenAI does not use API data to train its models.'] },
+  { title: 'Processors', body: ['Supabase (database, authentication, file storage), Railway (publishing and API service), Vercel (website hosting), Upstash (queue and cache), OpenAI (AI suggestions and embeddings) and Razorpay (payments).'] },
+  { title: 'Retention and deletion', body: ['You can disconnect Pinterest at any time, which deletes the stored tokens. You can delete your account in Settings: this immediately removes your profile, pins, uploaded images, analytics and Pinterest connection, and cancels your subscription at the end of the paid period. Cached copies in backups expire within 30 days. Pinterest data is only kept for as long as you have an account.'] },
+  { title: 'Your rights', body: ['You can access, correct or delete your data from inside the app, or by emailing privacy@pinshedule.com. If you would like a copy of your data, email us and we will provide it.'] },
+  { title: 'Cookies', body: ['We use only essential cookies to keep you signed in. There are no advertising or cross-site tracking cookies.'] },
+  { title: 'Changes and contact', body: ['We will post changes on this page with a new date. Questions: privacy@pinshedule.com.'] },
+]
 
 export default function PrivacyPage() {
-  return (
-    <>
-      <Navbar />
-      <main className="pt-24 pb-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-            <p className="text-gray-500 text-sm">Last Updated: July 29, 2026</p>
-          </div>
-
-          <div className="prose prose-gray max-w-none space-y-8 text-sm leading-7 text-gray-600">
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">What we collect</h2>
-              <ul className="space-y-2 list-disc pl-5">
-                <li><strong>Account data:</strong> Email address, encrypted password</li>
-                <li><strong>Pinterest connection:</strong> Pinterest user ID, access tokens (encrypted at rest)</li>
-                <li><strong>Content you create:</strong> Pin images, titles, descriptions, schedules you create</li>
-                <li><strong>Analytics snapshots:</strong> Performance data of your own pins (pulled from Pinterest API with your permission)</li>
-                <li><strong>Payment data:</strong> Handled by Razorpay — we never store card numbers</li>
-                <li><strong>Usage data:</strong> Log files, browser type, pages visited</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">What we do NOT collect</h2>
-              <ul className="space-y-2 list-disc pl-5">
-                <li>We do not store raw Pinterest API data beyond what you create</li>
-                <li>We do not store other users&apos; pins or boards</li>
-                <li>We do not sell your data to third parties</li>
-                <li>We do not use your Pinterest content for advertising</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">How we use your data</h2>
-              <ul className="space-y-2 list-disc pl-5">
-                <li>To operate the scheduling and analytics features you signed up for</li>
-                <li>To send you transactional emails (pin published, failed, billing)</li>
-                <li>To improve the product</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Data storage</h2>
-              <ul className="space-y-2 list-disc pl-5">
-                <li>Stored on Supabase (AWS us-east-1 region)</li>
-                <li>Pinterest tokens encrypted using AES-256</li>
-                <li>Pin images stored in Supabase Storage</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Pinterest data</h2>
-              <p>
-                We access your Pinterest account data only with your permission through Pinterest&apos;s official OAuth.
-                We follow Pinterest&apos;s Developer Terms regarding data storage — we do not cache Pinterest data beyond
-                analytics snapshots of your own account.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Your rights</h2>
-              <ul className="space-y-2 list-disc pl-5">
-                <li>Access your data: Email privacy@pinshedule.com</li>
-                <li>Delete your account: Settings → Delete Account (removes all your data within 30 days)</li>
-                <li>Export your data: Settings → Export Data</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Cookies</h2>
-              <p>We use essential cookies for authentication only. We do not use advertising cookies.</p>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Contact</h2>
-              <p>
-                Questions? Email us at{' '}
-                <a href="mailto:privacy@pinshedule.com" className="text-[#E60023] hover:underline">
-                  privacy@pinshedule.com
-                </a>
-              </p>
-            </section>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </>
-  )
+  return <LegalPage title="Privacy Policy" updated="October 3, 2026" sections={sections} />
 }

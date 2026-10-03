@@ -1,138 +1,116 @@
-import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/Badge'
-import { ClientTime } from '@/components/ui/ClientTime'
+'use client'
+
 import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import { ListChecks, Plus, RotateCw, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
-import { Image, Calendar, Clock } from 'lucide-react'
+import { buttonStyles } from '@/components/ui/button-styles'
+import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
+import { PinRow } from '@/components/pins/PinRow'
+import { PinEditModal } from '@/components/pins/PinEditModal'
+import { api, errorText } from '@/lib/api'
+import { refreshSummary, usePinCounts, usePins } from '@/lib/hooks'
+import { cn } from '@/lib/utils'
+import type { PinStatus, ScheduledPin } from '@/types'
 
-export default async function PinsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+const tabs = [
+  { key: 'upcoming', label: 'Upcoming', statuses: ['pending', 'processing'] as PinStatus[], asc: true },
+  { key: 'published', label: 'Published', statuses: ['published'] as PinStatus[], asc: false },
+  { key: 'failed', label: 'Failed', statuses: ['failed'] as PinStatus[], asc: false },
+]
 
-  const { data: pins } = await supabase
-    .from('scheduled_pins')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('scheduled_at', { ascending: false })
+export default function PinsPage() {
+  const [tabKey, setTabKey] = useState('upcoming')
+  const tab = tabs.find((t) => t.key === tabKey)!
+  const counts = usePinCounts()
+  const { pins, loading, hasMore, loadMore, error } = usePins({ statuses: tab.statuses, ascending: tab.asc })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [editing, setEditing] = useState<ScheduledPin | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  const statusVariant = (status: string) => {
-    if (status === 'published') return 'success'
-    if (status === 'failed') return 'danger'
-    return 'default'
+  const tabCount = (k: string) => {
+    if (!counts) return null
+    return k === 'upcoming' ? counts.pending + counts.processing : k === 'published' ? counts.published : counts.failed
+  }
+  const ids = useMemo(() => [...selected].filter((id) => pins.some((p) => p.id === id)), [selected, pins])
+  const allChecked = pins.length > 0 && ids.length === pins.filter((p) => p.status !== 'processing').length
+
+  async function remove(list: string[]) {
+    if (!confirm(`Delete ${list.length} pin${list.length > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setBusy(true)
+    try {
+      const r = await api<{ deleted: number }>('/pins/delete', { body: { ids: list } })
+      toast.success(`${r.deleted} deleted.`)
+      setSelected(new Set())
+      void refreshSummary()
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
   }
 
-  const pendingCount = pins?.filter((p) => p.status === 'pending').length ?? 0
-  const publishedCount = pins?.filter((p) => p.status === 'published').length ?? 0
+  async function retry(list: string[]) {
+    setBusy(true)
+    try {
+      const r = await api<{ retried: number }>('/pins/retry', { body: { ids: list } })
+      toast.success(`${r.retried} re-queued. They publish in a couple of minutes.`)
+      setSelected(new Set())
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Pins</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {pendingCount} pending · {publishedCount} published
-          </p>
-        </div>
-        <Link href="/dashboard/schedule">
-          <Button size="sm">
-            <Image size={14} />
-            Schedule new
-          </Button>
-        </Link>
+    <div>
+      <PageHeader title="Pins" description="Everything you have scheduled, published or that needs attention. Updates live."
+        actions={<Link href="/dashboard/schedule" className={buttonStyles('primary', 'md')}><Plus size={16} aria-hidden /> New pin</Link>} />
+
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line" role="tablist">
+        {tabs.map((t) => (
+          <button key={t.key} role="tab" aria-selected={tabKey === t.key} onClick={() => { setTabKey(t.key); setSelected(new Set()) }}
+            className={cn('-mb-px flex h-10 items-center gap-2 border-b-2 px-3 text-sm font-medium whitespace-nowrap',
+              tabKey === t.key ? 'border-brand text-ink' : 'border-transparent text-muted hover:text-ink')}>
+            {t.label}
+            {tabCount(t.key) !== null && <span className={cn('rounded-full px-1.5 text-xs tabular-nums', t.key === 'failed' && (tabCount('failed') ?? 0) > 0 ? 'bg-red-50 text-red-700' : 'bg-stone-100 text-stone-600')}>{tabCount(t.key)}</span>}
+          </button>
+        ))}
       </div>
 
-      {!pins?.length ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-            <Calendar size={24} className="text-gray-400" />
-          </div>
-          <p className="text-gray-600 font-medium mb-1">No pins yet</p>
-          <p className="text-gray-400 text-sm mb-5">Schedule your first pin to see it here</p>
-          <Link href="/dashboard/schedule">
-            <Button>Schedule a pin</Button>
-          </Link>
+      {ids.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-stone-900 px-3 py-2 text-sm text-white">
+          <span className="mr-auto">{ids.length} selected</span>
+          {tab.key === 'failed' && <Button size="sm" variant="secondary" onClick={() => retry(ids)} loading={busy}><RotateCw size={14} aria-hidden /> Retry</Button>}
+          <Button size="sm" variant="danger" onClick={() => remove(ids)} loading={busy}><Trash2 size={14} aria-hidden /> Delete</Button>
         </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden sm:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-[56px,1fr,180px,90px] gap-4 px-5 py-3 border-b border-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              <span>Image</span>
-              <span>Pin</span>
-              <span>Scheduled (local)</span>
-              <span>Status</span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {pins.map((pin) => (
-                <div
-                  key={pin.id}
-                  className="grid grid-cols-[56px,1fr,180px,90px] gap-4 px-5 py-4 items-center hover:bg-gray-50/50 transition-colors"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                    {pin.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={pin.image_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Image size={16} className="text-gray-300" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{pin.title || 'Untitled'}</p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">{pin.board_name || pin.board_id || '—'}</p>
-                  </div>
-                  <div className="text-xs text-gray-500 flex items-center gap-1.5">
-                    <Clock size={11} className="shrink-0 text-gray-400" />
-                    {/* ClientTime renders in the browser's local timezone — server (Vercel/UTC) would show wrong hour */}
-                    <ClientTime
-                      iso={pin.scheduled_at}
-                      options={{ month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }}
-                    />
-                  </div>
-                  <Badge variant={statusVariant(pin.status)}>{pin.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
+      )}
 
-          {/* Mobile card list */}
-          <div className="sm:hidden space-y-3">
-            {pins.map((pin) => (
-              <div key={pin.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                  {pin.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={pin.image_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Image size={18} className="text-gray-300" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{pin.title || 'Untitled'}</p>
-                    <Badge variant={statusVariant(pin.status)}>{pin.status}</Badge>
-                  </div>
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{pin.board_name || pin.board_id || '—'}</p>
-                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1.5">
-                    <Clock size={11} className="shrink-0 text-gray-400" />
-                    <ClientTime
-                      iso={pin.scheduled_at}
-                      options={{ month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }}
-                    />
-                  </div>
-                  {pin.error_message && (
-                    <p className="text-xs text-red-500 mt-1 truncate">{pin.error_message}</p>
-                  )}
-                </div>
-              </div>
+      <Card className="overflow-hidden">
+        {pins.length > 0 && (
+          <label className="flex items-center gap-3 border-b border-line bg-stone-50 px-4 py-2 text-xs text-muted">
+            <input type="checkbox" className="h-4 w-4 accent-[#e60023]" checked={allChecked}
+              onChange={(e) => setSelected(e.target.checked ? new Set(pins.filter((p) => p.status !== 'processing').map((p) => p.id)) : new Set())} />
+            Select all
+          </label>
+        )}
+        {loading ? (
+          <div className="space-y-3 p-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div>
+        ) : error ? (
+          <EmptyState icon={ListChecks} title="Could not load pins" description={error} />
+        ) : pins.length === 0 ? (
+          <EmptyState icon={ListChecks}
+            title={tab.key === 'upcoming' ? 'Nothing scheduled' : tab.key === 'published' ? 'No published pins yet' : 'No failed pins'}
+            description={tab.key === 'upcoming' ? 'Schedule a pin or import a page from your website.' : tab.key === 'failed' ? 'Pins that cannot be published show up here with the reason.' : 'Published pins appear here as soon as they go live.'}
+            action={tab.key === 'upcoming' ? <Link href="/dashboard/schedule" className={buttonStyles('primary')}>Schedule a pin</Link> : undefined} />
+        ) : (
+          <div className="divide-y divide-line">
+            {pins.map((p) => (
+              <PinRow key={p.id} pin={p} selected={selected.has(p.id)}
+                onSelect={(c) => setSelected((s) => { const n = new Set(s); if (c) n.add(p.id); else n.delete(p.id); return n })}
+                onEdit={() => setEditing(p)} onDelete={() => remove([p.id])} onRetry={() => retry([p.id])} />
             ))}
           </div>
-        </>
-      )}
+        )}
+        {hasMore && !loading && <div className="border-t border-line p-3 text-center"><Button variant="ghost" size="sm" onClick={loadMore}>Load more</Button></div>}
+      </Card>
+      <PinEditModal pin={editing} onClose={() => setEditing(null)} />
     </div>
   )
 }

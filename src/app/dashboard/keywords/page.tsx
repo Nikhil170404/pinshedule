@@ -1,109 +1,73 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { useEffect, useState } from 'react'
+import { Copy, Hash, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { Search, Plus, TrendingUp } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
+import { Select } from '@/components/ui/Input'
+import { api, errorText } from '@/lib/api'
 
-interface Keyword { keyword: string; trend_type: string; weekly_trend?: number }
+interface Kw { keyword: string; pct_growth_wow?: number; pct_growth_mom?: number; pct_growth_yoy?: number }
+const REGIONS = [['US', 'United States'], ['CA', 'Canada'], ['GB', 'United Kingdom'], ['AU', 'Australia'], ['DE', 'Germany'], ['FR', 'France'], ['BR', 'Brazil'], ['MX', 'Mexico']]
+
+const pct = (n?: number) => (n === undefined ? '-' : `${n > 0 ? '+' : ''}${Math.round(n)}%`)
 
 export default function KeywordsPage() {
-  const [query, setQuery] = useState('')
-  const [keywords, setKeywords] = useState<Keyword[]>([])
-  const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState<string[]>([])
+  const [q, setQ] = useState('')
+  const [region, setRegion] = useState('US')
+  const [list, setList] = useState<Kw[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  async function search() {
-    if (!query.trim()) return
-    setLoading(true)
+  async function search(query = q) {
+    setBusy(true); setError(null)
     try {
-      const res = await fetch(`/api/keywords?q=${encodeURIComponent(query)}`)
-      const data = await res.json()
-      setKeywords(data.keywords ?? [])
-      if (!data.keywords?.length) toast.info('No trending keywords found. Try a broader topic.')
-    } catch {
-      toast.error('Keyword search failed. Is your Pinterest connected?')
-    }
-    setLoading(false)
+      const r = await api<{ keywords: Kw[] }>(`/keywords?region=${region}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ''}`)
+      setList(r.keywords)
+    } catch (e) { setError(errorText(e)); setList([]) }
+    setBusy(false)
   }
-
-  function addKeyword(kw: string) {
-    if (copied.includes(kw)) return
-    setCopied([...copied, kw])
-    navigator.clipboard.writeText(kw).catch(() => {})
-    toast.success(`"${kw}" copied!`)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect -- fetch when the region changes
+  useEffect(() => { void search('') }, [region])
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Pinterest Keyword Tool</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Find what people search for on Pinterest in your niche</p>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 flex gap-3">
-        <div className="flex-1">
-          <Input
-            placeholder="Enter your niche (e.g. home decor ideas)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && search()}
-          />
+    <div className="max-w-3xl">
+      <PageHeader title="Keywords" description="What people are searching for on Pinterest right now. Use these words in titles and descriptions." />
+      <form className="mb-4 flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); void search() }}>
+        <div className="relative flex-1">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" aria-hidden />
+          <input aria-label="Keyword" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by a word, for example kitchen"
+            className="h-10 w-full rounded-lg border border-line bg-white pl-9 pr-3 text-sm focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200" />
         </div>
-        <Button onClick={search} loading={loading} className="shrink-0">
-          <Search size={15} />
-          Search
-        </Button>
-      </div>
+        <div className="sm:w-48"><Select aria-label="Region" value={region} onChange={(e) => setRegion(e.target.value)}>{REGIONS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</Select></div>
+        <Button type="submit" loading={busy}>Search</Button>
+      </form>
 
-      {keywords.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <TrendingUp size={15} className="text-[#E60023]" />
-            {keywords.length} trending keywords
-          </p>
-          <div className="grid gap-2">
-            {keywords.map((kw) => (
-              <div
-                key={kw.keyword}
-                className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center justify-between hover:border-gray-200 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#E60023]" />
-                  <span className="text-sm font-medium text-gray-800">{kw.keyword}</span>
-                  {kw.weekly_trend && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${kw.weekly_trend > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {kw.weekly_trend > 0 ? '+' : ''}{kw.weekly_trend}%
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => addKeyword(kw.keyword)}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                    copied.includes(kw.keyword)
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-red-50 text-[#E60023] hover:bg-red-100'
-                  }`}
-                >
-                  <Plus size={13} />
-                  {copied.includes(kw.keyword) ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-amber-800 mb-2">How to use keywords</p>
-        <ul className="space-y-1.5 text-xs text-amber-700">
-          <li>• Copy keywords and paste them into your pin description</li>
-          <li>• Use 5-10 relevant keywords per pin</li>
-          <li>• Put the most important keyword in your pin title too</li>
-          <li>• Trending = currently searched — use these for best reach</li>
-        </ul>
-      </div>
+      <Card className="overflow-hidden">
+        {list === null || busy ? <div className="space-y-2 p-4">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10" />)}</div>
+          : error ? <EmptyState icon={Hash} title="Could not load keywords" description={error} />
+          : list.length === 0 ? <EmptyState icon={Hash} title="No trending keywords found" description="Try a broader word or another region." />
+          : (
+            <table className="w-full text-sm">
+              <thead className="border-b border-line bg-stone-50 text-xs text-muted">
+                <tr><th className="px-4 py-2.5 text-left font-medium">Keyword</th><th className="px-2 py-2.5 text-right font-medium">Week</th><th className="px-2 py-2.5 text-right font-medium">Month</th><th className="hidden px-2 py-2.5 text-right font-medium sm:table-cell">Year</th><th className="w-12" /></tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {list.map((k) => (
+                  <tr key={k.keyword}>
+                    <td className="px-4 py-2.5 font-medium text-ink">{k.keyword}</td>
+                    <td className="px-2 py-2.5 text-right tabular-nums text-muted">{pct(k.pct_growth_wow)}</td>
+                    <td className="px-2 py-2.5 text-right tabular-nums text-muted">{pct(k.pct_growth_mom)}</td>
+                    <td className="hidden px-2 py-2.5 text-right tabular-nums text-muted sm:table-cell">{pct(k.pct_growth_yoy)}</td>
+                    <td className="px-2"><button aria-label={`Copy ${k.keyword}`} onClick={() => { navigator.clipboard.writeText(k.keyword).then(() => toast.success('Copied.')) }} className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-ink"><Copy size={14} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+      </Card>
+      <p className="mt-3 text-xs text-muted">Growth figures compare search volume with the previous week, month and year. Source: Pinterest Trends.</p>
     </div>
   )
 }

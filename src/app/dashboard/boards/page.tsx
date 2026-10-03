@@ -1,116 +1,74 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { Columns3, Lock, Plus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { LayoutGrid, Lock, Globe, RefreshCw } from 'lucide-react'
-import type { PinterestBoard } from '@/types'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
+import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
+import { Modal } from '@/components/ui/Modal'
+import { Input, Select, Textarea } from '@/components/ui/Input'
+import { api, errorText } from '@/lib/api'
+import { useBoards } from '@/lib/hooks'
 
 export default function BoardsPage() {
-  const [boards, setBoards] = useState<PinterestBoard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const { boards, loaded, loading, error, reload } = useBoards()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [privacy, setPrivacy] = useState('PUBLIC')
+  const [busy, setBusy] = useState(false)
 
-  async function load(isRefresh = false) {
-    if (isRefresh) setRefreshing(true)
-    else setLoading(true)
+  async function create() {
+    if (!name.trim()) return toast.error('Give the board a name.')
+    setBusy(true)
     try {
-      const res = await fetch('/api/boards')
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setBoards(data.boards ?? [])
-    } catch {
-      toast.error('Could not load boards. Make sure Pinterest is connected.')
-    }
-    setLoading(false)
-    setRefreshing(false)
+      await api('/boards', { body: { name: name.trim(), description, privacy } })
+      toast.success('Board created.')
+      setOpen(false); setName(''); setDescription('')
+      await reload()
+    } catch (e) { toast.error(errorText(e)) }
+    setBusy(false)
   }
 
-  useEffect(() => { load() }, [])
-
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Your Boards</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {!loading && `${boards.length} board${boards.length !== 1 ? 's' : ''} available for scheduling`}
-            {loading && 'Loading boards…'}
-          </p>
-        </div>
-        <button
-          onClick={() => load(true)}
-          disabled={loading || refreshing}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors disabled:opacity-40',
-          )}
-        >
-          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
+    <div>
+      <PageHeader title="Boards" description="Your Pinterest boards. Pins are published to the board you choose."
+        actions={<><Button variant="outline" onClick={reload} loading={loading}>{!loading && <RefreshCw size={15} aria-hidden />} Refresh</Button><Button onClick={() => setOpen(true)}><Plus size={16} aria-hidden /> New board</Button></>} />
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-              <div className="skeleton h-32 w-full rounded-xl" />
-              <div className="skeleton h-4 w-3/4 rounded" />
-              <div className="skeleton h-3 w-1/2 rounded" />
-            </div>
-          ))}
-        </div>
+      {!loaded && !error ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-44" />)}</div>
+      ) : error ? (
+        <Card><EmptyState icon={Columns3} title="Could not load boards" description={error.message}
+          action={error.reconnect ? <a href="/api/auth/pinterest?next=/dashboard/boards" className="text-sm font-medium text-brand hover:underline">Reconnect Pinterest</a> : <Button variant="outline" onClick={reload}>Try again</Button>} /></Card>
       ) : boards.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center">
-          <LayoutGrid size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No boards found</p>
-          <p className="text-gray-400 text-sm mt-1">Connect your Pinterest account to see your boards.</p>
-        </div>
+        <Card><EmptyState icon={Columns3} title="No boards yet" description="Create your first board to start pinning." action={<Button onClick={() => setOpen(true)}>New board</Button>} /></Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {boards.map((board) => (
-            <div
-              key={board.id}
-              className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 overflow-hidden"
-            >
-              <div className="h-36 bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center overflow-hidden">
-                {board.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={board.image_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <LayoutGrid size={28} className="text-red-200" />
-                )}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {boards.map((b) => (
+            <Card key={b.id} className="overflow-hidden">
+              <div className="aspect-[16/10] bg-stone-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {b.image_url && <img src={b.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />}
               </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-snug">{board.name}</h3>
-                  <span className="shrink-0 mt-0.5">
-                    {board.privacy === 'SECRET' ? (
-                      <Lock size={13} className="text-gray-400" />
-                    ) : (
-                      <Globe size={13} className="text-gray-400" />
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                  {board.pin_count !== undefined && (
-                    <span>{board.pin_count.toLocaleString()} pins</span>
-                  )}
-                  {board.follower_count !== undefined && (
-                    <span>{board.follower_count.toLocaleString()} followers</span>
-                  )}
-                  <span className={cn(
-                    'capitalize px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                    board.privacy === 'SECRET' ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-700'
-                  )}>
-                    {board.privacy.toLowerCase()}
-                  </span>
-                </div>
+              <div className="p-3">
+                <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">{b.privacy === 'SECRET' && <Lock size={13} className="shrink-0 text-stone-400" aria-label="Secret board" />}<span className="truncate">{b.name}</span></p>
+                <p className="mt-0.5 text-xs text-muted">{b.pin_count.toLocaleString()} pins</p>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="New board" footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={create} loading={busy}>Create board</Button></>}>
+        <div className="space-y-4">
+          <Input label="Name" value={name} maxLength={50} onChange={(e) => setName(e.target.value)} />
+          <Textarea label="Description (optional)" rows={3} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
+          <Select label="Visibility" value={privacy} onChange={(e) => setPrivacy(e.target.value)}>
+            <option value="PUBLIC">Public</option>
+            <option value="SECRET">Secret</option>
+          </Select>
+        </div>
+      </Modal>
     </div>
   )
 }

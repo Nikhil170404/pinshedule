@@ -1,88 +1,28 @@
-'use client'
-
-import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 const faqs = [
-  {
-    q: 'Is it safe to connect my Pinterest account?',
-    a: 'Yes. We use Pinterest\'s official OAuth API. We never see your Pinterest password. You can revoke access anytime from Pinterest settings.',
-  },
-  {
-    q: 'Will my account get banned for using this?',
-    a: 'No. We follow Pinterest\'s developer guidelines and terms of service. Every pin you schedule is one you personally chose — we never auto-generate unsolicited content.',
-  },
-  {
-    q: 'Do I need a credit card to start?',
-    a: 'No. The Free plan is permanently free — 1 account, 100 pins/month, and 20 AI generations. No card ever required to use it.',
-  },
-  {
-    q: 'What happens when I hit my pin limit?',
-    a: 'Pins queue for the next billing month automatically. You can also upgrade anytime to get more — it takes 30 seconds.',
-  },
-  {
-    q: 'Can I switch plans anytime?',
-    a: 'Yes, upgrade or downgrade whenever you want. Upgrades are prorated so you only pay for what you use.',
-  },
-  {
-    q: 'Is there a refund policy?',
-    a: 'Monthly plans: cancel before renewal to avoid the next charge. Yearly plans: full refund within 7 days if you\'ve scheduled fewer than 50 pins.',
-  },
-  {
-    q: 'Do you support multiple Pinterest accounts?',
-    a: 'Yes. Free and Starter support 1 account. Pro supports 5 accounts. Agency supports 20. You can also add extra accounts as an add-on ($5/mo each).',
-  },
-  {
-    q: 'What is Website → Pins?',
-    a: 'Paste any URL from your website — a blog post, product page, or landing page. We extract the images, title, and content, then AI writes Pinterest-optimized titles, descriptions, keywords, and hashtags. One click to schedule all the pins.',
-  },
-  {
-    q: 'How does the Sitemap import work?',
-    a: 'On Pro and Agency, you can submit your sitemap URL. We import all your pages and automatically spread pins across weeks or months so your schedule stays full without daily effort.',
-  },
+  { q: 'Why do I sign in with Pinterest?', a: 'Pinshedule publishes through the official Pinterest API, so connecting your account is the only step. Your Pinterest account is your login and there is no separate password.' },
+  { q: 'Will scheduling get my account in trouble?', a: 'Pinshedule only uses Pinterest\'s official API. Pinterest rewards steady, original pinning, so we space pins out, avoid on-the-hour posting and suggest a few pins a day rather than large bursts. You stay responsible for following Pinterest\'s community guidelines.' },
+  { q: 'What image size works best?', a: 'Vertical images with a 2:3 ratio, such as 1000 by 1500 pixels. JPG, PNG, WEBP and GIF files up to 20 MB are supported.' },
+  { q: 'What happens when a pin fails?', a: 'Temporary Pinterest errors are retried automatically with increasing delays. If a pin still cannot be published you see the reason in your Pins list and can fix it and retry in one click.' },
+  { q: 'Can I connect more than one Pinterest account?', a: 'Each Pinshedule login is tied to one Pinterest account. Use a separate login for each account you manage.' },
+  { q: 'Can I cancel any time?', a: 'Yes. Cancel from Plan and billing and you keep your plan until the end of the period you paid for. Your scheduled pins stay in your queue.' },
+  { q: 'Is Pinshedule affiliated with Pinterest?', a: 'No. Pinshedule is an independent product that uses the public Pinterest API.' },
 ]
 
 export function FAQ() {
-  const [open, setOpen] = useState<number | null>(0)
-
   return (
-    <section className="py-20 md:py-28">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-[#E60023] uppercase tracking-wider mb-3">FAQ</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
-            Questions answered
-          </h2>
-        </div>
-
-        <div className="space-y-3">
-          {faqs.map(({ q, a }, i) => (
-            <div
-              key={i}
-              className="border border-gray-100 rounded-2xl overflow-hidden bg-white hover:border-gray-200 transition-colors"
-            >
-              <button
-                className="w-full flex items-center justify-between px-5 py-4 text-left"
-                onClick={() => setOpen(open === i ? null : i)}
-              >
-                <span className="text-sm font-semibold text-gray-900 pr-4">{q}</span>
-                <ChevronDown
-                  size={18}
-                  className={cn(
-                    'text-gray-400 shrink-0 transition-transform duration-200',
-                    open === i && 'rotate-180'
-                  )}
-                />
-              </button>
-              {open === i && (
-                <div className="px-5 pb-5 animate-fade-in">
-                  <p className="text-sm text-gray-600 leading-relaxed">{a}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+    <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 md:py-24">
+      <h2 className="mb-8 text-3xl font-semibold tracking-tight text-ink">Questions</h2>
+      <div className="divide-y divide-line rounded-xl border border-line bg-white">
+        {faqs.map((f) => (
+          <details key={f.q} className="group px-5 py-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+              {f.q}<ChevronDown size={16} className="shrink-0 text-stone-400 transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">{f.a}</p>
+          </details>
+        ))}
       </div>
     </section>
   )

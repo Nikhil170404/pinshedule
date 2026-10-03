@@ -1,84 +1,63 @@
+import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode, useId } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type InputHTMLAttributes, forwardRef } from 'react'
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-  error?: string
-  hint?: string
+const field =
+  'w-full rounded-lg border border-line bg-white px-3 text-sm text-ink placeholder:text-stone-400 ' +
+  'focus:outline-none focus:border-stone-400 focus:ring-2 focus:ring-stone-200 disabled:bg-stone-50 disabled:text-stone-400'
+
+export function Field({ label, hint, error, htmlFor, children, className }: {
+  label?: string; hint?: string; error?: string; htmlFor?: string; children: ReactNode; className?: string
+}) {
+  return (
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      {label && <label htmlFor={htmlFor} className="text-sm font-medium text-ink">{label}</label>}
+      {children}
+      {error ? <p className="text-xs text-red-600">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
+    </div>
+  )
 }
 
-// Base styles shared by input and textarea.
-// font-size is set to 1rem (16px) in CSS globally for inputs to prevent iOS
-// auto-zoom on focus, but we scale it down visually with Tailwind's text-sm.
-const fieldBase = [
-  'w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5',
-  'text-sm text-gray-900 placeholder:text-gray-400',
-  'focus:outline-none focus:ring-2 focus:ring-[#E60023] focus:border-transparent',
-  'transition-colors duration-200',
-  'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed',
-  // iOS: min touch target height, remove inner shadow
-  'min-h-[44px] shadow-none',
-].join(' ')
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> { label?: string; hint?: string; error?: string }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
-    return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
-            {label}
-          </label>
-        )}
-        <input
-          ref={ref}
-          id={inputId}
-          className={cn(
-            fieldBase,
-            error && 'border-red-500 focus:ring-red-500',
-            className
-          )}
-          {...props}
-        />
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
-      </div>
-    )
-  }
-)
+export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, hint, error, className, id, ...props }, ref) => {
+  const auto = useId()
+  const fid = id ?? auto
+  return (
+    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+      <input ref={ref} id={fid} className={cn(field, 'h-10', error && 'border-red-400', className)} {...props} />
+    </Field>
+  )
+})
 Input.displayName = 'Input'
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string
-  error?: string
-  hint?: string
-}
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label?: string; hint?: string; error?: string }
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, error, hint, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
-    return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
-            {label}
-          </label>
-        )}
-        <textarea
-          ref={ref}
-          id={inputId}
-          className={cn(
-            fieldBase,
-            'resize-none',
-            error && 'border-red-500 focus:ring-red-500',
-            className
-          )}
-          {...props}
-        />
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
-      </div>
-    )
-  }
-)
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, hint, error, className, id, ...props }, ref) => {
+  const auto = useId()
+  const fid = id ?? auto
+  return (
+    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+      <textarea ref={ref} id={fid} className={cn(field, 'py-2.5 resize-y min-h-[88px]', error && 'border-red-400', className)} {...props} />
+    </Field>
+  )
+})
 Textarea.displayName = 'Textarea'
+
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> { label?: string; hint?: string; error?: string }
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ label, hint, error, className, id, children, ...props }, ref) => {
+  const auto = useId()
+  const fid = id ?? auto
+  return (
+    <Field label={label} hint={hint} error={error} htmlFor={fid}>
+      <div className="relative">
+        <select ref={ref} id={fid} className={cn(field, 'h-10 appearance-none pr-9', error && 'border-red-400', className)} {...props}>
+          {children}
+        </select>
+        <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" aria-hidden />
+      </div>
+    </Field>
+  )
+})
+Select.displayName = 'Select'

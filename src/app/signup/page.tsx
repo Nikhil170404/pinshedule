@@ -1,1 +1,5 @@
-export { default } from '@/app/login/page'
+import { redirect } from 'next/navigation'
+
+export default function SignupPage() {
+  redirect('/login')
+}
