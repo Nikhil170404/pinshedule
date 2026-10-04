@@ -101,8 +101,11 @@ export async function syncAllAnalytics() {
 /** Enforce each plan's analytics window in the database (the UI also limits what is shown). */
 export async function pruneAnalytics() {
   let removed = 0
+  // Daily runs only look at rows that expired in the last 35 days (a cheap index range). On the 1st of the month the
+  // whole table is swept, which catches anything a missed run left behind.
+  const band = new Date().getUTCDate() === 1 ? null : 35
   for (const plan of Object.values(PLANS)) {
-    const { data, error } = await db.rpc('prune_analytics', { p_plan: plan.id, p_days: plan.analytics_days })
+    const { data, error } = await db.rpc('prune_analytics', { p_plan: plan.id, p_days: plan.analytics_days, p_band: band })
     if (error) log.warn('analytics prune failed', { plan: plan.id, error: error.message })
     else removed += Number(data ?? 0)
   }

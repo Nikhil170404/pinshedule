@@ -11,7 +11,7 @@ const tool: ToolMeta = {
   intro: `Check a pin's title and description against Pinterest's limits (${PIN_LIMITS.title} and ${PIN_LIMITS.description} characters) and get plain advice on keywords, hashtags and spammy patterns. Free, private, no sign-up.`,
 }
 
-export const metadata: Metadata = pageMeta({ title: 'Pinterest pin title and description checker', description: tool.intro, path: tool.path })
+export const metadata: Metadata = pageMeta({ title: 'Pinterest pin title and description checker', description: `Check a pin title and description against Pinterest's ${PIN_LIMITS.title} and ${PIN_LIMITS.description} character limits and get tips on keywords and hashtags. Free and private.`, path: tool.path })
 
 export default function Page() {
   return (

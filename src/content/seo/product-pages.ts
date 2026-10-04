@@ -214,6 +214,7 @@ export const productPages: SeoPage[] = [
       { q: 'What is the best Pinterest tool for free?', a: `For scheduling, use Pinterest's built-in scheduler for a small queue, or GoPinKaro's free plan (${free.pins} pins a month) if you want website import and AI help. For design, Canva has a free tier. For research, Pinterest Trends is free.` },
       { q: 'Do I need a business account?', a: "Pinterest's scheduler is described as available with business accounts. GoPinKaro connects through Pinterest sign-in; check Pinterest's help center for account requirements that apply to you." },
     ],
+    tools: [{ href: '/tools/pin-title-description-checker', label: 'Pin title and description checker', text: 'Check length limits, hashtags and keyword habits before you publish.' }, { href: '/tools/pin-image-size-checker', label: 'Pinterest image size checker', text: 'Drop in an image to see its size, shape and file size. It never leaves your device.' }],
     related: ['pinterest-scheduler', 'guides/pinterest-native-scheduler-limits', 'best-pinterest-tools', 'pinterest-keyword-tool'],
     sources: [SRC.nativeLimits, SRC.pinterestCommunity],
   },

@@ -89,7 +89,7 @@ One login can connect several Pinterest accounts (`pinterest_connections`, one r
 
 ## Checks before a release
 
-`npm run lint`, `npm run typecheck`, `npm test`, `npm run check:seo`, `scripts/build-schema.sh --check`, `npm run build` at the root; `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` in `worker/`. CI runs all of them. `supabase/test/run.sh` runs every migration on real Postgres (fresh install, repeat run, and an upgrade of a database that already has data) and checks the permissions the browser role must not have. The worker end-to-end test starts the real API against in-memory fakes of Supabase, Upstash, Pinterest, OpenAI, Resend and Sentry.
+`npm run lint`, `npm run typecheck`, `npm test`, `npm run check:seo`, `npm run audit:site -- <url>` (crawls the built site), `scripts/build-schema.sh --check`, `npm run build` at the root; `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` in `worker/`. CI runs all of them. `supabase/test/run.sh` runs every migration on real Postgres (fresh install, repeat run, and an upgrade of a database that already has data) and checks the permissions the browser role must not have. The worker end-to-end test starts the real API against in-memory fakes of Supabase, Upstash, Pinterest, OpenAI, Resend and Sentry.
 
 ## Costs and limits to watch
 

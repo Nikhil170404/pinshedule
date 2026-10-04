@@ -1,12 +1,10 @@
 import { ErrorReporter } from '@/components/layout/ErrorReporter'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Toaster } from 'sonner'
+import { Geist } from 'next/font/google'
 import { site, pageMeta } from '@/lib/site'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'], display: 'swap' })
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'], display: 'swap' })
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -27,12 +25,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+    <html lang="en" className={`${geistSans.variable} h-full`}>
       <body className="flex min-h-dvh flex-col">
         <a href="#main" className="sr-only z-[100] rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
         {children}
         <ErrorReporter />
-        <Toaster position="top-center" toastOptions={{ style: { borderRadius: '10px', fontSize: '14px' } }} />
       </body>
     </html>
   )

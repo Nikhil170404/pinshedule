@@ -6,6 +6,7 @@ import { TimezoneSync } from '@/components/layout/TimezoneSync'
 import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
 import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
 import { FailedPinsBanner } from '@/components/layout/FailedPinsBanner'
+import { Toaster } from 'sonner'
 import { UsageNudge } from '@/components/layout/UsageNudge'
 
 export const metadata: Metadata = { title: 'Overview', robots: { index: false, follow: false } }
@@ -30,6 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <MobileTabBar />
       <TimezoneSync />
       <AssistantLauncher />
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: '10px', fontSize: '14px' } }} />
     </div>
   )
 }

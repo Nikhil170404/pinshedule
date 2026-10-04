@@ -26,6 +26,8 @@ export interface SeoPage {
   faqs: { q: string; a: string }[]
   related: string[]
   sources?: Source[]
+  /** Free tools worth linking from this page (they are real pages, so these are real internal links). */
+  tools?: { href: string; label: string; text: string }[]
   /** Short label used in navigation lists. */
   label: string
 }

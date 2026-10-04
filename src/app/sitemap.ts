@@ -4,7 +4,7 @@ import { allPages } from '@/content/seo'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
-  const core = ['', '/features', '/pricing', '/tools', '/tools/pin-title-description-checker', '/tools/pin-image-size-checker', '/login', '/privacy', '/terms'].map((p) => ({
+  const core = ['', '/features', '/pricing', '/tools', '/tools/pin-title-description-checker', '/tools/pin-image-size-checker', '/privacy', '/terms'].map((p) => ({
     url: `${site.url}${p}`,
     lastModified: now,
     changeFrequency: 'monthly' as const,

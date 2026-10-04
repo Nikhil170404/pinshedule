@@ -8,7 +8,7 @@ import { HowItWorks } from '@/components/landing/HowItWorks'
 import { CTA } from '@/components/landing/CTA'
 
 export const metadata: Metadata = pageMeta({
-  title: 'Features: bulk scheduling, website to pins and AI writer',
+  title: 'Features: bulk scheduling, automations and AI',
   description: 'Bulk scheduling, website to pins, best-time publishing, an AI writer and live analytics for Pinterest.',
   path: '/features',
 })
@@ -18,7 +18,7 @@ export default function FeaturesPage() {
     <>
       <Navbar />
       <main id="main" tabIndex={-1} className="outline-none">
-        <Features />
+        <Features as="h1" />
         <HowItWorks />
         <PinGallery />
         <CTA />

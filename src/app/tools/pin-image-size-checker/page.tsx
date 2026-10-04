@@ -10,7 +10,7 @@ const tool: ToolMeta = {
   intro: 'Drop in an image to see its size, shape and file size, and whether it suits Pinterest. The recommended pin is a 2:3 vertical image, such as 1000 by 1500 pixels. Runs in your browser; the image is never uploaded.',
 }
 
-export const metadata: Metadata = pageMeta({ title: 'Pinterest image size checker', description: tool.intro, path: tool.path })
+export const metadata: Metadata = pageMeta({ title: 'Pinterest image size checker', description: 'Check a pin image\'s size, shape and file size against the recommended 2:3 vertical (1000 by 1500 pixels). Free, runs in your browser, nothing is uploaded.', path: tool.path })
 
 export default function Page() {
   return (

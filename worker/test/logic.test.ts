@@ -195,3 +195,17 @@ test('billing: stale subscription events never bring an old plan back', async ()
   assert.equal(isSwitchPending({ next_subscription_id: 's3', next_plan_at: new Date(Date.now() + 30 * 86_400_000).toISOString() }), false)
   assert.equal(isSwitchPending({ next_subscription_id: null, next_plan_at: soon }), false)
 })
+
+test('AI copy clean-up: no emoji, whole words, limited hashtags, never a cut hashtag', async () => {
+  const { polishTitle, polishDescription, clipAtWord, limitHashtags, stripEmoji } = await import('../src/lib/copy-polish')
+  assert.equal(stripEmoji('Cozy nook 🛋️ ideas ✨'), 'Cozy nook ideas')
+  assert.equal(clipAtWord('Small kitchen storage ideas that really work', 30), 'Small kitchen storage ideas')
+  assert.equal(clipAtWord('short', 30), 'short')
+  assert.equal(polishTitle('"Small kitchen storage ideas"'), 'Small kitchen storage ideas')
+  assert.equal(polishTitle('x'.repeat(150)).length <= 100, true)
+  assert.equal(limitHashtags('Great ideas #a #b #A #c #d #e #f #g', 5), 'Great ideas #a #b #c #d #e') // repeats dropped, max five
+  const long = `${'Words that fill the space. '.repeat(18)}#kitchen #storage #home`
+  const out = polishDescription(long, 500)
+  assert.ok(out.length <= 500)
+  assert.ok(!/#\w+$/.test(out) || ['#kitchen', '#storage', '#home'].some((t) => out.endsWith(t)), 'a hashtag must never be cut in half')
+})

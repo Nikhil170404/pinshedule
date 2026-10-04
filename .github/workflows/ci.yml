@@ -32,6 +32,11 @@ jobs:
       - run: npm run check:seo
       - run: bash scripts/build-schema.sh --check
       - run: npm run build
+      - name: Crawl the built site (titles, h1, canonicals, JSON-LD, links, sitemap)
+        run: |
+          npx next start -p 3100 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3100/robots.txt >/dev/null && break; sleep 1; done
+          npm run audit:site -- http://localhost:3100
 
   worker:
     runs-on: ubuntu-latest

@@ -21,6 +21,8 @@ const csp = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Optimised images are cached for 30 days (the default is 60 seconds) and served as AVIF when the browser supports it.
+  images: { minimumCacheTTL: 60 * 60 * 24 * 30, formats: ['image/avif', 'image/webp'] },
   async headers() {
     return [
       {
@@ -34,6 +36,9 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")' },
         ],
       },
+      // Images in /public are not fingerprinted, so cache them for a day and let the CDN revalidate quietly for a week.
+      { source: '/pins/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }] },
+      { source: '/:file(logo[\\w-]*\\.png|icon-\\d+\\.png|og\\.png)', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }] },
       // Authenticated pages must never be stored by shared caches.
       { source: '/dashboard/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }] },
     ]

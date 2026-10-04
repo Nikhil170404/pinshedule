@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import OpenAI from 'openai'
 import { env } from '../env'
 import { cached } from './clients'
+import { polishAlt, polishDescription, polishTitle } from './copy-polish'
 
 const client = env.openaiKey ? new OpenAI({ apiKey: env.openaiKey, timeout: 25_000, maxRetries: 2 }) : null
 export const CHAT_MODEL = 'gpt-4o-mini'
@@ -59,9 +60,9 @@ export function pinCopy(input: PageInput) {
         `Write alt text.\n${source}`, obj({ alt_text: { type: 'string' } }), 90),
     ])
     return {
-      titles: titles.titles.map((t) => t.slice(0, 100)),
-      description: description.description.slice(0, 800),
-      alt_text: alt.alt_text.slice(0, 500),
+      titles: titles.titles.map((t) => polishTitle(t)),
+      description: polishDescription(description.description, 500),
+      alt_text: polishAlt(alt.alt_text),
     }
   })
 }
@@ -72,7 +73,7 @@ export async function captionOptions(topic: string): Promise<{ title: string; de
     'You write Pinterest pin variants. Each has a title (under 100 characters, main keyword first) and a description (150 to 300 characters, 2 or 3 natural keywords, a soft call to action, then 3 or 4 hashtags). Sound human.',
     `Write 3 different variants.\n${fence('topic', topic, 300)}`,
     obj({ options: { type: 'array', minItems: 3, maxItems: 3, items: obj({ title: { type: 'string' }, description: { type: 'string' } }) } }), 700)
-  return out.options.map((o) => ({ title: o.title.slice(0, 100), description: o.description.slice(0, 800) }))
+  return out.options.map((o) => ({ title: polishTitle(o.title), description: polishDescription(o.description, 500) }))
 }
 
 // ─── Vectors ────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { BoardSelect } from '@/components/pins/BoardSelect'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { api, ApiError, errorText } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
 import { connectionParam, useActiveAccount } from '@/lib/accounts'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { PLANS, type Automation } from '@/types'
@@ -38,6 +39,21 @@ export default function AutomationsPage() {
 
   const load = useCallback(() => api<{ automations: Automation[] }>('/automations').then((r) => setList(r.automations)).catch((e) => { toast.error(errorText(e)); setList([]) }), [])
   useEffect(() => { void load() }, [load])
+
+  // A finished run (or a pause) updates the cards live instead of waiting for a refresh.
+  useEffect(() => {
+    const supabase = createClient()
+    let alive = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user.id
+      if (!alive || !uid) return
+      channel = supabase.channel(`automations:${uid}:${Math.random().toString(36).slice(2, 8)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'automations', filter: `user_id=eq.${uid}` }, () => { void load(); void refreshSummary() })
+        .subscribe()
+    })
+    return () => { alive = false; if (channel) supabase.removeChannel(channel) }
+  }, [load])
 
   const plan = summary ? PLANS[summary.plan] : null
   const allowedKinds = plan ? ([plan.sitemap_import && 'sitemap', plan.smart_scheduler && 'evergreen'].filter(Boolean) as ('sitemap' | 'evergreen')[]) : []

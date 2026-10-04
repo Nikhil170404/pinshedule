@@ -151,6 +151,17 @@ export function SeoArticle({ page }: { page: SeoPage }) {
         </section>
       )}
 
+      {page.tools && page.tools.length > 0 && (
+        <section aria-labelledby="free-tools" className="mt-12">
+          <h2 id="free-tools" className="text-lg font-semibold text-ink">Try it free</h2>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {page.tools.map((t) => (
+              <li key={t.href}><Link href={t.href} className="block h-full rounded-xl border border-line bg-white p-4 transition-colors hover:border-stone-400"><p className="text-sm font-semibold text-ink">{t.label}</p><p className="mt-1 text-sm text-muted">{t.text}</p></Link></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {page.sources && page.sources.length > 0 && (
         <section aria-labelledby="sources" className="mt-12">
           <h2 id="sources" className="text-lg font-semibold text-ink">Sources consulted</h2>

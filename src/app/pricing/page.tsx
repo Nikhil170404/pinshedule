@@ -19,7 +19,7 @@ export default function PricingPage() {
       <SiteJsonLd />
       <Navbar />
       <main id="main" tabIndex={-1} className="outline-none">
-        <PricingSection />
+        <PricingSection as="h1" />
         <FAQ />
         <CTA />
       </main>
