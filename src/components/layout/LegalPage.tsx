@@ -5,7 +5,7 @@ export function LegalPage({ title, updated, sections }: { title: string; updated
   return (
     <>
       <Navbar />
-      <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 md:py-16">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 md:py-16">
         <h1 className="text-3xl font-semibold tracking-tight text-ink">{title}</h1>
         <p className="mt-2 text-sm text-muted">Last updated {updated}</p>
         <div className="mt-8 space-y-8">

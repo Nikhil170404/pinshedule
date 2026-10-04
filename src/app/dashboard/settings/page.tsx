@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card, PageHeader, Skeleton } from '@/components/ui/Card'
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const zones = useMemo(() => {
     const supported = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? ['UTC']
@@ -41,6 +42,21 @@ export default function SettingsPage() {
     try { await api('/account/disconnect', { method: 'POST', body: {} }); await refreshSummary(); toast.success('Pinterest disconnected.') }
     catch (e) { toast.error(errorText(e)) }
     setDisconnecting(false)
+  }
+
+  async function exportData() {
+    setExporting(true)
+    try {
+      const data = await api('/account/export')
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `gopinkaro-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Your data was downloaded.')
+    } catch (e) { toast.error(errorText(e)) }
+    setExporting(false)
   }
 
   async function deleteAccount() {
@@ -85,6 +101,12 @@ export default function SettingsPage() {
           </Select>
           <Button onClick={saveTz} loading={saving} disabled={tz === summary.timezone}>Save</Button>
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="text-sm font-semibold text-ink">Your data</h2>
+        <p className="mb-3 mt-1 text-sm text-muted">Download a copy of everything we hold about you as a JSON file: profile, pins, analytics and usage. Pinterest access tokens are never included.</p>
+        <Button variant="outline" onClick={exportData} loading={exporting}>{!exporting && <Download size={15} aria-hidden />} Download my data</Button>
       </Card>
 
       <Card className="border-red-200 p-5">

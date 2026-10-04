@@ -30,7 +30,7 @@ export function SeoPageView({ prefix, slug }: { prefix: string; slug: string }) 
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main" tabIndex={-1} className="outline-none">
         <SeoArticle page={page} />
         <CTA />
       </main>

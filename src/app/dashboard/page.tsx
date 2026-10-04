@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, CheckCircle2, Clock, Globe, Layers, PlusSquar
 import { buttonStyles } from '@/components/ui/button-styles'
 import { Card, EmptyState, Meter, Skeleton } from '@/components/ui/Card'
 import { PinRow } from '@/components/pins/PinRow'
+import { GetStarted } from '@/components/layout/GetStarted'
 import { usePinCounts, usePins, useSummary } from '@/lib/hooks'
 import { PLANS } from '@/types'
 
@@ -33,6 +34,8 @@ export default function OverviewPage() {
         </div>
         <Link href="/dashboard/schedule" className={buttonStyles('primary')}><PlusSquare size={16} aria-hidden /> New pin</Link>
       </div>
+
+      <GetStarted />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={Clock} label="Scheduled" value={counts ? counts.pending + counts.processing : null} tone="text-sky-600" href="/dashboard/pins" />

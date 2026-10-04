@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { bodyLimit } from 'hono/body-limit'
 import { serve } from '@hono/node-server'
+import { randomUUID } from 'node:crypto'
 import { env } from './env'
 import { requireUser, type AppEnv } from './lib/auth'
 import { log, errMsg } from './lib/log'
@@ -20,13 +21,28 @@ import { assistant } from './routes/assistant'
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
 
+// One structured line per request with an id the browser also receives (X-Request-Id), so a failing
+// call seen in DevTools can be matched to the worker logs.
+app.use('*', async (c, next) => {
+  const id = c.req.header('x-request-id')?.slice(0, 64) || randomUUID()
+  const started = Date.now()
+  c.header('X-Request-Id', id)
+  await next()
+  if (c.req.path === '/health') return
+  const ms = Date.now() - started
+  const fields = { id, method: c.req.method, path: c.req.path, status: c.res.status, ms, user: c.get('userId') }
+  if (c.res.status >= 500) log.error('request', fields)
+  else if (ms > 3000 || c.res.status >= 400) log.warn('request', fields)
+  else log.info('request', fields)
+})
 app.use('*', secureHeaders())
 app.use('*', bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }))
 // API responses are per-user: never let a shared cache keep them (routes may override with a private max-age).
 app.use('/v1/*', async (c, next) => { await next(); if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store') })
 app.use('/v1/*', cors({
   origin: (o) => (origins.has(o) ? o : null),
-  allowHeaders: ['Authorization', 'Content-Type'],
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
+  exposeHeaders: ['X-Request-Id', 'Content-Disposition'],
   allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 600,
 }))

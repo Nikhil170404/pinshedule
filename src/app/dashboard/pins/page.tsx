@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ListChecks, Plus, RotateCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
@@ -20,8 +21,9 @@ const tabs = [
   { key: 'failed', label: 'Failed', statuses: ['failed'] as PinStatus[], asc: false },
 ]
 
-export default function PinsPage() {
-  const [tabKey, setTabKey] = useState('upcoming')
+function PinsView() {
+  const initial = useSearchParams().get('tab')
+  const [tabKey, setTabKey] = useState(tabs.some((t) => t.key === initial) ? (initial as string) : 'upcoming')
   const tab = tabs.find((t) => t.key === tabKey)!
   const counts = usePinCounts()
   const { pins, loading, hasMore, loadMore, error } = usePins({ statuses: tab.statuses, ascending: tab.asc })
@@ -113,4 +115,8 @@ export default function PinsPage() {
       <PinEditModal pin={editing} onClose={() => setEditing(null)} />
     </div>
   )
+}
+
+export default function PinsPage() {
+  return <Suspense><PinsView /></Suspense>
 }

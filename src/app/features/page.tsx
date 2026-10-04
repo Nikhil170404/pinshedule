@@ -17,7 +17,7 @@ export default function FeaturesPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main" tabIndex={-1} className="outline-none">
         <Features />
         <HowItWorks />
         <PinGallery />
