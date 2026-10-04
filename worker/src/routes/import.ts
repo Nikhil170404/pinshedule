@@ -4,11 +4,12 @@ import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, mapLimit } from '../lib/clients'
 import { safeFetchText, assertPublicUrl } from '../lib/safe-fetch'
-import { extractImages, metaContent, pageTitle, parseSitemapUrls } from '../lib/html'
+import { extractImages, metaContent, pageTitle } from '../lib/html'
+import { listSitemapPages } from '../lib/sitemap'
 import { aiEnabled, pinCopy } from '../lib/ai'
 import { consumeUsage, getProfile, invalidateProfile, refundUsage } from '../lib/plan'
 import { errMsg } from '../lib/log'
-import { ServiceError } from '../lib/pin-service'
+import { ServiceError } from '../lib/service-error'
 
 export const importer = new Hono<AppEnv>()
 importer.use('*', limit('heavy'))
@@ -96,23 +97,7 @@ importer.post('/sitemap', async (c) => {
   if (!PLANS[(await getProfile(userId)).plan].sitemap_import) return c.json({ error: 'Sitemap import is available on the Pro plan and above.', upgrade_required: true }, 403)
 
   try {
-    let start = parsed.data.url
-    const u = new URL(start)
-    if (!/\.xml(\.gz)?$/i.test(u.pathname)) start = `${u.origin}/sitemap.xml`
-    const pages = new Set<string>()
-    const queue = [start]
-    const seen = new Set<string>()
-    while (queue.length && seen.size < 6 && pages.size < 500) {
-      const next = queue.shift()!
-      if (seen.has(next)) continue
-      seen.add(next)
-      const { text } = await safeFetchText(next, { maxBytes: 5_000_000, accept: 'application/xml,text/xml' })
-      const parsedXml = parseSitemapUrls(text)
-      parsedXml.pages.forEach((p) => pages.size < 500 && pages.add(p))
-      // Prefer post/product sitemaps over tag/category ones.
-      queue.push(...parsedXml.sitemaps.sort((a, b) => Number(/post|product|article|blog/i.test(b)) - Number(/post|product|article|blog/i.test(a))))
-    }
-    const list = [...pages].filter((p) => !/\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(p))
+    const list = await listSitemapPages(parsed.data.url)
     if (list.length === 0) return c.json({ error: 'No pages found in that sitemap.' }, 422)
     return c.json({ urls: list })
   } catch (e) {

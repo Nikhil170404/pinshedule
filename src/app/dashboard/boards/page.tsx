@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { api, errorText } from '@/lib/api'
 import { useBoards } from '@/lib/hooks'
+import { connectionParam, useActiveAccount } from '@/lib/accounts'
 import { SafeImage } from '@/components/ui/SafeImage'
 import type { PinterestBoard } from '@/types'
 
@@ -28,6 +29,7 @@ function BoardCover({ board }: { board: PinterestBoard }) {
 
 export default function BoardsPage() {
   const { boards, loaded, loading, error, reload } = useBoards()
+  const { account } = useActiveAccount()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -38,7 +40,7 @@ export default function BoardsPage() {
     if (!name.trim()) return toast.error('Give the board a name.')
     setBusy(true)
     try {
-      await api('/boards', { body: { name: name.trim(), description, privacy } })
+      await api(`/boards${connectionParam(account) ? `?connection=${connectionParam(account)}` : ''}`, { body: { name: name.trim(), description, privacy } })
       toast.success('Board created.')
       setOpen(false); setName(''); setDescription('')
       await reload()

@@ -17,6 +17,8 @@ import { keywords } from './routes/keywords'
 import { account } from './routes/account'
 import { billing, razorpayWebhook } from './routes/billing'
 import { assistant } from './routes/assistant'
+import { publicRoutes } from './routes/public'
+import { automations } from './routes/automations'
 
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
@@ -39,6 +41,7 @@ app.use('*', secureHeaders())
 app.use('*', bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'Request too large' }, 413) }))
 // API responses are per-user: never let a shared cache keep them (routes may override with a private max-age).
 app.use('/v1/*', async (c, next) => { await next(); if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store') })
+app.use('/public/*', cors({ origin: (o) => (origins.has(o) ? o : null), allowMethods: ['POST', 'OPTIONS'], allowHeaders: ['Content-Type'], maxAge: 600 }))
 app.use('/v1/*', cors({
   origin: (o) => (origins.has(o) ? o : null),
   allowHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
@@ -54,6 +57,7 @@ app.get('/health', async (c) => {
 })
 
 app.route('/webhooks/razorpay', razorpayWebhook as unknown as Hono<AppEnv>)
+app.route('/public', publicRoutes as unknown as Hono<AppEnv>)
 
 const v1 = new Hono<AppEnv>()
 v1.use('*', requireUser)
@@ -65,11 +69,12 @@ v1.route('/keywords', keywords)
 v1.route('/account', account)
 v1.route('/billing', billing)
 v1.route('/assistant', assistant)
+v1.route('/automations', automations)
 app.route('/v1', v1)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
 app.onError((e, c) => {
-  log.error('unhandled', { path: c.req.path, error: errMsg(e) })
+  log.error('unhandled', { path: c.req.path, error: errMsg(e), user: c.get('userId') })
   return c.json({ error: 'Something went wrong. Please try again.' }, 500)
 })
 
@@ -86,3 +91,4 @@ for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   })
 }
 process.on('unhandledRejection', (e) => log.error('unhandledRejection', { error: errMsg(e) }))
+process.on('uncaughtException', (e) => { log.error('uncaughtException', { error: errMsg(e) }); setTimeout(() => process.exit(1), 1500).unref() })

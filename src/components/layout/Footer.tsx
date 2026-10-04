@@ -8,7 +8,7 @@ const product = ['pinterest-scheduler', 'pinterest-bulk-scheduler', 'pinterest-a
 export function Footer() {
   const byPath = (path: string) => [...groups.product, ...groups.compare, ...groups.useCases, ...groups.guides].find((p) => p.path === path)
   const cols = [
-    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
+    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, { href: '/tools', label: 'Free tools' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
     { title: 'Compare', links: groups.compare.map((p) => ({ href: `/${p.path}`, label: p.label })) },
     { title: 'Use cases', links: groups.useCases.map((p) => ({ href: `/${p.path}`, label: p.label.replace('Pinterest scheduler for ', '') })) },
     { title: 'Guides', links: groups.guides.map((p) => ({ href: `/${p.path}`, label: p.label })) },

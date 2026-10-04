@@ -24,7 +24,7 @@ const HISTORY = 12
  * Static on purpose: identical system text + tool list on every request lets OpenAI's automatic
  * prompt caching discount the largest part of each call. Anything that changes goes in a later message.
  */
-const SYSTEM = `You are the GoPinKaro assistant, built into a Pinterest scheduling app. You operate the app for the user with tools: scheduling pins in bulk, importing web pages, editing the queue, boards, analytics, keywords and settings.
+const SYSTEM = `You are the GoPinKaro assistant, built into a Pinterest scheduling app. You operate the app for the user with tools: scheduling pins in bulk, importing web pages, editing the queue, boards, analytics, keywords, settings, and automations (sitemap autopilot for new pages, evergreen re-pinning of older pins).
 
 How to work:
 - Be brief and concrete. Use tools instead of guessing. Never invent image URLs, board names, ids, numbers or results.
@@ -36,14 +36,16 @@ How to work:
 - You cannot upload files; ask the user to use the Bulk schedule page for local images. You cannot change billing; offer the plans page instead.
 - Write no emoji. Use short paragraphs or simple lists.`
 
-async function context(userId: string): Promise<string> {
-  const [s, ctx] = await Promise.all([buildSummary(userId), toolContext(userId)])
+async function context(userId: string, connectionId?: string): Promise<string> {
+  const [s, ctx] = await Promise.all([buildSummary(userId), toolContext(userId, connectionId)])
   const now = new Date()
   const local = new Intl.DateTimeFormat('en-US', { timeZone: ctx.tz, dateStyle: 'full', timeStyle: 'short' }).format(now)
   const used = s.used as { pins: number; ai: number; imports: number }
   const limits = s.limits as { pins: number; ai: number; imports: number }
-  const conn = s.pinterest as { username: string | null; status: string } | null
-  return `Current time: ${now.toISOString()} (user local: ${local}, timezone ${ctx.tz}). Plan: ${s.plan_name}. Pins this month: ${used.pins}/${limits.pins}. Pinterest: ${conn ? `@${conn.username} (${conn.status})` : 'not connected'}.`
+  const accounts = s.accounts as { id: string; username: string | null; status: string }[]
+  const conn = accounts.find((a) => a.id === ctx.connectionId) ?? accounts[0] ?? null
+  const others = accounts.length > 1 ? ` The user has ${accounts.length} Pinterest accounts; everything you do applies to the account they currently have selected.` : ''
+  return `Current time: ${now.toISOString()} (user local: ${local}, timezone ${ctx.tz}). Plan: ${s.plan_name}. Pins this month: ${used.pins}/${limits.pins}. Pinterest: ${conn ? `@${conn.username} (${conn.status})` : 'not connected'}.${others}`
 }
 
 /** Proposals wait 15 minutes in Redis, bound to the user. Only the user's Confirm click can execute one. */
@@ -60,13 +62,13 @@ export async function takeProposal(userId: string, id: string) {
   return p.userId === userId ? (p as { tool: string; payload: unknown; summary: string }) : null
 }
 
-export async function runAssistant(userId: string, turns: ChatTurn[], emit: (e: AssistantEvent) => void | Promise<void>) {
+export async function runAssistant(userId: string, turns: ChatTurn[], emit: (e: AssistantEvent) => void | Promise<void>, connectionId?: string | null) {
   const client = openai()
   if (!client) throw new Error('AI is not configured')
-  const ctx = await toolContext(userId)
+  const ctx = await toolContext(userId, connectionId)
 
   const history: Msg[] = turns.slice(-HISTORY).map((t) => ({ role: t.role, content: t.content.slice(0, 2000) }))
-  const convo: Msg[] = [{ role: 'system', content: SYSTEM }, { role: 'system', content: await context(userId) }, ...history]
+  const convo: Msg[] = [{ role: 'system', content: SYSTEM }, { role: 'system', content: await context(userId, ctx.connectionId) }, ...history]
 
   let toolCalls = 0
   let tokens = 0

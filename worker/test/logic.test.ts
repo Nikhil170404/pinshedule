@@ -128,3 +128,70 @@ test('Razorpay plan check: catches wrong amount, currency, period or interval', 
   assert.equal(razorpayPlanProblems({ ...good, interval: 12 }, PLANS.starter, 'monthly').length, 1)
   assert.ok(razorpayPlanProblems({}, PLANS.pro, 'monthly').length >= 3) // missing info is never "ok"
 })
+
+// ─── growth features ────────────────────────────────────────────────────────
+import { isUpgrade, nextPlan, PLAN_ORDER } from '../../shared/plans'
+
+test('plan switching: upgrades can start now, everything else waits for renewal', () => {
+  const m = (plan: 'free_trial' | 'starter' | 'pro' | 'growth', cycle: 'monthly' | 'yearly') => ({ plan, cycle })
+  assert.equal(isUpgrade(m('starter', 'monthly'), m('pro', 'monthly')), true)
+  assert.equal(isUpgrade(m('pro', 'yearly'), m('growth', 'monthly')), true) // a higher plan always counts as an upgrade
+  assert.equal(isUpgrade(m('pro', 'monthly'), m('starter', 'monthly')), false)
+  assert.equal(isUpgrade(m('pro', 'monthly'), m('pro', 'yearly')), true)
+  assert.equal(isUpgrade(m('pro', 'yearly'), m('pro', 'monthly')), false)
+  assert.equal(nextPlan('free_trial'), 'starter')
+  assert.equal(nextPlan('growth'), null)
+  assert.deepEqual(PLAN_ORDER, ['free_trial', 'starter', 'pro', 'growth'])
+})
+
+test('plan features never shrink as the plan goes up', () => {
+  for (let i = 1; i < PLAN_ORDER.length; i++) {
+    const lo = PLANS[PLAN_ORDER[i - 1]], hi = PLANS[PLAN_ORDER[i]]
+    assert.ok(hi.accounts >= lo.accounts && hi.automations >= lo.automations && hi.analytics_days >= lo.analytics_days && hi.batch_max >= lo.batch_max)
+  }
+  assert.equal(PLANS.free_trial.automations, 0)
+  assert.ok(PLANS.growth.accounts > 1)
+})
+
+test('evergreen ranking: best saves first, otherwise oldest first, ties by impressions then age', async () => {
+  const { rankEvergreen } = await import('../src/lib/automations')
+  const pins = [
+    { id: 'a', published_at: '2026-01-03T00:00:00Z' },
+    { id: 'b', published_at: '2026-01-01T00:00:00Z' },
+    { id: 'c', published_at: '2026-01-02T00:00:00Z' },
+  ]
+  const stats = new Map([['a', { saves: 50, impressions: 1000 }], ['c', { saves: 50, impressions: 4000 }]])
+  assert.deepEqual(rankEvergreen(pins, stats, true).map((p) => p.id), ['c', 'a', 'b'])
+  assert.deepEqual(rankEvergreen(pins, stats, false).map((p) => p.id), ['b', 'c', 'a'])
+})
+
+test('automation configs reject out-of-range values', async () => {
+  const { sitemapConfig, evergreenConfig } = await import('../src/lib/automations')
+  assert.equal(sitemapConfig.safeParse({ sitemap_url: 'https://x.com/sitemap.xml', board_id: '1', per_day: 9 }).success, false)
+  assert.equal(sitemapConfig.safeParse({ sitemap_url: 'not a url', board_id: '1' }).success, false)
+  assert.equal(evergreenConfig.safeParse({ min_age_days: 5 }).success, false)
+  assert.deepEqual(evergreenConfig.parse({}), { min_age_days: 60, per_day: 1, best_first: true })
+})
+
+test('billing: how a purchase starts when a subscription already exists', async () => {
+  const { decideStartMode } = await import('../src/lib/switch')
+  const m = (plan: 'free_trial' | 'starter' | 'pro' | 'growth', cycle: 'monthly' | 'yearly') => ({ plan, cycle })
+  assert.equal(decideStartMode(false, m('free_trial', 'monthly'), m('pro', 'monthly')), 'now')
+  assert.equal(decideStartMode(true, m('starter', 'monthly'), m('pro', 'monthly')), 'now') // upgrade defaults to now
+  assert.equal(decideStartMode(true, m('starter', 'monthly'), m('pro', 'monthly'), 'renewal'), 'renewal') // ...unless they choose renewal
+  assert.equal(decideStartMode(true, m('pro', 'monthly'), m('starter', 'monthly'), 'now'), 'renewal') // a downgrade can never start early
+  assert.equal(decideStartMode(true, m('pro', 'yearly'), m('pro', 'monthly'), 'now'), 'renewal')
+})
+
+test('billing: stale subscription events never bring an old plan back', async () => {
+  const { isStaleEvent, isSwitchPending } = await import('../src/lib/switch')
+  assert.equal(isStaleEvent(null, { id: 's1' }), false) // first purchase
+  assert.equal(isStaleEvent({ razorpay_subscription_id: 's1' }, { id: 's1' }), false) // renewal of the current one
+  assert.equal(isStaleEvent({ razorpay_subscription_id: 's2' }, { id: 's1' }), true) // late event from a replaced subscription
+  assert.equal(isStaleEvent({ razorpay_subscription_id: 's1' }, { id: 's2', replaces: 's1' }), false) // the replacement itself
+  assert.equal(isStaleEvent({ razorpay_subscription_id: 's1', next_subscription_id: 's3' }, { id: 's3' }), false) // the scheduled one starting
+  const soon = new Date(Date.now() + 86_400_000).toISOString()
+  assert.equal(isSwitchPending({ next_subscription_id: 's3', next_plan_at: soon }), true)
+  assert.equal(isSwitchPending({ next_subscription_id: 's3', next_plan_at: new Date(Date.now() + 30 * 86_400_000).toISOString() }), false)
+  assert.equal(isSwitchPending({ next_subscription_id: null, next_plan_at: soon }), false)
+})

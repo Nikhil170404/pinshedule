@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { api } from '@/lib/api'
+import { connectionParam, useActiveAccount } from '@/lib/accounts'
 import type { PinStatus, PinterestBoard, ScheduledPin, Summary } from '@/types'
 
 // ─── Tiny shared store: navigating between pages never re-flashes a skeleton ──
@@ -33,32 +34,45 @@ export function useSummary() {
   return { summary, refresh: refreshSummary }
 }
 
-const boardsStore = createStore<PinterestBoard[]>()
-let boardsInflight: Promise<void> | null = null
+// Boards are cached per Pinterest account, so switching accounts never shows the wrong boards.
+const boardsStore = createStore<Record<string, PinterestBoard[]>>()
+const boardsInflight = new Map<string, Promise<void>>()
+const boardKey = (conn?: string) => conn ?? 'primary'
+const boardUrl = (conn: string | undefined, force: boolean) => {
+  const q = [force ? 'refresh=1' : '', conn ? `connection=${conn}` : ''].filter(Boolean).join('&')
+  return `/boards${q ? `?${q}` : ''}`
+}
 
 /** Refetch boards for everyone using them (e.g. after the assistant creates one). */
 export function reloadBoards() {
-  return api<{ boards: PinterestBoard[] }>('/boards?refresh=1').then((r) => boardsStore.set(r.boards)).catch(() => {})
+  boardsStore.set({}) // every mounted board list refetches
 }
 
 export function useBoards() {
-  const boards = useSyncExternalStore(boardsStore.subscribe, boardsStore.get, () => null)
+  const { account } = useActiveAccount()
+  const conn = connectionParam(account)
+  const key = boardKey(conn)
+  const all = useSyncExternalStore(boardsStore.subscribe, boardsStore.get, () => null)
+  const boards = all?.[key] ?? null
   const [error, setError] = useState<{ message: string; reconnect: boolean } | null>(null)
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async (force = false) => {
-    if (!force && boardsStore.get()) return
+    if (!force && boardsStore.get()?.[key]) return
     setLoading(true)
-    boardsInflight ??= api<{ boards: PinterestBoard[] }>(`/boards${force ? '?refresh=1' : ''}`)
-      .then((r) => { boardsStore.set(r.boards); setError(null) })
-      .catch((e: { message: string; reconnect?: boolean }) => setError({ message: e.message, reconnect: !!e.reconnect }))
-      .finally(() => { boardsInflight = null })
-    await boardsInflight
+    if (!boardsInflight.has(key)) {
+      boardsInflight.set(key, api<{ boards: PinterestBoard[] }>(boardUrl(conn, force))
+        .then((r) => { boardsStore.set({ ...boardsStore.get(), [key]: r.boards }); setError(null) })
+        .catch((e: { message: string; reconnect?: boolean }) => setError({ message: e.message, reconnect: !!e.reconnect }))
+        .finally(() => { boardsInflight.delete(key) }))
+    }
+    await boardsInflight.get(key)
     setLoading(false)
-  }, [])
+  }, [conn, key])
 
+  const have = boards !== null
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount; state is set when the request starts/finishes
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { if (!have) void load() }, [load, have])
   return { boards: boards ?? [], loaded: boards !== null, loading, error, reload: () => load(true) }
 }
 
@@ -71,7 +85,7 @@ interface PinQuery {
   pageSize?: number
 }
 
-const COLUMNS = 'id,user_id,image_url,title,description,alt_text,board_id,board_name,destination_url,scheduled_at,status,pinterest_pin_id,error_message,published_at,created_at'
+const COLUMNS = 'id,user_id,image_url,title,description,alt_text,board_id,board_name,destination_url,scheduled_at,status,pinterest_pin_id,error_message,published_at,created_at,connection_id'
 
 function matches(p: ScheduledPin, q: PinQuery) {
   if (q.statuses && !q.statuses.includes(p.status)) return false

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { limit, type AppEnv } from '../lib/auth'
+import { NotConnectedError } from '../lib/tokens'
 import { deletePins, patchBody, previewSlots, retryPins, schedulePins, scheduleBody, ServiceError, updatePin } from '../lib/pin-service'
 
 export const pins = new Hono<AppEnv>()
@@ -12,6 +13,7 @@ async function run<T>(c: import('hono').Context, fn: () => Promise<T>) {
     return c.json((await fn()) as never)
   } catch (e) {
     if (e instanceof ServiceError) return c.json({ error: e.message, ...e.extra }, e.status as 400)
+    if (e instanceof NotConnectedError) return c.json({ error: e.message, reconnect: true }, 409)
     throw e
   }
 }
@@ -46,5 +48,5 @@ pins.post('/retry', async (c) => {
 pins.get('/slots', async (c) => {
   const count = Math.min(Math.max(1, Number(c.req.query('count') ?? 1) || 1), 200)
   const perDay = Math.min(Math.max(1, Number(c.req.query('per_day') ?? 2) || 2), 10)
-  return run(c, () => previewSlots(c.get('userId'), count, perDay))
+  return run(c, () => previewSlots(c.get('userId'), count, perDay, c.req.query('connection')))
 })

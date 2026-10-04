@@ -25,7 +25,9 @@ function PlansTable() {
     ['Pins per scheduling batch', (p) => String(p.batch_max)],
     ['Bulk scheduling and CSV import', (p) => (p.bulk_upload ? 'Yes' : 'No')],
     ['Best-time auto scheduling', (p) => (p.smart_scheduler ? 'Yes' : 'No')],
-    ['Sitemap import', (p) => (p.sitemap_import ? 'Yes' : 'No')],
+    ['Pinterest accounts', (p) => String(p.accounts)],
+    ['Sitemap import and autopilot', (p) => (p.sitemap_import ? 'Yes' : 'No')],
+    ['Automations', (p) => (p.automations > 0 ? String(p.automations) : 'No')],
     ['Analytics history', (p) => `${p.analytics_days} days`],
   ]
   return (

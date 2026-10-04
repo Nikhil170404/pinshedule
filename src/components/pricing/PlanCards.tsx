@@ -10,9 +10,11 @@ export function planFeatures(p: PlanDetails): { text: string; on: boolean }[] {
     { text: `${p.website_imports.toLocaleString()} website page imports`, on: true },
     { text: `${p.ai_generations.toLocaleString()} AI writing generations`, on: true },
     { text: `Up to ${p.batch_max} pins per scheduling batch`, on: true },
+    { text: p.accounts === 1 ? '1 Pinterest account' : `${p.accounts} Pinterest accounts`, on: true },
     { text: 'Bulk scheduling and CSV import', on: p.bulk_upload },
     { text: 'Best-time auto scheduling', on: p.smart_scheduler },
-    { text: 'Sitemap import', on: p.sitemap_import },
+    { text: 'Sitemap import and autopilot', on: p.sitemap_import },
+    { text: p.automations > 0 ? `Evergreen re-pinning, ${p.automations} automation${p.automations === 1 ? '' : 's'}` : 'Evergreen re-pinning', on: p.automations > 0 },
     { text: `${p.analytics_days} days of analytics`, on: true },
     { text: `${p.support} support`, on: true },
   ]

@@ -32,6 +32,11 @@ export const env = {
     growth_monthly: opt('RAZORPAY_PLAN_GROWTH_MONTHLY'),
     growth_yearly: opt('RAZORPAY_PLAN_GROWTH_YEARLY'),
   } as Record<string, string>,
+  /** Public base URL of this API (for links in emails). Falls back to Railway's domain variable. */
+  publicUrl: (opt('PUBLIC_API_URL') || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '')).replace(/\/$/, ''),
+  resendKey: opt('RESEND_API_KEY'),
+  resendUrl: opt('RESEND_API_URL', 'https://api.resend.com/emails'),
+  emailFrom: opt('EMAIL_FROM', 'GoPinKaro <notifications@gopinkaro.com>'),
   /** Set to "false" to run only the HTTP API (e.g. a second replica). */
   runJobs: opt('RUN_JOBS', 'true') !== 'false',
 }

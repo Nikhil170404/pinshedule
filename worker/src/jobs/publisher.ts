@@ -3,6 +3,7 @@ import { claimDue, enqueue } from '../lib/queue'
 import { createPin, PinterestError } from '../lib/pinterest'
 import { NotConnectedError, withPinterest } from '../lib/tokens'
 import { errMsg, log } from '../lib/log'
+import { notifyUser } from '../lib/email'
 
 const MAX_ATTEMPTS = 4
 const BACKOFF_MIN = [5, 15, 60] // minutes before attempt 2, 3, 4
@@ -17,9 +18,10 @@ interface PinRow {
   board_id: string
   destination_url: string | null
   attempts: number
+  connection_id: string | null
 }
 
-async function publishOne(pin: PinRow) {
+async function publishOne(pin: PinRow, failures: Map<string, { count: number; sample: string }>) {
   try {
     const res = await withPinterest(pin.user_id, (token) =>
       createPin(token, {
@@ -29,7 +31,8 @@ async function publishOne(pin: PinRow) {
         alt_text: pin.alt_text,
         link: pin.destination_url,
         image_url: pin.image_url,
-      })
+      }),
+      pin.connection_id
     )
     await db
       .from('scheduled_pins')
@@ -57,6 +60,7 @@ async function publishOne(pin: PinRow) {
       .update({ status: 'failed', processing_started_at: null, error_message: msg.slice(0, 500) })
       .eq('id', pin.id)
     log.warn('pin failed', { pin: pin.id, user: pin.user_id, error: msg })
+    failures.set(pin.user_id, { count: (failures.get(pin.user_id)?.count ?? 0) + 1, sample: failures.get(pin.user_id)?.sample ?? msg })
     return 'failed' as const
   }
 }
@@ -89,12 +93,20 @@ export async function dispatchDue() {
   for (const p of pins) byUser.set(p.user_id, [...(byUser.get(p.user_id) ?? []), p])
 
   const tally = { published: 0, failed: 0, retried: 0 }
+  const failures = new Map<string, { count: number; sample: string }>()
   await mapLimit([...byUser.values()], 8, async (list) => {
     for (const pin of list) {
-      tally[await publishOne(pin)]++
+      tally[await publishOne(pin, failures)]++
       if (list.length > 1) await new Promise((r) => setTimeout(r, 400)) // small gap per account
     }
   })
+  for (const [userId, f] of failures) {
+    void notifyUser(userId, 'pins_failed', f.count === 1 ? 'A pin failed to publish' : `${f.count} pins failed to publish`, [
+      `${f.count === 1 ? 'A scheduled pin' : `${f.count} scheduled pins`} could not be posted to Pinterest.`,
+      `Reason: ${f.sample.slice(0, 200)}`,
+      'Open your failed pins to fix the problem and retry them.',
+    ], '/dashboard/pins?tab=failed')
+  }
   if (pins.length) log.info('dispatch', { claimed: pins.length, ...tally })
   return tally
 }

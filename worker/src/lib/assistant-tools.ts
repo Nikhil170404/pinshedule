@@ -11,8 +11,10 @@ import {
   commitSchedule, deletePins, patchBody, prepareSchedule, previewSlots, retryPins, ServiceError, updatePin, type Prepared, type PreparedRow,
 } from './pin-service'
 import { loadBoards } from '../routes/boards'
+import { resolveConnection } from './connections'
 import { getKeywords } from '../routes/keywords'
 import { importPageMetered } from '../routes/import'
+import { createAutomation } from '../routes/automations'
 
 export interface Proposal {
   id: string
@@ -25,7 +27,8 @@ export interface Proposal {
 export interface UiAction { type: 'navigate'; path: string; label: string }
 
 type Json = Record<string, unknown>
-interface Ctx { userId: string; tz: string; planId: Plan }
+/** connectionId is the Pinterest account the user is currently working in (primary when unset). */
+interface Ctx { userId: string; tz: string; planId: Plan; connectionId?: string }
 
 interface ReadTool { kind: 'read'; label: string; run: (ctx: Ctx, args: Json) => Promise<unknown> }
 interface WriteTool {
@@ -40,8 +43,8 @@ const fmt = (iso: string, tz: string) =>
   new Intl.DateTimeFormat('en-US', { timeZone: tz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
 const clip = (s: string | null | undefined, n: number) => (s && s.length > n ? s.slice(0, n - 1) + '...' : (s ?? ''))
 
-async function resolveBoard(userId: string, ref: string): Promise<{ id: string; name: string }> {
-  const boards = await loadBoards(userId)
+async function resolveBoard(c: Ctx, ref: string): Promise<{ id: string; name: string }> {
+  const boards = await loadBoards(c.userId, false, c.connectionId)
   const r = ref.trim().toLowerCase()
   const exact = boards.find((b) => b.id === ref.trim()) ?? boards.find((b) => b.name.toLowerCase() === r)
   if (exact) return { id: exact.id, name: exact.name }
@@ -61,7 +64,7 @@ const readTools: Record<string, ReadTool> = {
 
   list_boards: {
     kind: 'read', label: 'Loading your boards',
-    run: async (c) => (await loadBoards(c.userId)).map((b) => ({ id: b.id, name: b.name, pins: b.pin_count, privacy: b.privacy, about: clip(b.description, 80) })),
+    run: async (c) => (await loadBoards(c.userId, false, c.connectionId)).map((b) => ({ id: b.id, name: b.name, pins: b.pin_count, privacy: b.privacy, about: clip(b.description, 80) })),
   },
 
   list_pins: {
@@ -155,17 +158,25 @@ const readTools: Record<string, ReadTool> = {
   suggest_board: {
     kind: 'read', label: 'Matching a board',
     run: async (c, a) => {
-      const boards = (await loadBoards(c.userId)).slice(0, 100)
+      const boards = (await loadBoards(c.userId, false, c.connectionId)).slice(0, 100)
       if (!boards.length) return []
       const vecs = await embed([z.string().min(3).max(1500).parse(a.text), ...boards.map((b) => `${b.name}. ${b.description}`)])
       return boards.map((b, i) => ({ name: b.name, score: Math.round(cosine(vecs[0], vecs[i + 1]) * 100) / 100 })).sort((x, y) => y.score - x.score).slice(0, 3)
     },
   },
 
+  list_automations: {
+    kind: 'read', label: 'Checking your automations',
+    run: async (c) => {
+      const { data } = await db.from('automations').select('id,kind,enabled,config,last_run_at,last_result,total_created').eq('user_id', c.userId)
+      return (data ?? []).map((a) => ({ id: a.id, kind: a.kind, enabled: a.enabled, settings: a.config, last_run: a.last_run_at, last_result: a.last_result, pins_created: a.total_created }))
+    },
+  },
+
   preview_best_times: {
     kind: 'read', label: 'Finding best posting times',
     run: async (c, a) => {
-      const r = await previewSlots(c.userId, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10))
+      const r = await previewSlots(c.userId, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10), c.connectionId)
       return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)) }
     },
   },
@@ -175,7 +186,7 @@ const readTools: Record<string, ReadTool> = {
 const PAGES: Record<string, string> = {
   overview: '/dashboard', new_pin: '/dashboard/schedule', bulk: '/dashboard/bulk', website_import: '/dashboard/import', pins: '/dashboard/pins',
   calendar: '/dashboard/calendar', boards: '/dashboard/boards', analytics: '/dashboard/analytics', keywords: '/dashboard/keywords',
-  plans: '/dashboard/upgrade', billing: '/dashboard/billing', settings: '/dashboard/settings',
+  plans: '/dashboard/upgrade', billing: '/dashboard/billing', settings: '/dashboard/settings', automations: '/dashboard/automations',
 }
 const uiTools: Record<string, UiTool> = {
   open_page: {
@@ -199,7 +210,7 @@ const schedulePinsArgs = z.object({
   start_at: isoDate.optional(),
 })
 
-interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile'] }
+interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile']; connectionId: string }
 
 const writeTools: Record<string, WriteTool> = {
   schedule_pins: {
@@ -211,7 +222,7 @@ const writeTools: Record<string, WriteTool> = {
       let i = 0
       for (const p of args.pins) {
         const key = p.board.toLowerCase()
-        if (!boardCache.has(key)) boardCache.set(key, await resolveBoard(c.userId, p.board))
+        if (!boardCache.has(key)) boardCache.set(key, await resolveBoard(c, p.board))
         const b = boardCache.get(key)!
         let at = p.scheduled_at
         if (!at && args.every_hours && !args.per_day) {
@@ -223,6 +234,7 @@ const writeTools: Record<string, WriteTool> = {
       }
       const prepared = await prepareSchedule(c.userId, {
         pins: pins as never,
+        connection_id: c.connectionId,
         auto: pins.some((p) => !p.scheduled_at) ? { per_day: args.per_day ?? 2, start_after: args.start_at } : undefined,
       })
       const sorted = [...prepared.rows].sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at))
@@ -230,11 +242,11 @@ const writeTools: Record<string, WriteTool> = {
       return {
         summary: `Schedule ${prepared.rows.length} pin${prepared.rows.length > 1 ? 's' : ''} to ${boards}, from ${fmt(sorted[0].scheduled_at, c.tz)} to ${fmt(sorted[sorted.length - 1].scheduled_at, c.tz)}`,
         details: sorted.slice(0, 6).map((r) => `${fmt(r.scheduled_at, c.tz)}: ${clip(r.title || 'Untitled pin', 55)}`).concat(sorted.length > 6 ? [`and ${sorted.length - 6} more`] : []),
-        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile } satisfies SchedulePayload,
+        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile, connectionId: prepared.connectionId } satisfies SchedulePayload,
       }
     },
     commit: async (c, payload: SchedulePayload) => {
-      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile })
+      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile, connectionId: payload.connectionId })
       return `Scheduled ${r.created} pin${r.created > 1 ? 's' : ''}, from ${fmt(r.first_at, c.tz)} to ${fmt(r.last_at, c.tz)}.`
     },
   },
@@ -258,7 +270,7 @@ const writeTools: Record<string, WriteTool> = {
       const resolved = []
       for (const u of args.updates) {
         const { board, ...rest } = u
-        const b = board ? await resolveBoard(c.userId, board) : null
+        const b = board ? await resolveBoard(c, board) : null
         resolved.push({ ...rest, ...(b ? { board_id: b.id, board_name: b.name } : {}) })
       }
       return {
@@ -318,14 +330,48 @@ const writeTools: Record<string, WriteTool> = {
 
   create_board: {
     kind: 'write', label: 'Preparing a board',
-    prepare: async (_c, a) => {
+    prepare: async (c, a) => {
       const args = z.object({ name: z.string().trim().min(1).max(50), description: z.string().max(500).optional(), privacy: z.enum(['PUBLIC', 'SECRET']).default('PUBLIC') }).parse(a)
-      return { summary: `Create a ${args.privacy.toLowerCase()} board named "${args.name}"`, details: args.description ? [clip(args.description, 80)] : [], payload: args }
+      const connectionId = await resolveConnection(c.userId, c.connectionId)
+      return { summary: `Create a ${args.privacy.toLowerCase()} board named "${args.name}"`, details: args.description ? [clip(args.description, 80)] : [], payload: { ...args, connectionId } }
     },
-    commit: async (c, args: { name: string; description?: string; privacy: 'PUBLIC' | 'SECRET' }) => {
-      const b = await withPinterest(c.userId, (t) => createBoard(t, args))
-      await redis.del(`boards:${c.userId}`).catch(() => {})
+    commit: async (c, { connectionId, ...args }: { name: string; description?: string; privacy: 'PUBLIC' | 'SECRET'; connectionId: string }) => {
+      const b = await withPinterest(c.userId, (t) => createBoard(t, args), connectionId)
+      await redis.del(`boards:${c.userId}:${connectionId}`).catch(() => {})
       return `Created the board "${b.name}".`
+    },
+  },
+
+  create_automation: {
+    kind: 'write', label: 'Preparing an automation',
+    prepare: async (c, a) => {
+      const args = z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('sitemap'), sitemap_url: z.string().url(), board: z.string().min(1), per_day: z.number().int().min(1).max(5).optional() }),
+        z.object({ kind: z.literal('evergreen'), min_age_days: z.number().int().min(30).max(365).optional(), per_day: z.number().int().min(1).max(5).optional(), best_first: z.boolean().optional() }),
+      ]).parse(a)
+      if (args.kind === 'sitemap') {
+        const b = await resolveBoard(c, args.board)
+        return { summary: `Pin new pages from ${args.sitemap_url} to "${b.name}", ${args.per_day ?? 2} a day`, details: ['Checks daily for pages you have not pinned yet.', 'Each page uses one website import and one pin from your monthly allowance.'], payload: { kind: 'sitemap', config: { sitemap_url: args.sitemap_url, board_id: b.id, board_name: b.name, per_day: args.per_day ?? 2 }, connectionId: c.connectionId } }
+      }
+      return { summary: `Re-pin your best older pins, ${args.per_day ?? 1} a day`, details: [`Only pins older than ${args.min_age_days ?? 60} days.`, 'Each re-pin uses one pin from your monthly allowance.'], payload: { kind: 'evergreen', config: { min_age_days: args.min_age_days ?? 60, per_day: args.per_day ?? 1, best_first: args.best_first ?? true }, connectionId: c.connectionId } }
+    },
+    commit: async (c, p: { kind: 'sitemap' | 'evergreen'; config: never; connectionId?: string }) => {
+      await createAutomation(c.userId, { kind: p.kind, connection_id: p.connectionId, config: p.config } as never)
+      return p.kind === 'sitemap' ? 'Sitemap autopilot is on. It runs within a few minutes, then daily.' : 'Evergreen recycling is on. It runs within a few minutes, then daily.'
+    },
+  },
+
+  set_automation_enabled: {
+    kind: 'write', label: 'Preparing a change',
+    prepare: async (c, a) => {
+      const args = z.object({ id: z.string().uuid(), enabled: z.boolean() }).parse(a)
+      const { data } = await db.from('automations').select('id,kind').eq('id', args.id).eq('user_id', c.userId).maybeSingle()
+      if (!data) throw new ServiceError('Automation not found. Use list_automations for valid ids.')
+      return { summary: `${args.enabled ? 'Turn on' : 'Pause'} the ${data.kind} automation`, details: [], payload: args }
+    },
+    commit: async (c, p: { id: string; enabled: boolean }) => {
+      await db.from('automations').update({ enabled: p.enabled, ...(p.enabled ? { next_run_at: new Date().toISOString() } : {}) }).eq('id', p.id).eq('user_id', c.userId)
+      return p.enabled ? 'Automation turned on.' : 'Automation paused.'
     },
   },
 
@@ -363,6 +409,7 @@ export const TOOL_DEFS = [
   fn('find_similar_pins', 'Find the user\'s existing pins that are near-duplicates of some text.', S({ text: { type: 'string' } }, ['text'])),
   fn('suggest_board', 'Rank the user\'s boards by fit for a pin text.', S({ text: { type: 'string' } }, ['text'])),
   fn('preview_best_times', 'Upcoming best posting slots in the user\'s timezone (paid plans).', S({ count: { type: 'integer' }, per_day: { type: 'integer' } })),
+  fn('list_automations', 'The user\'s automations (sitemap autopilot, evergreen recycling) and their last result.', S({})),
   fn('open_page', 'Offer the user a button that opens a page of the app.', S({ page: { enum: Object.keys(PAGES) } }, ['page'])),
   fn('schedule_pins', 'Propose scheduling pins. Needs the user\'s confirmation. Give either scheduled_at per pin, or every_hours (+start_at) for a fixed interval, or per_day for best-time slots (paid). board is a board name or id.', S({
     pins: { type: 'array', items: S({
@@ -377,6 +424,11 @@ export const TOOL_DEFS = [
   fn('delete_pins', 'Propose deleting pins by ids, or all failed pins. Needs confirmation.', S({ ids: { type: 'array', items: { type: 'string' } }, all_failed: { type: 'boolean' } })),
   fn('retry_failed_pins', 'Propose re-queuing failed pins (all, or by ids). Needs confirmation.', S({ ids: { type: 'array', items: { type: 'string' } } })),
   fn('create_board', 'Propose creating a Pinterest board. Needs confirmation.', S({ name: { type: 'string' }, description: { type: 'string' }, privacy: { enum: ['PUBLIC', 'SECRET'] } }, ['name'])),
+  fn('create_automation', 'Propose an automation. kind "sitemap" pins new pages from a sitemap to a board (Pro+); kind "evergreen" re-pins older best pins (paid). Needs confirmation.', S({
+    kind: { enum: ['sitemap', 'evergreen'] }, sitemap_url: { type: 'string' }, board: { type: 'string' }, per_day: { type: 'integer', description: '1 to 5' },
+    min_age_days: { type: 'integer', description: 'evergreen only, 30 to 365' }, best_first: { type: 'boolean', description: 'evergreen only' },
+  }, ['kind'])),
+  fn('set_automation_enabled', 'Propose turning an automation on or pausing it. Needs confirmation.', S({ id: { type: 'string' }, enabled: { type: 'boolean' } }, ['id', 'enabled'])),
   fn('update_settings', 'Propose changing the user\'s timezone. Needs confirmation.', S({ timezone: { type: 'string', description: 'IANA name, e.g. Asia/Kolkata' } }, ['timezone'])),
 ]
 
@@ -425,9 +477,11 @@ export async function commitProposal(ctx: Ctx, tool: string, payload: unknown): 
   return t.commit(ctx, payload as never)
 }
 
-export async function toolContext(userId: string): Promise<Ctx> {
+export async function toolContext(userId: string, connection?: string | null): Promise<Ctx> {
   const profile = await getProfile(userId)
-  return { userId, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan }
+  // A bad or missing account must not break tools that do not need one (settings, plans).
+  const connectionId = await resolveConnection(userId, connection).catch(() => undefined)
+  return { userId, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan, connectionId }
 }
 
 export const registeredToolNames = () => [...Object.keys(readTools), ...Object.keys(uiTools), ...Object.keys(writeTools)]

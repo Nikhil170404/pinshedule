@@ -7,13 +7,10 @@ import { getProfile, invalidateProfile, type Profile } from './plan'
 import { dequeue, enqueue } from './queue'
 import { aiEnabled, embed } from './ai'
 import { errMsg, log } from './log'
+import { ServiceError } from './service-error'
+import { resolveConnection } from './connections'
 
-/** Thrown by service functions; routes map it to an HTTP response, the assistant maps it to tool output. */
-export class ServiceError extends Error {
-  constructor(message: string, readonly status = 400, readonly extra: Record<string, unknown> = {}) {
-    super(message)
-  }
-}
+export { ServiceError }
 
 const httpsUrl = z.string().trim().max(PIN_LIMITS.link).url().refine((u) => u.startsWith('https://'), 'Must be an https URL')
 const optionalUrl = z.union([z.literal(''), z.string().trim().max(PIN_LIMITS.link).url()]).nullish()
@@ -31,6 +28,8 @@ export const pinInput = z.object({
 
 export const scheduleBody = z.object({
   pins: z.array(pinInput).min(1),
+  /** Which connected Pinterest account to publish to. Defaults to the primary account. */
+  connection_id: z.string().uuid().optional(),
   /** Pins without scheduled_at are spread over best-time slots, `per_day` per day. */
   auto: z.object({ per_day: z.number().int().min(1).max(10).default(2), start_after: z.string().datetime({ offset: true }).optional() }).optional(),
 })
@@ -46,8 +45,10 @@ export const patchBody = z.object({
   scheduled_at: z.string().datetime({ offset: true }).optional(),
 })
 
-async function lastQueued(userId: string): Promise<Date> {
-  const { data } = await db.from('scheduled_pins').select('scheduled_at').eq('user_id', userId).eq('status', 'pending')
+async function lastQueued(userId: string, connectionId?: string): Promise<Date> {
+  let q = db.from('scheduled_pins').select('scheduled_at').eq('user_id', userId).eq('status', 'pending')
+  if (connectionId) q = q.eq('connection_id', connectionId) // each account is spaced on its own
+  const { data } = await q
     .order('scheduled_at', { ascending: false }).limit(1).maybeSingle()
   return data?.scheduled_at ? new Date(data.scheduled_at) : new Date()
 }
@@ -55,12 +56,17 @@ async function lastQueued(userId: string): Promise<Date> {
 export interface PreparedRow {
   id: string; image_url: string; title: string; description: string; alt_text: string; board_id: string
   board_name: string; destination_url: string; scheduled_at: string; batch_id: string
+  connection_id: string; automation_id?: string; recycled_from?: string
 }
-export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile }
+/** Internal callers (automations) may tag pins; the public schema strips these keys. */
+type PinDraft = z.infer<typeof pinInput> & { automation_id?: string; recycled_from?: string }
+export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile; connectionId: string }
 
 /** Validate plan gates, resolve times and build the rows. No writes, so it is safe for dry runs. */
 export async function prepareSchedule(userId: string, body: ScheduleBody): Promise<Prepared> {
-  const { pins, auto } = body
+  const { auto } = body
+  const pins = body.pins as PinDraft[]
+  const connectionId = await resolveConnection(userId, body.connection_id)
   const profile = await getProfile(userId)
   const plan = PLANS[profile.plan]
   const maxBatch = plan.batch_max
@@ -72,7 +78,7 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
     if (!auto) throw new ServiceError('Every pin needs a scheduled_at, or enable auto scheduling.')
     if (!plan.smart_scheduler) throw new ServiceError('Auto-scheduling at best times is available on paid plans.', 403, { upgrade_required: true })
     const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
-    const after = auto.start_after ? new Date(auto.start_after) : await lastQueued(userId)
+    const after = auto.start_after ? new Date(auto.start_after) : await lastQueued(userId, connectionId)
     slots = generateSlots({ after, count: needSlots, perDay: auto.per_day, timeZone: tz })
   }
 
@@ -86,9 +92,10 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
     return {
       id: randomUUID(), image_url: p.image_url, title: p.title, description: p.description, alt_text: p.alt_text,
       board_id: p.board_id, board_name: p.board_name, destination_url: p.destination_url || '', scheduled_at: at.toISOString(), batch_id: batchId,
+      connection_id: connectionId, automation_id: p.automation_id, recycled_from: p.recycled_from,
     }
   })
-  return { rows, plan, profile }
+  return { rows, plan, profile, connectionId }
 }
 
 /** Store vectors for similarity warnings. Best effort and off the request path. */
@@ -160,10 +167,10 @@ export async function retryPins(userId: string, ids: string[]) {
   return data?.length ?? 0
 }
 
-export async function previewSlots(userId: string, count: number, perDay: number) {
+export async function previewSlots(userId: string, count: number, perDay: number, connection?: string | null) {
   const profile = await getProfile(userId)
   if (!PLANS[profile.plan].smart_scheduler) throw new ServiceError('Best-time scheduling is available on paid plans.', 403, { upgrade_required: true })
   const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
-  const slots = generateSlots({ after: await lastQueued(userId), count, perDay, timeZone: tz })
+  const slots = generateSlots({ after: await lastQueued(userId, await resolveConnection(userId, connection)), count, perDay, timeZone: tz })
   return { slots: slots.map((s) => s.toISOString()), timezone: tz }
 }

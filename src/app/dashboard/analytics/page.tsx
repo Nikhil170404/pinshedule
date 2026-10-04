@@ -3,13 +3,15 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, RefreshCw } from 'lucide-react'
+import { BarChart3, Lightbulb, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
 import { api, errorText } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 import { useSummary } from '@/lib/hooks'
+import { useActiveAccount } from '@/lib/accounts'
+import { buildInsights } from '@/lib/insights'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { PLANS } from '@/types'
 import { cn, formatNumber } from '@/lib/utils'
@@ -29,6 +31,8 @@ const METRICS = [
 export default function AnalyticsPage() {
   const { summary } = useSummary()
   const maxDays = summary ? PLANS[summary.plan].analytics_days : 7
+  const { account, multiple } = useActiveAccount()
+  const accountId = account?.id
   const [range, setRange] = useState(30)
   const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('impressions')
   const [days, setDays] = useState<Day[] | null>(null)
@@ -38,8 +42,9 @@ export default function AnalyticsPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const since = new Date(Date.now() - Math.min(range, maxDays) * 86_400_000).toISOString().slice(0, 10)
+    if (!accountId) { if (summary) setDays([]); return } // wait until we know which Pinterest account to show
     const [a, s] = await Promise.all([
-      supabase.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks,engagements').gte('day', since).order('day'),
+      supabase.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks,engagements').eq('connection_id', accountId).gte('day', since).order('day'),
       supabase.from('analytics_snapshots').select('pin_id,impressions,saves,clicks,outbound_clicks,snapshot_date').order('snapshot_date', { ascending: false }).limit(300),
     ])
     setDays((a.data ?? []) as Day[])
@@ -48,12 +53,15 @@ export default function AnalyticsPage() {
     for (const r of s.data ?? []) if (r.pin_id && !latest.has(r.pin_id)) latest.set(r.pin_id, { pin_id: r.pin_id, impressions: r.impressions ?? 0, saves: r.saves ?? 0, clicks: r.clicks ?? 0, outbound_clicks: r.outbound_clicks ?? 0, title: null, image_url: null })
     const ranked = [...latest.values()].sort((x, y) => y.impressions - x.impressions).slice(0, 10)
     if (ranked.length) {
-      const { data: pins } = await supabase.from('scheduled_pins').select('id,title,image_url').in('id', ranked.map((r) => r.pin_id))
+      const { data: pins } = await supabase.from('scheduled_pins').select('id,title,image_url,connection_id').in('id', ranked.map((r) => r.pin_id))
       const meta = new Map((pins ?? []).map((p) => [p.id, p]))
       ranked.forEach((r) => { r.title = meta.get(r.pin_id)?.title ?? null; r.image_url = meta.get(r.pin_id)?.image_url ?? null })
+      // Per-pin numbers belong to the account that published the pin.
+      setTop(ranked.filter((r) => !meta.get(r.pin_id)?.connection_id || meta.get(r.pin_id)?.connection_id === accountId))
+      return
     }
     setTop(ranked)
-  }, [range, maxDays])
+  }, [range, maxDays, accountId, summary])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount and when the range changes
   useEffect(() => { void load() }, [load])
@@ -67,19 +75,20 @@ export default function AnalyticsPage() {
   async function sync() {
     setSyncing(true)
     try {
-      await api('/account/analytics/sync', { method: 'POST', body: {} })
+      await api(`/account/analytics/sync${accountId ? `?connection=${accountId}` : ''}`, { method: 'POST', body: {} })
       await load()
       toast.success('Analytics updated from Pinterest.')
     } catch (e) { toast.error(errorText(e)) }
     setSyncing(false)
   }
 
+  const insights = useMemo(() => buildInsights(days ?? [], top), [days, top])
   const ranges = [7, 30, 90].filter((r) => r <= Math.max(maxDays, 7))
   const empty = days !== null && days.length === 0
 
   return (
     <div>
-      <PageHeader title="Analytics" description="Performance of your Pinterest account. Pinterest reports data with a delay of one to two days."
+      <PageHeader title="Analytics" description={`Performance of ${multiple && account?.username ? '@' + account.username : 'your Pinterest account'}. Pinterest reports data with a delay of one to two days.`}
         actions={<Button variant="outline" onClick={sync} loading={syncing}>{!syncing && <RefreshCw size={15} aria-hidden />} Refresh</Button>} />
 
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -105,6 +114,16 @@ export default function AnalyticsPage() {
               </button>
             ))}
           </div>
+          {insights.length > 0 && (
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {insights.map((i) => (
+                <Card key={i.id} className="flex gap-3 p-4">
+                  <Lightbulb size={18} className={cn('mt-0.5 shrink-0', i.tone === 'good' ? 'text-emerald-600' : i.tone === 'warn' ? 'text-amber-600' : 'text-stone-400')} aria-hidden />
+                  <div className="min-w-0"><p className="text-sm font-semibold text-ink">{i.title}</p><p className="mt-0.5 text-xs text-muted">{i.body}</p></div>
+                </Card>
+              ))}
+            </div>
+          )}
           <Card className="p-4">
             <TrendChart data={days.map((d) => ({ day: d.day, value: d[metric] }))} label={METRICS.find((m) => m.key === metric)!.label} />
           </Card>

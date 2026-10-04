@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { encrypt } from '@shared/crypto'
+import { PLANS, type Plan } from '@shared/plans'
 import { PINTEREST_API } from '@/lib/pinterest'
 
 export async function GET(request: NextRequest) {
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(`${appUrl}${next}`)
   response.cookies.delete('pinterest_oauth_state')
   response.cookies.delete('pinterest_oauth_next')
+  response.cookies.delete('pinterest_oauth_mode')
+  // Reuse `response` so the cookie changes made above are kept while the destination differs.
+  const redirectTo = (url: string) => { response.headers.set('Location', url); return response }
+  const addMode = request.cookies.get('pinterest_oauth_mode')?.value === 'add'
 
   // Service-role client (admin operations — user creation, magic link)
   const serviceClient = createServerClient(
@@ -84,6 +89,32 @@ export async function GET(request: NextRequest) {
     const pinterestUsername: string = pinterestUser.username ?? pinterestId
     const pinterestAvatar: string | null = pinterestUser.profile_image ?? null
 
+    // Adding another account to the signed-in user: store its tokens, never log in as it.
+    if (addMode) {
+      const { data: { user } } = await anonClient.auth.getUser()
+      if (!user) return redirectTo(`${appUrl}/login?error=auth_failed`)
+      const settings = `${appUrl}/dashboard/settings`
+      const { data: profile } = await serviceClient.from('user_profiles').select('plan').eq('id', user.id).maybeSingle()
+      const allowed = PLANS[(profile?.plan as Plan) in PLANS ? (profile?.plan as Plan) : 'free_trial'].accounts
+      const { data: existing } = await serviceClient.from('pinterest_connections').select('pinterest_user_id').eq('user_id', user.id)
+      const already = (existing ?? []).some((c) => c.pinterest_user_id === pinterestId)
+      if (!already && (existing?.length ?? 0) >= allowed) return NextResponse.redirect(`${settings}?account=limit`)
+      await serviceClient.from('pinterest_connections').upsert({
+        user_id: user.id,
+        pinterest_user_id: pinterestId,
+        pinterest_username: pinterestUsername,
+        access_token: await encrypt(tokens.access_token, process.env.ENCRYPTION_SECRET!),
+        refresh_token: await encrypt(tokens.refresh_token ?? '', process.env.ENCRYPTION_SECRET!),
+        expires_at: new Date(Date.now() + (tokens.expires_in ?? 2_592_000) * 1000).toISOString(),
+        refresh_expires_at: tokens.refresh_token_expires_in ? new Date(Date.now() + tokens.refresh_token_expires_in * 1000).toISOString() : null,
+        scope: tokens.scope ?? null,
+        status: 'active',
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,pinterest_user_id' })
+      return redirectTo(`${settings}?account=connected`)
+    }
+
     // 3. Derive a stable internal email from the Pinterest user ID
     const internalEmail = `p_${pinterestId}@pin.pinshedule.internal`
 
@@ -128,8 +159,11 @@ export async function GET(request: NextRequest) {
     const encryptedRefresh = await encrypt(tokens.refresh_token ?? '', process.env.ENCRYPTION_SECRET!)
     const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 2_592_000) * 1000).toISOString()
 
+    // The login account is the primary one; any other connected accounts stay secondary.
+    await serviceClient.from('pinterest_connections').update({ is_primary: false }).eq('user_id', userId).neq('pinterest_user_id', pinterestId)
     await serviceClient.from('pinterest_connections').upsert({
       user_id: userId,
+      is_primary: true,
       pinterest_user_id: pinterestId,
       pinterest_username: pinterestUsername,
       access_token: encryptedAccess,
@@ -142,7 +176,7 @@ export async function GET(request: NextRequest) {
       status: 'active',
       last_error: null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
+    }, { onConflict: 'user_id,pinterest_user_id' })
 
     return response
   } catch (err) {

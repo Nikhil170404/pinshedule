@@ -24,6 +24,10 @@ export function formatDateTime(iso: string, tz?: string) {
   }).format(new Date(iso))
 }
 
+export function formatDate(iso: string, tz?: string) {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', ...(tz ? { timeZone: tz } : {}) }).format(new Date(iso))
+}
+
 export function formatDay(iso: string | Date) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(iso))
 }

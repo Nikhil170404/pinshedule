@@ -28,7 +28,7 @@ export default function BulkPage() {
     for (const f of files) {
       const problem = validateImage(f)
       if (problem) { toast.error(problem); continue }
-      next.push({ id: crypto.randomUUID(), file: f, preview: URL.createObjectURL(f), title: fileName(f), description: '', link: '' })
+      next.push({ id: crypto.randomUUID(), file: f, preview: URL.createObjectURL(f), title: fileName(f), autoTitle: true, description: '', link: '' })
     }
     setRows((r) => [...r, ...next].slice(0, 200))
   }, [])

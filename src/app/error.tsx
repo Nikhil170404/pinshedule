@@ -4,9 +4,10 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { buttonStyles } from '@/components/ui/button-styles'
+import { reportClientError } from '@/lib/report-error'
 
 export default function GlobalRouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => { console.error(error) }, [error])
+  useEffect(() => { console.error(error); reportClientError(error, { digest: error.digest }) }, [error])
   return (
     <main id="main" tabIndex={-1} className="mx-auto flex min-h-dvh w-full max-w-xl flex-col items-center justify-center px-4 text-center outline-none">
       <p className="text-sm font-semibold text-brand">Something went wrong</p>

@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { api, ApiError } from '@/lib/api'
 import { refreshSummary, reloadBoards } from '@/lib/hooks'
+import { getStoredAccountId } from '@/lib/accounts'
 
 export interface ProposalView { id: string; tool: string; summary: string; details: string[] }
 export interface ProposalState extends ProposalView { state: 'pending' | 'running' | 'done' | 'dismissed' | 'error'; result?: string }
@@ -70,7 +71,7 @@ export async function sendMessage(text: string) {
     const res = await fetch(`${API}/v1/assistant/chat`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: toHistory().slice(0, -1).concat({ role: 'user', content: clean.slice(0, 4000) }) }),
+      body: JSON.stringify({ connection_id: getStoredAccountId() ?? undefined, messages: toHistory().slice(0, -1).concat({ role: 'user', content: clean.slice(0, 4000) }) }),
     })
     if (!res.ok || !res.body) {
       const body = (await res.json().catch(() => ({}))) as { error?: string; upgrade_required?: boolean }

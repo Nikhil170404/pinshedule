@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, CalendarClock } from 'lucide-react'
+import { Trash2, CalendarClock, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -11,6 +11,7 @@ import { BoardSelect } from '@/components/pins/BoardSelect'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
+import { connectionParam, useActiveAccount } from '@/lib/accounts'
 import { uploadImage } from '@/lib/upload'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { mapLimit } from '@/lib/async'
@@ -24,7 +25,10 @@ export interface DraftRow {
   imageUrl?: string
   preview: string
   title: string
+  /** True while the title is only the file name, so AI copy may replace it. */
+  autoTitle?: boolean
   description: string
+  altText?: string
   link: string
   boardId?: string
   scheduledAt?: string
@@ -38,6 +42,8 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
   const router = useRouter()
   const { summary } = useSummary()
   const plan = summary ? PLANS[summary.plan] : null
+  const { account } = useActiveAccount()
+  const [aiBusy, setAiBusy] = useState(false)
 
   const [board, setBoard] = useState({ id: '', name: '' })
   const [timing, setTiming] = useState<'best' | 'interval'>('interval')
@@ -50,6 +56,39 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
   const mode = canAuto ? timing : 'interval'
   const update = (id: string, patch: Partial<DraftRow>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)))
   const remove = (id: string) => setRows((r) => r.filter((x) => x.id !== id))
+
+  /** One request per 50 pins. Only pins without a description are written; typed titles are kept. */
+  async function writeWithAi() {
+    const targets = rows.filter((r) => !r.description.trim())
+    if (targets.length === 0) return toast.info('Every pin already has a description.')
+    if (targets.some((r) => !r.title.trim())) toast.info('Pins without a title or topic are skipped. Type a few words for each first.')
+    const usable = targets.filter((r) => r.title.trim())
+    if (usable.length === 0) return
+    if (summary && summary.used.ai + usable.length > summary.limits.ai) {
+      return toast.error(`This needs ${usable.length} AI generations and you have ${Math.max(0, summary.limits.ai - summary.used.ai)} left this month.`, { action: { label: 'See plans', onClick: () => router.push('/dashboard/upgrade') } })
+    }
+    setAiBusy(true)
+    try {
+      let filled = 0
+      for (let i = 0; i < usable.length; i += 50) {
+        const chunk = usable.slice(i, i + 50)
+        const res = await api<{ results: { id: string; ok: boolean; title?: string; description?: string; alt_text?: string }[] }>('/ai/bulk-copy', {
+          body: { items: chunk.map((r) => ({ id: r.id, title: r.title, link: r.link || undefined })) },
+        })
+        const byId = new Map(res.results.filter((x) => x.ok).map((x) => [x.id, x]))
+        filled += byId.size
+        setRows((all) => all.map((r) => {
+          const w = byId.get(r.id)
+          return w ? { ...r, title: r.autoTitle || !r.title.trim() ? (w.title ?? r.title) : r.title, autoTitle: false, description: w.description ?? r.description, altText: w.alt_text ?? r.altText } : r
+        }))
+      }
+      toast.success(`Wrote copy for ${filled} ${filled === 1 ? 'pin' : 'pins'}. Review it before scheduling.`)
+      void refreshSummary()
+    } catch (e) {
+      toast.error(errorText(e), e instanceof ApiError && e.upgradeRequired ? { action: { label: 'Upgrade', onClick: () => router.push('/dashboard/upgrade') } } : undefined)
+    }
+    setAiBusy(false)
+  }
 
   async function submit() {
     if (rows.length === 0) return
@@ -75,13 +114,13 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
       const pins = rows.map((r, i) => {
         const b = r.boardId ? { id: r.boardId } : board
         return {
-          image_url: urls[i], title: r.title, description: r.description, board_id: b.id, board_name: b.id === board.id ? board.name : '',
+          image_url: urls[i], title: r.title, description: r.description, alt_text: r.altText ?? '', board_id: b.id, board_name: b.id === board.id ? board.name : '',
           destination_url: r.link || null,
           ...(r.scheduledAt ? { scheduled_at: new Date(r.scheduledAt).toISOString() }
             : mode === 'interval' ? { scheduled_at: new Date(startMs + i * stepMs).toISOString() } : {}),
         }
       })
-      const res = await api<{ created: number }>('/pins/schedule', { body: { pins, ...(mode === 'best' ? { auto: { per_day: Number(perDay) } } : {}) } })
+      const res = await api<{ created: number }>('/pins/schedule', { body: { pins, connection_id: connectionParam(account), ...(mode === 'best' ? { auto: { per_day: Number(perDay) } } : {}) } })
       toast.success(`${res.created} pins scheduled.`)
       void refreshSummary()
       router.push('/dashboard/pins')
@@ -130,7 +169,13 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
       </Card>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">{rows.length} {rows.length === 1 ? 'pin' : 'pins'}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="whitespace-nowrap text-sm font-semibold text-ink">{rows.length} {rows.length === 1 ? 'pin' : 'pins'}</h2>
+          <Button variant="outline" size="sm" onClick={writeWithAi} loading={aiBusy} disabled={!!busy}
+            title="Turns each short title into a full title, description and alt text. Uses one AI generation per pin.">
+            {!aiBusy && <Sparkles size={14} aria-hidden />} Write with AI
+          </Button>
+        </div>
         {lastAt && rows.length > 1 && <p className="flex items-center gap-1.5 text-xs text-muted"><CalendarClock size={14} aria-hidden /> Last pin goes out {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(lastAt)}</p>}
       </div>
 
@@ -139,7 +184,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
           <Card key={r.id} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
             <SafeImage src={r.preview} className="h-24 w-16 shrink-0 rounded-lg border border-line sm:h-32 sm:w-20" iconSize={20} />
             <div className="min-w-0 flex-1 space-y-2">
-              <Input aria-label={`Title for pin ${i + 1}`} placeholder="Title" value={r.title} maxLength={PIN_LIMITS.title} onChange={(e) => update(r.id, { title: e.target.value })} />
+              <Input aria-label={`Title for pin ${i + 1}`} placeholder="Title" value={r.title} maxLength={PIN_LIMITS.title} onChange={(e) => update(r.id, { title: e.target.value, autoTitle: false })} />
               <Textarea aria-label={`Description for pin ${i + 1}`} placeholder="Description" rows={2} value={r.description} maxLength={PIN_LIMITS.description} onChange={(e) => update(r.id, { description: e.target.value })} className="min-h-[64px]" />
               <Input aria-label={`Destination link for pin ${i + 1}`} placeholder="Link (optional)" type="url" inputMode="url" value={r.link} onChange={(e) => update(r.id, { link: e.target.value })} />
             </div>

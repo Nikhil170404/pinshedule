@@ -11,12 +11,16 @@ export function GET() {
   const pages = allPages.map((p) => `- [${p.label}](${pageUrl(p.path)}): ${p.description}`).join('\n')
   const body = `# GoPinKaro
 
-> GoPinKaro is a Pinterest scheduler. It schedules pins in bulk (images or CSV), turns web pages and sitemaps into drafted pins, publishes at best-time slots in the user's timezone through the official Pinterest API, and includes an AI assistant that asks for confirmation before changing anything. Pinterest only; one Pinterest account per login; no image design tools.
+> GoPinKaro is a Pinterest scheduler. It schedules pins in bulk (images or CSV), turns web pages and sitemaps into drafted pins, publishes at best-time slots in the user's timezone through the official Pinterest API, and includes an AI assistant that asks for confirmation before changing anything, and optional automations (sitemap autopilot on Pro and above, evergreen re-pinning on paid plans) that only add pins to a queue the user can edit. Pinterest only; one Pinterest account per login on most plans (up to ${PLANS.growth.accounts} on Business); no image design tools.
 
 Website: ${siteUrl()}
 
 ## Plans
 ${plans}
+
+## Free tools (run in the browser, nothing uploaded)
+- [Pin title and description checker](${siteUrl()}/tools/pin-title-description-checker)
+- [Pinterest image size checker](${siteUrl()}/tools/pin-image-size-checker)
 
 ## Pages
 ${pages}

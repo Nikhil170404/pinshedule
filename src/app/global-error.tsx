@@ -1,7 +1,11 @@
 'use client'
 
 // Last-resort boundary: replaces the root layout, so it must render its own <html> and use no app styles.
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+import { useEffect } from 'react'
+import { reportClientError } from '@/lib/report-error'
+
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => { reportClientError(error, { digest: error.digest }) }, [error])
   return (
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafaf9', color: '#1c1917', textAlign: 'center', padding: 16 }}>

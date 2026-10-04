@@ -1,11 +1,13 @@
 import { ChevronDown } from 'lucide-react'
 
+import { PLANS } from '@/types'
+
 const faqs = [
   { q: 'Why do I sign in with Pinterest?', a: 'GoPinKaro publishes through the official Pinterest API, so connecting your account is the only step. Your Pinterest account is your login and there is no separate password.' },
   { q: 'Will scheduling get my account in trouble?', a: 'GoPinKaro only uses Pinterest\'s official API. Pinterest rewards steady, original pinning, so we space pins out, avoid on-the-hour posting and suggest a few pins a day rather than large bursts. You stay responsible for following Pinterest\'s community guidelines.' },
   { q: 'What image size works best?', a: 'Vertical images with a 2:3 ratio, such as 1000 by 1500 pixels. JPG, PNG, WEBP and GIF files up to 20 MB are supported.' },
   { q: 'What happens when a pin fails?', a: 'Temporary Pinterest errors are retried automatically with increasing delays. If a pin still cannot be published you see the reason in your Pins list and can fix it and retry in one click.' },
-  { q: 'Can I connect more than one Pinterest account?', a: 'Each GoPinKaro login is tied to one Pinterest account. Use a separate login for each account you manage.' },
+  { q: 'Can I connect more than one Pinterest account?', a: `Yes, on the Business plan: connect up to ${PLANS.growth.accounts} Pinterest accounts under one login, each with its own boards, queue and analytics. Other plans connect one account.` },
   { q: 'Can I cancel any time?', a: 'Yes. Cancel from Plan and billing and you keep your plan until the end of the period you paid for. Your scheduled pins stay in your queue.' },
   { q: 'Is GoPinKaro affiliated with Pinterest?', a: 'No. GoPinKaro is an independent product that uses the public Pinterest API.' },
 ]

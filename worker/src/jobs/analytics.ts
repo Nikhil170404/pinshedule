@@ -4,19 +4,41 @@ import { getProfile } from '../lib/plan'
 import { accountAnalytics, pinAnalytics } from '../lib/pinterest'
 import { NotConnectedError, withPinterest } from '../lib/tokens'
 import { errMsg, log } from '../lib/log'
+import { listConnections } from '../lib/connections'
 
 const day = (d: Date) => d.toISOString().slice(0, 10)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-export async function syncUserAnalytics(userId: string, requestedDays = 30) {
+/** Pull analytics for every connected account of a user (or just one). Returns totals across accounts. */
+export async function syncUserAnalytics(userId: string, requestedDays = 30, only?: string) {
+  const conns = (await listConnections(userId)).filter((c) => c.status === 'active' && (!only || c.id === only))
+  if (conns.length === 0) throw new NotConnectedError('Pinterest is not connected. Reconnect your account.')
+  const total = { days: 0, pins: 0 }
+  let lastError: unknown = null
+  for (const conn of conns) {
+    try {
+      const r = await syncConnection(userId, conn.id, requestedDays)
+      total.days += r.days
+      total.pins += r.pins
+    } catch (e) {
+      lastError = e // one broken account must not stop the others
+      if (!(e instanceof NotConnectedError)) log.warn('analytics sync failed', { user: userId, connection: conn.id, error: errMsg(e) })
+    }
+  }
+  if (lastError && total.days === 0 && total.pins === 0) throw lastError
+  return total
+}
+
+async function syncConnection(userId: string, connectionId: string, requestedDays: number) {
   // Only collect as much history as the user's plan shows (also keeps Pinterest API calls down).
   const days = Math.min(requestedDays, PLANS[(await getProfile(userId)).plan].analytics_days)
   const end = new Date()
   const start = new Date(Date.now() - days * 86_400_000)
 
-  const daily = await withPinterest(userId, (t) => accountAnalytics(t, day(start), day(end)))
+  const daily = await withPinterest(userId, (t) => accountAnalytics(t, day(start), day(end)), connectionId)
   const rows = daily.map((d) => ({
     user_id: userId,
+    connection_id: connectionId,
     day: d.date,
     impressions: d.metrics?.IMPRESSION ?? 0,
     saves: d.metrics?.SAVE ?? 0,
@@ -24,13 +46,14 @@ export async function syncUserAnalytics(userId: string, requestedDays = 30) {
     outbound_clicks: d.metrics?.OUTBOUND_CLICK ?? 0,
     engagements: d.metrics?.ENGAGEMENT ?? 0,
   }))
-  if (rows.length) await db.from('account_analytics').upsert(rows, { onConflict: 'user_id,day' })
+  if (rows.length) await db.from('account_analytics').upsert(rows, { onConflict: 'user_id,connection_id,day' })
 
   // Per-pin lifetime numbers for the most recent pins (bounded to protect Pinterest rate limits).
   const { data: pins } = await db
     .from('scheduled_pins')
     .select('id, pinterest_pin_id')
     .eq('user_id', userId)
+    .eq('connection_id', connectionId)
     .eq('status', 'published')
     .not('pinterest_pin_id', 'is', null)
     .gte('published_at', start.toISOString())
@@ -40,7 +63,7 @@ export async function syncUserAnalytics(userId: string, requestedDays = 30) {
   const snaps: Record<string, unknown>[] = []
   for (const p of pins ?? []) {
     try {
-      const m = await withPinterest(userId, (t) => pinAnalytics(t, p.pinterest_pin_id as string, day(start), today))
+      const m = await withPinterest(userId, (t) => pinAnalytics(t, p.pinterest_pin_id as string, day(start), today), connectionId)
       snaps.push({
         user_id: userId,
         pin_id: p.id,
@@ -61,15 +84,28 @@ export async function syncUserAnalytics(userId: string, requestedDays = 30) {
 }
 
 export async function syncAllAnalytics() {
-  const { data } = await db.from('pinterest_connections').select('user_id').eq('status', 'active').limit(2000)
+  const { data } = await db.from('pinterest_connections').select('user_id').eq('status', 'active').limit(4000)
+  const users = [...new Set((data ?? []).map((c) => c.user_id as string))]
   let ok = 0
-  await mapLimit(data ?? [], 3, async (c) => {
+  await mapLimit(users, 3, async (userId) => {
     try {
-      await syncUserAnalytics(c.user_id as string)
+      await syncUserAnalytics(userId)
       ok++
     } catch (e) {
-      if (!(e instanceof NotConnectedError)) log.warn('analytics sync failed', { user: c.user_id, error: errMsg(e) })
+      if (!(e instanceof NotConnectedError)) log.warn('analytics sync failed', { user: userId, error: errMsg(e) })
     }
   })
   log.info('analytics sync', { users: ok })
+}
+
+/** Enforce each plan's analytics window in the database (the UI also limits what is shown). */
+export async function pruneAnalytics() {
+  let removed = 0
+  for (const plan of Object.values(PLANS)) {
+    const { data, error } = await db.rpc('prune_analytics', { p_plan: plan.id, p_days: plan.analytics_days })
+    if (error) log.warn('analytics prune failed', { plan: plan.id, error: error.message })
+    else removed += Number(data ?? 0)
+  }
+  if (removed) log.info('analytics pruned', { rows: removed })
+  return removed
 }

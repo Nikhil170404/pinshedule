@@ -20,6 +20,10 @@ export interface PlanDetails {
   sitemap_import: boolean
   smart_scheduler: boolean
   analytics_days: number
+  /** Pinterest accounts that can be connected to one login. */
+  accounts: number
+  /** Active automations (sitemap autopilot, evergreen recycling). */
+  automations: number
   support: string
 }
 
@@ -38,6 +42,8 @@ export const PLANS: Record<Plan, PlanDetails> = {
     sitemap_import: false,
     smart_scheduler: false,
     analytics_days: 7,
+    accounts: 1,
+    automations: 0,
     support: 'Email',
   },
   starter: {
@@ -54,6 +60,8 @@ export const PLANS: Record<Plan, PlanDetails> = {
     sitemap_import: false,
     smart_scheduler: true,
     analytics_days: 30,
+    accounts: 1,
+    automations: 1,
     support: 'Email',
   },
   pro: {
@@ -70,6 +78,8 @@ export const PLANS: Record<Plan, PlanDetails> = {
     sitemap_import: true,
     smart_scheduler: true,
     analytics_days: 90,
+    accounts: 1,
+    automations: 3,
     support: 'Priority',
   },
   growth: {
@@ -86,6 +96,8 @@ export const PLANS: Record<Plan, PlanDetails> = {
     sitemap_import: true,
     smart_scheduler: true,
     analytics_days: 90,
+    accounts: 3,
+    automations: 10,
     support: 'Priority',
   },
 }
@@ -116,4 +128,22 @@ export function expectedRazorpay(plan: PlanDetails, cycle: BillingCycle) {
     period: cycle === 'yearly' ? 'yearly' : 'monthly',
     interval: 1,
   }
+}
+
+export const PLAN_ORDER: Plan[] = ['free_trial', 'starter', 'pro', 'growth']
+
+/** The next plan up, or null on the top plan. Used by "you are almost at your limit" prompts. */
+export function nextPlan(plan: Plan): Plan | null {
+  return PLAN_ORDER[PLAN_ORDER.indexOf(plan) + 1] ?? null
+}
+
+/**
+ * Switching plans while subscribed. An upgrade can start now; anything else (a downgrade, or
+ * yearly to monthly) is scheduled for the end of the paid period so nobody is billed twice for the same time.
+ */
+export function isUpgrade(from: { plan: Plan; cycle: BillingCycle }, to: { plan: Plan; cycle: BillingCycle }): boolean {
+  const a = PLAN_ORDER.indexOf(from.plan)
+  const b = PLAN_ORDER.indexOf(to.plan)
+  if (b !== a) return b > a
+  return from.cycle === 'monthly' && to.cycle === 'yearly'
 }

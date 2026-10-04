@@ -38,7 +38,7 @@ Open it from any dashboard page (button or Ctrl/Cmd+K) or at `/dashboard/assista
 ## Deploy
 
 ### 1. Supabase
-Run `supabase-schema.sql` in the SQL editor (safe to re-run). Users are created by the OAuth callback using the service role, so no email provider setup is needed.
+Run `supabase-schema.sql` in the SQL editor (safe to re-run; it is the files in `supabase/migrations/` joined in order, and existing projects only need the migrations they have not run). Users are created by the OAuth callback using the service role, so no email provider setup is needed.
 
 ### 2. Railway
 Create a service from this repo. `railway.json` points at `worker/Dockerfile` (build context is the repo root). Set the variables in `worker/.env.example`. Health check: `/health`. You can run several replicas; set `RUN_JOBS=false` on any replica that should only serve HTTP.

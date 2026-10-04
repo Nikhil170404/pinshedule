@@ -11,7 +11,8 @@
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=dist/index.js",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "test:e2e": "tsx test/e2e/routes.e2e.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

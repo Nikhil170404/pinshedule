@@ -7,12 +7,13 @@ import { aiEnabled } from '../lib/ai'
 import { consumeUsage, getProfile, invalidateProfile, refundUsage } from '../lib/plan'
 import { assistantError, runAssistant, takeProposal } from '../lib/assistant'
 import { commitProposal, toolContext } from '../lib/assistant-tools'
-import { ServiceError } from '../lib/pin-service'
+import { ServiceError } from '../lib/service-error'
 import { errMsg } from '../lib/log'
 
 export const assistant = new Hono<AppEnv>()
 
 const chatBody = z.object({
+  connection_id: z.string().uuid().optional(),
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) })).min(1).max(40),
 })
 
@@ -40,7 +41,7 @@ assistant.post('/chat', limit('heavy'), async (c) => {
       await runAssistant(userId, parsed.data.messages, async (e) => {
         if (e.type === 'message') answered = true
         await send(e)
-      })
+      }, parsed.data.connection_id)
     } catch (e) {
       await send({ type: 'message', text: assistantError(e) })
     }

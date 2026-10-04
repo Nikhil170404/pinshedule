@@ -6,6 +6,7 @@ import { TimezoneSync } from '@/components/layout/TimezoneSync'
 import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
 import { AssistantLauncher } from '@/components/assistant/AssistantLauncher'
 import { FailedPinsBanner } from '@/components/layout/FailedPinsBanner'
+import { UsageNudge } from '@/components/layout/UsageNudge'
 
 export const metadata: Metadata = { title: 'Overview', robots: { index: false, follow: false } }
 
@@ -22,6 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <main id="main" tabIndex={-1} className="outline-none mx-auto max-w-5xl px-4 pb-24 pt-5 sm:px-6 sm:pt-8 lg:pb-12">
           <ConnectionBanner />
           <FailedPinsBanner />
+          <UsageNudge />
           {children}
         </main>
       </div>

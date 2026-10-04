@@ -14,6 +14,7 @@ import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { SimilarNotice } from '@/components/pins/SimilarNotice'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
+import { connectionParam, useActiveAccount } from '@/lib/accounts'
 import { uploadImage, validateImage } from '@/lib/upload'
 import { PIN_LIMITS, PLANS } from '@/types'
 import { cn, toLocalInput } from '@/lib/utils'
@@ -22,6 +23,7 @@ function NewPin() {
   const router = useRouter()
   const params = useSearchParams()
   const { summary } = useSummary()
+  const { account } = useActiveAccount()
   const canAuto = summary ? PLANS[summary.plan].smart_scheduler : false
 
   const [file, setFile] = useState<File | null>(null)
@@ -62,7 +64,7 @@ function NewPin() {
         destination_url: link || null,
         ...(effectiveMode === 'custom' ? { scheduled_at: new Date(when).toISOString() } : {}),
       }
-      await api('/pins/schedule', { body: { pins: [pin], ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
+      await api('/pins/schedule', { body: { pins: [pin], connection_id: connectionParam(account), ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
       toast.success('Pin scheduled.')
       void refreshSummary()
       router.push('/dashboard/pins')
