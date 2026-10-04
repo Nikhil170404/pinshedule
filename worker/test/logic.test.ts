@@ -92,3 +92,39 @@ test('assistant: write tools never execute from runTool, bad input is reported n
   const badPage = await runTool(ctx, 'open_page', '{"page":"https://evil.example"}', save)
   assert.equal(badPage.kind, 'result')
 })
+
+test('plan prices: yearly is exactly 2 months free, and the displayed monthly equivalent is right', async () => {
+  const { PLANS, PAID_PLANS, monthsFree, monthlyEquivalent } = await import('../../shared/plans')
+  for (const id of PAID_PLANS) assert.equal(monthsFree(PLANS[id]), 2, `${id} yearly price`)
+  assert.equal(monthsFree(PLANS.free_trial), 0)
+  assert.equal(monthlyEquivalent(PLANS.starter, 'yearly'), 7.5)
+  assert.equal(monthlyEquivalent(PLANS.pro, 'yearly'), 15.83)
+  assert.equal(monthlyEquivalent(PLANS.growth, 'yearly'), 32.5)
+  assert.equal(monthlyEquivalent(PLANS.starter, 'monthly'), 9)
+})
+
+test('plans only ever get better as you go up: limits never drop and features never disappear', async () => {
+  const { PLANS } = await import('../../shared/plans')
+  const order = ['free_trial', 'starter', 'pro', 'growth'] as const
+  for (let i = 1; i < order.length; i++) {
+    const lo = PLANS[order[i - 1]], hi = PLANS[order[i]]
+    for (const k of ['pins_per_month', 'website_imports', 'ai_generations', 'batch_max', 'analytics_days', 'price_monthly_usd'] as const) assert.ok(hi[k] >= lo[k], `${order[i]}.${k}`)
+    for (const k of ['bulk_upload', 'sitemap_import', 'smart_scheduler'] as const) assert.ok(!lo[k] || hi[k], `${order[i]}.${k}`)
+  }
+  assert.equal(PLANS.free_trial.bulk_upload, false)
+  assert.equal(PLANS.free_trial.batch_max, 10)
+  assert.equal(PLANS.starter.batch_max, 200)
+})
+
+test('Razorpay plan check: catches wrong amount, currency, period or interval', async () => {
+  const { razorpayPlanProblems } = await import('../src/lib/razorpay-plan')
+  const { PLANS } = await import('../../shared/plans')
+  const good = { period: 'monthly', interval: 1, item: { amount: 900, currency: 'USD' } }
+  assert.deepEqual(razorpayPlanProblems(good, PLANS.starter, 'monthly'), [])
+  assert.deepEqual(razorpayPlanProblems({ period: 'yearly', interval: 1, item: { amount: 19000, currency: 'USD' } }, PLANS.pro, 'yearly'), [])
+  assert.equal(razorpayPlanProblems({ ...good, item: { amount: 90, currency: 'USD' } }, PLANS.starter, 'monthly').length, 1) // $0.90 typo
+  assert.equal(razorpayPlanProblems({ ...good, item: { amount: 900, currency: 'INR' } }, PLANS.starter, 'monthly').length, 1)
+  assert.equal(razorpayPlanProblems(good, PLANS.starter, 'yearly').length >= 2, true) // monthly plan used for yearly
+  assert.equal(razorpayPlanProblems({ ...good, interval: 12 }, PLANS.starter, 'monthly').length, 1)
+  assert.ok(razorpayPlanProblems({}, PLANS.pro, 'monthly').length >= 3) // missing info is never "ok"
+})

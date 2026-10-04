@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/Card'
 import { CycleToggle, PlanCards } from '@/components/pricing/PlanCards'
 import { api, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { isPaidPlan, type BillingCycle } from '@/types'
+import { PLANS, isPaidPlan, type BillingCycle } from '@/types'
 
 declare global {
   interface Window { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void; on: (e: string, cb: (r: unknown) => void) => void } }
@@ -23,6 +23,13 @@ export default function UpgradePage() {
 
   async function checkout(plan: string) {
     if (!window.Razorpay) return toast.error('Payment form is still loading. Try again in a moment.')
+    // Switching while subscribed: be explicit about what happens to the money.
+    if (summary && summary.plan !== 'free_trial' && summary.plan !== plan && summary.plan_status === 'active') {
+      const next = PLANS[plan as keyof typeof PLANS]
+      const price = cycle === 'yearly' ? `$${next.price_yearly_usd} a year` : `$${next.price_monthly_usd} a month`
+      const ok = confirm(`You are on ${summary.plan_name}. ${next.name} is charged now at ${price}. Your current subscription is cancelled at the end of its paid period and is not refunded for the unused time. Continue?`)
+      if (!ok) return
+    }
     setLoading(plan)
     try {
       const { subscription_id, key_id } = await api<{ subscription_id: string; key_id: string }>('/billing/checkout', { body: { plan, cycle } })

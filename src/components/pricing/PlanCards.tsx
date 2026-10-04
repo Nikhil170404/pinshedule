@@ -1,6 +1,6 @@
 import { Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PLANS, monthlyEquivalent, type BillingCycle, type Plan, type PlanDetails } from '@/types'
+import { PLANS, PAID_PLANS, monthlyEquivalent, monthsFree, type BillingCycle, type Plan, type PlanDetails } from '@/types'
 
 const ORDER: Plan[] = ['free_trial', 'starter', 'pro', 'growth']
 
@@ -9,6 +9,7 @@ export function planFeatures(p: PlanDetails): { text: string; on: boolean }[] {
     { text: `${p.pins_per_month.toLocaleString()} pins per month`, on: true },
     { text: `${p.website_imports.toLocaleString()} website page imports`, on: true },
     { text: `${p.ai_generations.toLocaleString()} AI writing generations`, on: true },
+    { text: `Up to ${p.batch_max} pins per scheduling batch`, on: true },
     { text: 'Bulk scheduling and CSV import', on: p.bulk_upload },
     { text: 'Best-time auto scheduling', on: p.smart_scheduler },
     { text: 'Sitemap import', on: p.sitemap_import },
@@ -59,13 +60,16 @@ export function PlanCards({ cycle, current, renderCta, highlight = 'pro' }: {
   )
 }
 
+/** Computed from the real prices, so the badge can never promise more than the plans give. */
+const yearlyFreeMonths = Math.floor(Math.min(...PAID_PLANS.map((id) => monthsFree(PLANS[id]))))
+
 export function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: BillingCycle) => void }) {
   return (
     <div className="inline-flex rounded-lg bg-stone-100 p-1" role="tablist" aria-label="Billing period">
       {(['monthly', 'yearly'] as const).map((c) => (
         <button key={c} role="tab" aria-selected={cycle === c} onClick={() => onChange(c)}
           className={cn('h-9 rounded-md px-4 text-sm font-medium transition-colors', cycle === c ? 'bg-white text-ink shadow-sm' : 'text-stone-600')}>
-          {c === 'monthly' ? 'Monthly' : 'Yearly'}{c === 'yearly' && <span className="ml-1.5 text-xs text-emerald-700">2 months free</span>}
+          {c === 'monthly' ? 'Monthly' : 'Yearly'}{c === 'yearly' && <span className="ml-1.5 text-xs text-emerald-700">{yearlyFreeMonths} months free</span>}
         </button>
       ))}
     </div>

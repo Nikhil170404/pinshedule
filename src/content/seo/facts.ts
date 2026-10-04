@@ -16,8 +16,8 @@ export const FACTS = {
   pro: { price: P.price_monthly_usd, yearly: P.price_yearly_usd, pins: n(P.pins_per_month) },
   business: { price: B.price_monthly_usd, yearly: B.price_yearly_usd, pins: n(B.pins_per_month) },
   // Mirrors worker/src/routes/pins.ts and BulkComposer.
-  bulkMax: 200,
-  freeBatchMax: 10,
+  bulkMax: B.batch_max,
+  freeBatchMax: F.batch_max,
   importBatchMax: 25,
   imageMaxMb: 20,
   titleMax: 100,

@@ -1,4 +1,6 @@
+import { PLANS } from '@shared/plans'
 import { db, mapLimit } from '../lib/clients'
+import { getProfile } from '../lib/plan'
 import { accountAnalytics, pinAnalytics } from '../lib/pinterest'
 import { NotConnectedError, withPinterest } from '../lib/tokens'
 import { errMsg, log } from '../lib/log'
@@ -6,7 +8,9 @@ import { errMsg, log } from '../lib/log'
 const day = (d: Date) => d.toISOString().slice(0, 10)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-export async function syncUserAnalytics(userId: string, days = 30) {
+export async function syncUserAnalytics(userId: string, requestedDays = 30) {
+  // Only collect as much history as the user's plan shows (also keeps Pinterest API calls down).
+  const days = Math.min(requestedDays, PLANS[(await getProfile(userId)).plan].analytics_days)
   const end = new Date()
   const start = new Date(Date.now() - days * 86_400_000)
 

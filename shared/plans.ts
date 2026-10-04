@@ -14,6 +14,8 @@ export interface PlanDetails {
   pins_per_month: number
   website_imports: number
   ai_generations: number
+  /** Most pins that can be scheduled in one request or bulk batch. */
+  batch_max: number
   bulk_upload: boolean
   sitemap_import: boolean
   smart_scheduler: boolean
@@ -31,6 +33,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     pins_per_month: 30,
     website_imports: 5,
     ai_generations: 15,
+    batch_max: 10,
     bulk_upload: false,
     sitemap_import: false,
     smart_scheduler: false,
@@ -46,6 +49,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     pins_per_month: 300,
     website_imports: 100,
     ai_generations: 300,
+    batch_max: 200,
     bulk_upload: true,
     sitemap_import: false,
     smart_scheduler: true,
@@ -61,6 +65,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     pins_per_month: 1500,
     website_imports: 600,
     ai_generations: 1500,
+    batch_max: 200,
     bulk_upload: true,
     sitemap_import: true,
     smart_scheduler: true,
@@ -76,6 +81,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     pins_per_month: 6000,
     website_imports: 3000,
     ai_generations: 6000,
+    batch_max: 200,
     bulk_upload: true,
     sitemap_import: true,
     smart_scheduler: true,
@@ -96,3 +102,18 @@ export function monthlyEquivalent(plan: PlanDetails, cycle: BillingCycle): numbe
 
 /** Pinterest field limits (API v5). */
 export const PIN_LIMITS = { title: 100, description: 800, altText: 500, link: 2048 } as const
+
+/** Months you do not pay for when billed yearly (the "2 months free" shown in the UI is computed, not typed). */
+export function monthsFree(plan: PlanDetails): number {
+  return plan.price_monthly_usd === 0 ? 0 : Math.round((12 - plan.price_yearly_usd / plan.price_monthly_usd) * 100) / 100
+}
+
+/** What a Razorpay plan must look like for a given plan and cycle (amounts are in cents, USD). */
+export function expectedRazorpay(plan: PlanDetails, cycle: BillingCycle) {
+  return {
+    amount: (cycle === 'yearly' ? plan.price_yearly_usd : plan.price_monthly_usd) * 100,
+    currency: 'USD',
+    period: cycle === 'yearly' ? 'yearly' : 'monthly',
+    interval: 1,
+  }
+}

@@ -2,11 +2,12 @@ import { Hono } from 'hono'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
-import { isPaidPlan, type BillingCycle, type Plan } from '@shared/plans'
+import { PLANS, isPaidPlan, type BillingCycle, type Plan } from '@shared/plans'
 import { env } from '../env'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, redis } from '../lib/clients'
 import { invalidateProfile } from '../lib/plan'
+import { razorpayPlanProblems, type RazorpayPlanInfo } from '../lib/razorpay-plan'
 import { errMsg, log } from '../lib/log'
 
 const rzp = env.razorpayKeyId ? new Razorpay({ key_id: env.razorpayKeyId, key_secret: env.razorpayKeySecret }) : null
@@ -35,6 +36,15 @@ billing.post('/checkout', async (c) => {
   const { plan, cycle } = parsed.data
   const rzpPlanId = planIdFor(plan, cycle)
   if (!rzpPlanId) return c.json({ error: 'This plan is not available for purchase yet.' }, 503)
+
+  // Refuse to sell a plan whose Razorpay configuration does not match our price list.
+  const info = (await rzp.plans.fetch(rzpPlanId).catch((e: unknown) => { log.error('razorpay plan fetch failed', { rzpPlanId, error: errMsg(e) }); return null })) as RazorpayPlanInfo | null
+  if (!info) return c.json({ error: 'Payments are temporarily unavailable. Please try again shortly.' }, 503)
+  const problems = razorpayPlanProblems(info, PLANS[plan as Plan], cycle)
+  if (problems.length) {
+    log.error('razorpay plan does not match price list', { plan, cycle, rzpPlanId, problems })
+    return c.json({ error: 'This plan is not available for purchase right now. Please contact support.' }, 503)
+  }
 
   // One active subscription at a time: switching plans cancels the old one at the end of its period.
   const { data: prof } = await db.from('user_profiles').select('razorpay_subscription_id, plan, plan_status').eq('id', userId).maybeSingle()

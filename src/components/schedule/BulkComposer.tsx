@@ -55,7 +55,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
     if (rows.length === 0) return
     if (!board.id) return toast.error('Choose a board.')
     if (mode === 'interval' && !start) return toast.error('Choose a start time.')
-    const batchCap = plan?.bulk_upload ? 200 : 10
+    const batchCap = plan?.batch_max ?? 10
     if (rows.length > batchCap) return toast.error(`Your plan schedules up to ${batchCap} pins at a time.`)
 
     try {

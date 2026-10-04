@@ -63,7 +63,7 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
   const { pins, auto } = body
   const profile = await getProfile(userId)
   const plan = PLANS[profile.plan]
-  const maxBatch = plan.bulk_upload ? 200 : 10
+  const maxBatch = plan.batch_max
   if (pins.length > maxBatch) throw new ServiceError(`Your ${plan.name} plan schedules up to ${maxBatch} pins at a time.`, 403, { upgrade_required: !plan.bulk_upload })
 
   const needSlots = pins.filter((p) => !p.scheduled_at).length
