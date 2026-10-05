@@ -43,7 +43,7 @@ ai.post('/similar', async (c) => {
   if (!parsed.success || !aiEnabled()) return c.json({ matches: [] })
   try {
     const [vec] = await embed([parsed.data.text])
-    const { data, error } = await db.rpc('match_pins', { p_user: userId, p_embedding: JSON.stringify(vec), p_threshold: 0.86, p_limit: 3 })
+    const { data, error } = await db.rpc('match_pins', { p_user: userId, p_embedding: JSON.stringify(vec), p_threshold: 0.86, p_limit: 3, p_connection: c.get('connection')?.id ?? null })
     if (error) throw new Error(error.message)
     return c.json({ matches: data ?? [] })
   } catch (e) {
@@ -54,11 +54,11 @@ ai.post('/similar', async (c) => {
 
 /** Vector search: which of the user's boards fits this pin best? */
 ai.post('/suggest-board', async (c) => {
-  const userId = c.get('userId')
+  const connection = c.get('connection')
   const parsed = textBody.safeParse(await c.req.json().catch(() => null))
-  if (!parsed.success || !aiEnabled()) return c.json({ suggestions: [] })
+  if (!parsed.success || !aiEnabled() || !connection) return c.json({ suggestions: [] })
   try {
-    const boards = (await loadBoards(userId)).slice(0, 100)
+    const boards = (await loadBoards(connection.id)).slice(0, 100)
     if (boards.length < 2) return c.json({ suggestions: [] })
     const vecs = await embed([parsed.data.text, ...boards.map((b) => `${b.name}. ${b.description}`)])
     const ranked = boards

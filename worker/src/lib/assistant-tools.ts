@@ -11,6 +11,7 @@ import {
   commitSchedule, deletePins, patchBody, prepareSchedule, previewSlots, retryPins, ServiceError, updatePin, type Prepared, type PreparedRow,
 } from './pin-service'
 import { loadBoards } from '../routes/boards'
+import { AccountError, type Connection } from './accounts'
 import { getKeywords } from '../routes/keywords'
 import { importPageMetered } from '../routes/import'
 
@@ -25,7 +26,8 @@ export interface Proposal {
 export interface UiAction { type: 'navigate'; path: string; label: string }
 
 type Json = Record<string, unknown>
-interface Ctx { userId: string; tz: string; planId: Plan }
+/** `connection` is the Pinterest account the user has selected in the app: every tool acts on it only. */
+interface Ctx { userId: string; connection: Connection | null; tz: string; planId: Plan }
 
 interface ReadTool { kind: 'read'; label: string; run: (ctx: Ctx, args: Json) => Promise<unknown> }
 interface WriteTool {
@@ -36,12 +38,17 @@ interface WriteTool {
 }
 interface UiTool { kind: 'ui'; label: string; run: (args: Json) => UiAction }
 
+function account(c: Ctx): Connection {
+  if (!c.connection) throw new AccountError('Connect a Pinterest account first.', 409)
+  return c.connection
+}
+
 const fmt = (iso: string, tz: string) =>
   new Intl.DateTimeFormat('en-US', { timeZone: tz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
 const clip = (s: string | null | undefined, n: number) => (s && s.length > n ? s.slice(0, n - 1) + '...' : (s ?? ''))
 
-async function resolveBoard(userId: string, ref: string): Promise<{ id: string; name: string }> {
-  const boards = await loadBoards(userId)
+async function resolveBoard(connectionId: string, ref: string): Promise<{ id: string; name: string }> {
+  const boards = await loadBoards(connectionId)
   const r = ref.trim().toLowerCase()
   const exact = boards.find((b) => b.id === ref.trim()) ?? boards.find((b) => b.name.toLowerCase() === r)
   if (exact) return { id: exact.id, name: exact.name }
@@ -57,11 +64,11 @@ const isoDate = z.string().datetime({ offset: true })
 
 // ───────────────────────── read tools ─────────────────────────
 const readTools: Record<string, ReadTool> = {
-  get_account_summary: { kind: 'read', label: 'Checking your account', run: (c) => buildSummary(c.userId) },
+  get_account_summary: { kind: 'read', label: 'Checking your account', run: (c) => buildSummary(c.userId, c.connection) },
 
   list_boards: {
     kind: 'read', label: 'Loading your boards',
-    run: async (c) => (await loadBoards(c.userId)).map((b) => ({ id: b.id, name: b.name, pins: b.pin_count, privacy: b.privacy, about: clip(b.description, 80) })),
+    run: async (c) => (await loadBoards(account(c).id)).map((b) => ({ id: b.id, name: b.name, pins: b.pin_count, privacy: b.privacy, about: clip(b.description, 80) })),
   },
 
   list_pins: {
@@ -72,7 +79,7 @@ const readTools: Record<string, ReadTool> = {
         from: isoDate.optional(), to: isoDate.optional(), search: z.string().max(80).optional(),
         newest_first: z.boolean().optional(), limit: z.number().int().min(1).max(30).optional(),
       }).parse(a)
-      let q = db.from('scheduled_pins').select('id,title,status,scheduled_at,board_name,error_message', { count: 'exact' }).eq('user_id', c.userId)
+      let q = db.from('scheduled_pins').select('id,title,status,scheduled_at,board_name,error_message', { count: 'exact' }).eq('connection_id', account(c).id)
         .order('scheduled_at', { ascending: !args.newest_first }).limit(args.limit ?? 15)
       if (args.statuses?.length) q = q.in('status', args.statuses)
       if (args.from) q = q.gte('scheduled_at', args.from)
@@ -90,10 +97,11 @@ const readTools: Record<string, ReadTool> = {
   get_queue_stats: {
     kind: 'read', label: 'Counting your queue',
     run: async (c) => {
+      const id = account(c).id
       const statuses = ['pending', 'published', 'failed'] as const
-      const counts = await Promise.all(statuses.map((s) => db.from('scheduled_pins').select('id', { count: 'exact', head: true }).eq('user_id', c.userId).eq('status', s)))
-      const { data: next } = await db.from('scheduled_pins').select('scheduled_at').eq('user_id', c.userId).eq('status', 'pending').order('scheduled_at').limit(1).maybeSingle()
-      const { data: last } = await db.from('scheduled_pins').select('scheduled_at').eq('user_id', c.userId).eq('status', 'pending').order('scheduled_at', { ascending: false }).limit(1).maybeSingle()
+      const counts = await Promise.all(statuses.map((s) => db.from('scheduled_pins').select('id', { count: 'exact', head: true }).eq('connection_id', id).eq('status', s)))
+      const { data: next } = await db.from('scheduled_pins').select('scheduled_at').eq('connection_id', id).eq('status', 'pending').order('scheduled_at').limit(1).maybeSingle()
+      const { data: last } = await db.from('scheduled_pins').select('scheduled_at').eq('connection_id', id).eq('status', 'pending').order('scheduled_at', { ascending: false }).limit(1).maybeSingle()
       return { scheduled: counts[0].count ?? 0, published: counts[1].count ?? 0, failed: counts[2].count ?? 0, next_pin_at: next?.scheduled_at ?? null, queue_runs_until: last?.scheduled_at ?? null }
     },
   },
@@ -104,11 +112,11 @@ const readTools: Record<string, ReadTool> = {
       const plan = PLANS[c.planId]
       const days = Math.min(Math.max(1, Number(a.days) || 30), plan.analytics_days)
       const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
-      const { data } = await db.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks').eq('user_id', c.userId).gte('day', since).order('day')
+      const { data } = await db.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks').eq('connection_id', account(c).id).gte('day', since).order('day')
       if (!data?.length) return { note: 'No analytics yet. Data appears 1 to 2 days after pins publish.' }
       const sum = (k: 'impressions' | 'saves' | 'pin_clicks' | 'outbound_clicks') => data.reduce((t, d) => t + (d[k] ?? 0), 0)
       const best = [...data].sort((x, y) => y.impressions - x.impressions)[0]
-      const { data: snaps } = await db.from('analytics_snapshots').select('pin_id,impressions,saves,outbound_clicks').eq('user_id', c.userId).order('snapshot_date', { ascending: false }).limit(200)
+      const { data: snaps } = await db.from('analytics_snapshots').select('pin_id,impressions,saves,outbound_clicks').eq('connection_id', account(c).id).order('snapshot_date', { ascending: false }).limit(200)
       const seen = new Map<string, { impressions: number; saves: number; clicks: number }>()
       for (const s of snaps ?? []) if (s.pin_id && !seen.has(s.pin_id)) seen.set(s.pin_id, { impressions: s.impressions ?? 0, saves: s.saves ?? 0, clicks: s.outbound_clicks ?? 0 })
       const top = [...seen.entries()].sort((x, y) => y[1].impressions - x[1].impressions).slice(0, 5)
@@ -124,7 +132,7 @@ const readTools: Record<string, ReadTool> = {
 
   trending_keywords: {
     kind: 'read', label: 'Checking Pinterest trends',
-    run: async (c, a) => (await getKeywords(c.userId, String(a.region ?? 'US'), String(a.query ?? ''))).slice(0, 20)
+    run: async (c, a) => (await getKeywords(account(c).id, String(a.region ?? 'US'), String(a.query ?? ''))).slice(0, 20)
       .map((k) => ({ keyword: k.keyword, month_growth_pct: k.pct_growth_mom })),
   },
 
@@ -132,7 +140,7 @@ const readTools: Record<string, ReadTool> = {
     kind: 'read', label: 'Reading that web page',
     run: async (c, a) => {
       const url = z.string().url().parse(a.url)
-      const r = await importPageMetered(c.userId, url)
+      const r = await importPageMetered(c.userId, url, c.connection?.id ?? null)
       return { url: r.url, page_title: r.page_title, already_pinned: r.is_duplicate, image_urls: r.images.slice(0, 10), suggested_titles: r.ai.titles, suggested_description: r.ai.description, suggested_alt_text: r.ai.alt_text }
     },
   },
@@ -147,7 +155,7 @@ const readTools: Record<string, ReadTool> = {
     run: async (c, a) => {
       if (!aiEnabled()) return []
       const [vec] = await embed([z.string().min(8).max(1500).parse(a.text)])
-      const { data } = await db.rpc('match_pins', { p_user: c.userId, p_embedding: JSON.stringify(vec), p_threshold: 0.86, p_limit: 5 })
+      const { data } = await db.rpc('match_pins', { p_user: c.userId, p_embedding: JSON.stringify(vec), p_threshold: 0.86, p_limit: 5, p_connection: c.connection?.id ?? null })
       return ((data ?? []) as { title: string; status: string; scheduled_at: string; similarity: number }[]).map((m) => ({ title: clip(m.title, 60), status: m.status, at: m.scheduled_at, similarity: Math.round(m.similarity * 100) / 100 }))
     },
   },
@@ -155,7 +163,7 @@ const readTools: Record<string, ReadTool> = {
   suggest_board: {
     kind: 'read', label: 'Matching a board',
     run: async (c, a) => {
-      const boards = (await loadBoards(c.userId)).slice(0, 100)
+      const boards = (await loadBoards(account(c).id)).slice(0, 100)
       if (!boards.length) return []
       const vecs = await embed([z.string().min(3).max(1500).parse(a.text), ...boards.map((b) => `${b.name}. ${b.description}`)])
       return boards.map((b, i) => ({ name: b.name, score: Math.round(cosine(vecs[0], vecs[i + 1]) * 100) / 100 })).sort((x, y) => y.score - x.score).slice(0, 3)
@@ -165,7 +173,7 @@ const readTools: Record<string, ReadTool> = {
   preview_best_times: {
     kind: 'read', label: 'Finding best posting times',
     run: async (c, a) => {
-      const r = await previewSlots(c.userId, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10))
+      const r = await previewSlots(c.userId, account(c).id, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10))
       return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)) }
     },
   },
@@ -211,7 +219,7 @@ const writeTools: Record<string, WriteTool> = {
       let i = 0
       for (const p of args.pins) {
         const key = p.board.toLowerCase()
-        if (!boardCache.has(key)) boardCache.set(key, await resolveBoard(c.userId, p.board))
+        if (!boardCache.has(key)) boardCache.set(key, await resolveBoard(account(c).id, p.board))
         const b = boardCache.get(key)!
         let at = p.scheduled_at
         if (!at && args.every_hours && !args.per_day) {
@@ -221,14 +229,14 @@ const writeTools: Record<string, WriteTool> = {
         pins.push({ image_url: p.image_url, title: p.title, description: p.description, alt_text: p.alt_text ?? '', board_id: b.id, board_name: b.name, destination_url: p.destination_url ?? '', scheduled_at: at })
         i++
       }
-      const prepared = await prepareSchedule(c.userId, {
+      const prepared = await prepareSchedule(c.userId, account(c).id, {
         pins: pins as never,
         auto: pins.some((p) => !p.scheduled_at) ? { per_day: args.per_day ?? 2, start_after: args.start_at } : undefined,
       })
       const sorted = [...prepared.rows].sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at))
       const boards = [...new Set(prepared.rows.map((r) => r.board_name))].join(', ')
       return {
-        summary: `Schedule ${prepared.rows.length} pin${prepared.rows.length > 1 ? 's' : ''} to ${boards}, from ${fmt(sorted[0].scheduled_at, c.tz)} to ${fmt(sorted[sorted.length - 1].scheduled_at, c.tz)}`,
+        summary: `Schedule ${prepared.rows.length} pin${prepared.rows.length > 1 ? 's' : ''} to ${boards} on @${account(c).pinterest_username ?? 'your account'}, from ${fmt(sorted[0].scheduled_at, c.tz)} to ${fmt(sorted[sorted.length - 1].scheduled_at, c.tz)}`,
         details: sorted.slice(0, 6).map((r) => `${fmt(r.scheduled_at, c.tz)}: ${clip(r.title || 'Untitled pin', 55)}`).concat(sorted.length > 6 ? [`and ${sorted.length - 6} more`] : []).concat(prepared.warnings.map((w) => `Heads up: ${w}`)),
         payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile, warnings: prepared.warnings } satisfies SchedulePayload,
       }
@@ -258,7 +266,7 @@ const writeTools: Record<string, WriteTool> = {
       const resolved = []
       for (const u of args.updates) {
         const { board, ...rest } = u
-        const b = board ? await resolveBoard(c.userId, board) : null
+        const b = board ? await resolveBoard(account(c).id, board) : null
         resolved.push({ ...rest, ...(b ? { board_id: b.id, board_name: b.name } : {}) })
       }
       return {
@@ -318,13 +326,15 @@ const writeTools: Record<string, WriteTool> = {
 
   create_board: {
     kind: 'write', label: 'Preparing a board',
-    prepare: async (_c, a) => {
+    prepare: async (c, a) => {
       const args = z.object({ name: z.string().trim().min(1).max(50), description: z.string().max(500).optional(), privacy: z.enum(['PUBLIC', 'SECRET']).default('PUBLIC') }).parse(a)
-      return { summary: `Create a ${args.privacy.toLowerCase()} board named "${args.name}"`, details: args.description ? [clip(args.description, 80)] : [], payload: args }
+      const conn = account(c)
+      return { summary: `Create a ${args.privacy.toLowerCase()} board named "${args.name}" on @${conn.pinterest_username ?? 'your account'}`, details: args.description ? [clip(args.description, 80)] : [], payload: { ...args, connection_id: conn.id } }
     },
-    commit: async (c, args: { name: string; description?: string; privacy: 'PUBLIC' | 'SECRET' }) => {
-      const b = await withPinterest(c.userId, (t) => createBoard(t, args))
-      await redis.del(`boards:${c.userId}`).catch(() => {})
+    commit: async (_c, { connection_id, ...args }: { connection_id: string; name: string; description?: string; privacy: 'PUBLIC' | 'SECRET' }) => {
+      // Bound to the account chosen when the card was shown, even if the user switched accounts since.
+      const b = await withPinterest(connection_id, (t) => createBoard(t, args))
+      await redis.del(`boards:${connection_id}`).catch(() => {})
       return `Created the board "${b.name}".`
     },
   },
@@ -425,9 +435,9 @@ export async function commitProposal(ctx: Ctx, tool: string, payload: unknown): 
   return t.commit(ctx, payload as never)
 }
 
-export async function toolContext(userId: string): Promise<Ctx> {
+export async function toolContext(userId: string, connection: Connection | null): Promise<Ctx> {
   const profile = await getProfile(userId)
-  return { userId, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan }
+  return { userId, connection, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan }
 }
 
 export const registeredToolNames = () => [...Object.keys(readTools), ...Object.keys(uiTools), ...Object.keys(writeTools)]

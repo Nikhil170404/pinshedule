@@ -3,10 +3,16 @@ export type { Plan, PlanDetails, BillingCycle } from '@shared/plans'
 
 export type PinStatus = 'pending' | 'processing' | 'published' | 'failed'
 
+export type MediaType = 'image' | 'video' | 'carousel'
+
 export interface ScheduledPin {
   id: string
   user_id: string
+  connection_id: string | null
   image_url: string
+  media_type: MediaType
+  video_url: string | null
+  carousel_items: { url: string }[] | null
   title: string | null
   description: string | null
   alt_text: string | null
@@ -38,7 +44,9 @@ export interface Summary {
   plan_status: string
   expires_at: string | null
   timezone: string
-  limits: { pins: number; ai: number; imports: number }
-  used: { pins: number; ai: number; imports: number }
-  pinterest: { username: string | null; status: 'active' | 'needs_reconnect' } | null
+  limits: { pins: number; ai: number; imports: number; ai_images: number }
+  used: { pins: number; ai: number; imports: number; ai_images: number }
+  /** The Pinterest account the dashboard is currently working on. */
+  pinterest: { id: string; username: string | null; label: string | null; status: 'active' | 'needs_reconnect' } | null
+  accounts: { count: number; limit: number }
 }

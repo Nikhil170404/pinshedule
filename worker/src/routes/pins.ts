@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { limit, type AppEnv } from '../lib/auth'
+import { connectionOf, limit, type AppEnv } from '../lib/auth'
 import { deletePins, patchBody, previewSlots, retryPins, schedulePins, scheduleBody, ServiceError, updatePin } from '../lib/pin-service'
 
 export const pins = new Hono<AppEnv>()
@@ -19,7 +19,8 @@ async function run<T>(c: import('hono').Context, fn: () => Promise<T>) {
 pins.post('/schedule', async (c) => {
   const parsed = scheduleBody.safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request', path: parsed.error.issues[0]?.path }, 400)
-  return run(c, () => schedulePins(c.get('userId'), parsed.data))
+  const connection = connectionOf(c)
+  return run(c, () => schedulePins(c.get('userId'), connection.id, parsed.data))
 })
 
 pins.patch('/:id', async (c) => {
@@ -46,5 +47,6 @@ pins.post('/retry', async (c) => {
 pins.get('/slots', async (c) => {
   const count = Math.min(Math.max(1, Number(c.req.query('count') ?? 1) || 1), 200)
   const perDay = Math.min(Math.max(1, Number(c.req.query('per_day') ?? 2) || 2), 10)
-  return run(c, () => previewSlots(c.get('userId'), count, perDay))
+  const connection = connectionOf(c)
+  return run(c, () => previewSlots(c.get('userId'), connection.id, count, perDay))
 })

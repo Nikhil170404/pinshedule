@@ -47,20 +47,20 @@ export const patchBody = z.object({
   scheduled_at: z.string().datetime({ offset: true }).optional(),
 })
 
-async function lastQueued(userId: string): Promise<Date> {
-  const { data } = await db.from('scheduled_pins').select('scheduled_at').eq('user_id', userId).eq('status', 'pending')
+async function lastQueued(connectionId: string): Promise<Date> {
+  const { data } = await db.from('scheduled_pins').select('scheduled_at').eq('connection_id', connectionId).eq('status', 'pending')
     .order('scheduled_at', { ascending: false }).limit(1).maybeSingle()
   return data?.scheduled_at ? new Date(data.scheduled_at) : new Date()
 }
 
 export interface PreparedRow {
-  id: string; image_url: string; title: string; description: string; alt_text: string; board_id: string
+  id: string; connection_id: string; image_url: string; title: string; description: string; alt_text: string; board_id: string
   board_name: string; destination_url: string; scheduled_at: string; batch_id: string
 }
 export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile; warnings: string[] }
 
 /** Validate plan gates, resolve times and build the rows. No writes, so it is safe for dry runs. */
-export async function prepareSchedule(userId: string, body: ScheduleBody): Promise<Prepared> {
+export async function prepareSchedule(userId: string, connectionId: string, body: ScheduleBody): Promise<Prepared> {
   const { pins, auto } = body
   const profile = await getProfile(userId)
   const plan = PLANS[profile.plan]
@@ -73,7 +73,7 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
     if (!auto) throw new ServiceError('Every pin needs a scheduled_at, or enable auto scheduling.')
     if (!plan.smart_scheduler) throw new ServiceError('Auto-scheduling at best times is available on paid plans.', 403, { upgrade_required: true })
     const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
-    const after = auto.start_after ? new Date(auto.start_after) : await lastQueued(userId)
+    const after = auto.start_after ? new Date(auto.start_after) : await lastQueued(connectionId)
     slots = generateSlots({ after, count: needSlots, perDay: auto.per_day, timeZone: tz })
   }
 
@@ -85,19 +85,19 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
     if (at.getTime() < now - 60_000) throw new ServiceError('Scheduled time must be in the future.')
     if (at.getTime() > now + 365 * 86_400_000) throw new ServiceError('Pins can be scheduled up to 1 year ahead.')
     return {
-      id: randomUUID(), image_url: p.image_url, title: p.title, description: p.description, alt_text: p.alt_text,
+      id: randomUUID(), connection_id: connectionId, image_url: p.image_url, title: p.title, description: p.description, alt_text: p.alt_text,
       board_id: p.board_id, board_name: p.board_name, destination_url: p.destination_url || '', scheduled_at: at.toISOString(), batch_id: batchId,
     }
   })
-  return { rows, plan, profile, warnings: await pacing(userId, rows, profile.timezone) }
+  return { rows, plan, profile, warnings: await pacing(connectionId, rows, profile.timezone) }
 }
 
-/** Compare the new rows with pins already near them in time. Best effort: a failed lookup means no warnings. */
-async function pacing(userId: string, rows: PreparedRow[], timezone: string): Promise<string[]> {
+/** Compare the new rows with the account's pins already near them in time. Best effort: a failed lookup means no warnings. */
+async function pacing(connectionId: string, rows: PreparedRow[], timezone: string): Promise<string[]> {
   try {
     const times = rows.map((r) => new Date(r.scheduled_at).getTime())
     const pad = (REPEAT_IMAGE_DAYS + 1) * 86_400_000
-    const { data } = await db.from('scheduled_pins').select('scheduled_at, image_url').eq('user_id', userId)
+    const { data } = await db.from('scheduled_pins').select('scheduled_at, image_url').eq('connection_id', connectionId)
       .in('status', ['pending', 'processing', 'published'])
       .gte('scheduled_at', new Date(Math.min(...times) - pad).toISOString()).lte('scheduled_at', new Date(Math.max(...times) + pad).toISOString())
       .limit(3000)
@@ -139,8 +139,8 @@ export async function commitSchedule(userId: string, { rows, plan, profile, warn
   return { created: created.length, ids: created.map((r) => r.id), first_at: times[0], last_at: times[times.length - 1], warnings }
 }
 
-export async function schedulePins(userId: string, body: ScheduleBody) {
-  return commitSchedule(userId, await prepareSchedule(userId, body))
+export async function schedulePins(userId: string, connectionId: string, body: ScheduleBody) {
+  return commitSchedule(userId, await prepareSchedule(userId, connectionId, body))
 }
 
 export async function updatePin(userId: string, id: string, input: z.infer<typeof patchBody>) {
@@ -177,10 +177,10 @@ export async function retryPins(userId: string, ids: string[]) {
   return data?.length ?? 0
 }
 
-export async function previewSlots(userId: string, count: number, perDay: number) {
+export async function previewSlots(userId: string, connectionId: string, count: number, perDay: number) {
   const profile = await getProfile(userId)
   if (!PLANS[profile.plan].smart_scheduler) throw new ServiceError('Best-time scheduling is available on paid plans.', 403, { upgrade_required: true })
   const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
-  const slots = generateSlots({ after: await lastQueued(userId), count, perDay, timeZone: tz })
+  const slots = generateSlots({ after: await lastQueued(connectionId), count, perDay, timeZone: tz })
   return { slots: slots.map((s) => s.toISOString()), timezone: tz }
 }
