@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { pageByPath } from '@/content/seo'
+import { hubs, pageByPath } from '@/content/seo'
 
 const featured = [
-  'pinterest-scheduler', 'pinterest-bulk-scheduler', 'website-to-pinterest-pins', 'pinterest-automation-tool',
-  'best-pinterest-tools', 'tailwind-alternative', 'free-pinterest-scheduler', 'guides/how-to-schedule-pinterest-pins',
-  'pinterest-pin-maker', 'pinterest-scheduler-pricing', 'blogtopin-alternative', 'pinterest-keyword-tool',
+  'pinterest-scheduler', 'pinterest-bulk-scheduler', 'manage-multiple-pinterest-accounts', 'pinterest-video-pin-scheduler',
+  'cheapest-pinterest-scheduler', 'tailwind-alternative', 'pinboostr-alternative', 'safest-pinterest-scheduler',
+  'guides/best-time-to-post-on-pinterest', 'guides/how-to-find-pinterest-keywords', 'pinterest-pin-maker', 'use-cases/agencies',
 ]
 
 export function Explore() {
@@ -26,6 +26,9 @@ export function Explore() {
             </li>
           ))}
         </ul>
+        <p className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          {hubs.map((h) => <Link key={h.path} href={`/${h.path}`} className="inline-flex items-center gap-1 font-medium text-brand hover:underline">All {h.label.toLowerCase()} <ArrowRight size={13} aria-hidden /></Link>)}
+        </p>
       </div>
     </section>
   )

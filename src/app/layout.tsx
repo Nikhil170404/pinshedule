@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   applicationName: site.name,
   keywords: ['Pinterest scheduler', 'schedule Pinterest pins', 'bulk pin scheduler', 'Pinterest automation', 'Pinterest marketing tool', 'website to pins', 'Pinterest analytics'],
   category: 'technology',
-  robots: { index: true, follow: true },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } },
   ...pageMeta({ path: '/' }),
 }
 

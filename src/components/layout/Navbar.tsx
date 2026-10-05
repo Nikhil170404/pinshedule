@@ -9,6 +9,8 @@ import { buttonStyles } from '@/components/ui/button-styles'
 const links = [
   { href: '/features', label: 'Features' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/alternatives', label: 'Alternatives' },
+  { href: '/guides', label: 'Guides' },
 ]
 
 export function Navbar() {
