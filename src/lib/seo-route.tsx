@@ -21,7 +21,10 @@ export function seoMetadata(prefix: string, slug: string): Metadata {
   if (!page) return {}
   const meta = pageMeta({ title: page.title, description: page.description, path: `/${page.path}` })
   // Guides are articles; everything else is a normal page. Share image and Twitter card come from the site config.
-  return page.kind === 'guide' ? { ...meta, openGraph: { ...meta.openGraph, type: 'article', modifiedTime: page.updated } } : meta
+  const authors = [{ name: 'GoPinKaro' }]
+  return page.kind === 'guide'
+    ? { ...meta, authors, openGraph: { ...meta.openGraph, type: 'article', publishedTime: page.published ?? page.updated, modifiedTime: page.updated, authors: ['GoPinKaro'] } }
+    : { ...meta, authors }
 }
 
 export function SeoPageView({ prefix, slug }: { prefix: string; slug: string }) {
