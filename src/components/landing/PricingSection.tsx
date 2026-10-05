@@ -12,7 +12,7 @@ export function PricingSection() {
     <section id="pricing" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h2 className="text-3xl font-semibold tracking-tight text-ink">Simple pricing, one Pinterest account</h2>
+          <h2 className="text-3xl font-semibold tracking-tight text-ink">Simple pricing for one account or a hundred</h2>
           <p className="mt-3 max-w-xl text-stone-600">No per-credit charges and no surprises. Start free and upgrade when you need more pins.</p>
         </div>
         <CycleToggle cycle={cycle} onChange={setCycle} />

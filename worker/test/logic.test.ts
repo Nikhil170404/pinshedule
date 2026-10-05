@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { generateSlots, hoursForPerDay, zonedToUtc } from '../../shared/schedule'
-import { PLANS, PAID_PLANS, monthlyEquivalent } from '../../shared/plans'
+import { PLANS, PAID_PLANS, monthlyEquivalent, effectivePlan, PLAN_GRACE_MS } from '../../shared/plans'
 import { encrypt, decrypt } from '../../shared/crypto'
 import { extractImages, metaContent, parseSitemapUrls } from '../src/lib/html'
 
@@ -91,4 +91,26 @@ test('assistant: write tools never execute from runTool, bad input is reported n
   assert.equal(ui.kind, 'ui')
   const badPage = await runTool(ctx, 'open_page', '{"page":"https://evil.example"}', save)
   assert.equal(badPage.kind, 'result')
+})
+
+test('account and AI image limits only ever grow with the plan', () => {
+  const order = ['free_trial', 'starter', 'pro', 'growth'] as const
+  for (let i = 1; i < order.length; i++) {
+    assert.ok(PLANS[order[i]].accounts > PLANS[order[i - 1]].accounts, `${order[i]} accounts`)
+    assert.ok(PLANS[order[i]].ai_images > PLANS[order[i - 1]].ai_images, `${order[i]} ai_images`)
+  }
+  assert.equal(PLANS.free_trial.accounts, 1)
+  assert.equal(PLANS.growth.accounts, 100)
+})
+
+test('effectivePlan: lapsed paid plans fall back to Free only after the grace period', () => {
+  const now = Date.UTC(2030, 0, 10)
+  const iso = (ms: number) => new Date(ms).toISOString()
+  assert.equal(effectivePlan('pro', iso(now + 1000), now), 'pro')
+  assert.equal(effectivePlan('pro', iso(now - 1000), now), 'pro', 'inside the grace window')
+  assert.equal(effectivePlan('pro', iso(now - PLAN_GRACE_MS - 1000), now), 'free_trial')
+  assert.equal(effectivePlan('pro', null, now), 'pro', 'no expiry means no lapse')
+  assert.equal(effectivePlan('free_trial', iso(now - 99 * PLAN_GRACE_MS), now), 'free_trial')
+  assert.equal(effectivePlan('mystery', null, now), 'free_trial', 'unknown plans never grant access')
+  assert.equal(effectivePlan(undefined, undefined, now), 'free_trial')
 })

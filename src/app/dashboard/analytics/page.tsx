@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
 import { api, errorText } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
-import { useSummary } from '@/lib/hooks'
+import { useScope, useSummary } from '@/lib/hooks'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { PLANS } from '@/types'
 import { cn, formatNumber } from '@/lib/utils'
@@ -28,6 +28,7 @@ const METRICS = [
 
 export default function AnalyticsPage() {
   const { summary } = useSummary()
+  const scope = useScope()
   const maxDays = summary ? PLANS[summary.plan].analytics_days : 7
   const [range, setRange] = useState(30)
   const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('impressions')
@@ -35,12 +36,16 @@ export default function AnalyticsPage() {
   const [top, setTop] = useState<TopPin[]>([])
   const [syncing, setSyncing] = useState(false)
 
+  const accountId = scope.id
+  const ready = scope.ready
   const load = useCallback(async () => {
+    if (!ready) return
+    setDays(null)
     const supabase = createClient()
     const since = new Date(Date.now() - Math.min(range, maxDays) * 86_400_000).toISOString().slice(0, 10)
     const [a, s] = await Promise.all([
-      supabase.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks,engagements').gte('day', since).order('day'),
-      supabase.from('analytics_snapshots').select('pin_id,impressions,saves,clicks,outbound_clicks,snapshot_date').order('snapshot_date', { ascending: false }).limit(300),
+      supabase.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks,engagements').match(accountId ? { connection_id: accountId } : {}).gte('day', since).order('day'),
+      supabase.from('analytics_snapshots').select('pin_id,impressions,saves,clicks,outbound_clicks,snapshot_date').match(accountId ? { connection_id: accountId } : {}).order('snapshot_date', { ascending: false }).limit(300),
     ])
     setDays((a.data ?? []) as Day[])
 
@@ -53,7 +58,7 @@ export default function AnalyticsPage() {
       ranked.forEach((r) => { r.title = meta.get(r.pin_id)?.title ?? null; r.image_url = meta.get(r.pin_id)?.image_url ?? null })
     }
     setTop(ranked)
-  }, [range, maxDays])
+  }, [range, maxDays, accountId, ready])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount and when the range changes
   useEffect(() => { void load() }, [load])

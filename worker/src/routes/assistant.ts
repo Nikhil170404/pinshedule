@@ -3,6 +3,7 @@ import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
+import { AccountError } from '../lib/accounts'
 import { aiEnabled } from '../lib/ai'
 import { consumeUsage, getProfile, invalidateProfile, refundUsage } from '../lib/plan'
 import { assistantError, runAssistant, takeProposal } from '../lib/assistant'
@@ -22,6 +23,8 @@ const chatBody = z.object({
  */
 assistant.post('/chat', limit('heavy'), async (c) => {
   const userId = c.get('userId')
+  if (c.get('accountStale')) throw new AccountError('That Pinterest account is no longer connected. Choose another account.', 404, { account_missing: true })
+  const connection = c.get('connection')
   const parsed = chatBody.safeParse(await c.req.json().catch(() => null))
   if (!parsed.success || parsed.data.messages.at(-1)?.role !== 'user') return c.json({ error: 'Send a message first.' }, 400)
   if (!aiEnabled()) return c.json({ error: 'The assistant is not available right now.' }, 503)
@@ -37,7 +40,7 @@ assistant.post('/chat', limit('heavy'), async (c) => {
     const send = (data: unknown) => stream.writeSSE({ data: JSON.stringify(data) })
     let answered = false
     try {
-      await runAssistant(userId, parsed.data.messages, async (e) => {
+      await runAssistant(userId, connection, parsed.data.messages, async (e) => {
         if (e.type === 'message') answered = true
         await send(e)
       })
@@ -60,7 +63,7 @@ assistant.post('/execute', limit('default'), async (c) => {
   const proposal = await takeProposal(userId, parsed.data.proposal_id)
   if (!proposal) return c.json({ error: 'This confirmation expired. Ask the assistant again.' }, 410)
   try {
-    return c.json({ ok: true, message: await commitProposal(await toolContext(userId), proposal.tool, proposal.payload) })
+    return c.json({ ok: true, message: await commitProposal(await toolContext(userId, c.get('accountStale') ? null : c.get('connection')), proposal.tool, proposal.payload) })
   } catch (e) {
     if (e instanceof ServiceError) return c.json({ error: e.message, ...e.extra }, e.status as 400)
     return c.json({ error: `That did not work: ${errMsg(e)}` }, 502)

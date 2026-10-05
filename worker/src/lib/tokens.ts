@@ -13,29 +13,29 @@ interface Conn {
   status: string
 }
 
-async function load(userId: string): Promise<Conn> {
+async function load(connectionId: string): Promise<Conn> {
   const { data } = await db
     .from('pinterest_connections')
     .select('access_token, refresh_token, expires_at, status')
-    .eq('user_id', userId)
+    .eq('id', connectionId)
     .maybeSingle()
-  if (!data) throw new NotConnectedError('Pinterest is not connected. Reconnect your account.')
+  if (!data) throw new NotConnectedError('That Pinterest account is not connected. Reconnect it.')
   if (data.status !== 'active') throw new NotConnectedError('Pinterest access was revoked. Reconnect your account.')
   return data as Conn
 }
 
-/** Refresh the stored tokens. Serialised per user so rotating refresh tokens are never used twice. */
-export async function refreshConnection(userId: string): Promise<string> {
-  const lock = `lock:refresh:${userId}`
+/** Refresh the stored tokens. Serialised per account so rotating refresh tokens are never used twice. */
+export async function refreshConnection(connectionId: string): Promise<string> {
+  const lock = `lock:refresh:${connectionId}`
   const got = await redis.set(lock, '1', { nx: true, ex: 30 })
   if (got !== 'OK') {
     // Another worker is refreshing: wait briefly, then re-read the result.
     await new Promise((r) => setTimeout(r, 2500))
-    return open(userId, (await load(userId)).access_token)
+    return open(connectionId, (await load(connectionId)).access_token)
   }
   try {
-    const conn = await load(userId)
-    const refreshToken = await open(userId, conn.refresh_token)
+    const conn = await load(connectionId)
+    const refreshToken = await open(connectionId, conn.refresh_token)
     let tokens
     try {
       tokens = await refreshAccessToken(refreshToken)
@@ -44,8 +44,8 @@ export async function refreshConnection(userId: string): Promise<string> {
         await db
           .from('pinterest_connections')
           .update({ status: 'needs_reconnect', last_error: e.message, updated_at: new Date().toISOString() })
-          .eq('user_id', userId)
-        log.warn('pinterest connection needs reconnect', { userId, reason: e.message })
+          .eq('id', connectionId)
+        log.warn('pinterest connection needs reconnect', { connection: connectionId, reason: e.message })
         throw new NotConnectedError('Pinterest access expired. Reconnect your account.')
       }
       throw e
@@ -62,7 +62,7 @@ export async function refreshConnection(userId: string): Promise<string> {
         last_error: null,
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', userId)
+      .eq('id', connectionId)
     return tokens.access_token
   } finally {
     await redis.del(lock).catch(() => {})
@@ -70,33 +70,33 @@ export async function refreshConnection(userId: string): Promise<string> {
 }
 
 /** Decrypt a stored token. A failure means the secret changed or the data is corrupt: ask the user to reconnect. */
-async function open(userId: string, value: string): Promise<string> {
+async function open(connectionId: string, value: string): Promise<string> {
   try {
     return await decrypt(value, env.encryptionSecret)
   } catch {
     await db.from('pinterest_connections')
       .update({ status: 'needs_reconnect', last_error: 'Stored token could not be decrypted (ENCRYPTION_SECRET changed?)', updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-    log.error('token decrypt failed: ENCRYPTION_SECRET on this service does not match the one used at login', { userId })
+      .eq('id', connectionId)
+    log.error('token decrypt failed: ENCRYPTION_SECRET on this service does not match the one used at login', { connection: connectionId })
     throw new NotConnectedError('Your Pinterest connection needs to be renewed. Please reconnect your account.')
   }
 }
 
-/** A valid access token for the user, refreshing it first when it is about to expire. */
-export async function getAccessToken(userId: string): Promise<string> {
-  const conn = await load(userId)
-  if (new Date(conn.expires_at).getTime() - Date.now() < 5 * 60_000) return refreshConnection(userId)
-  return open(userId, conn.access_token)
+/** A valid access token for the account, refreshing it first when it is about to expire. */
+export async function getAccessToken(connectionId: string): Promise<string> {
+  const conn = await load(connectionId)
+  if (new Date(conn.expires_at).getTime() - Date.now() < 5 * 60_000) return refreshConnection(connectionId)
+  return open(connectionId, conn.access_token)
 }
 
 /** Run an API call; on 401 refresh the token once and retry. */
-export async function withPinterest<T>(userId: string, fn: (token: string) => Promise<T>): Promise<T> {
-  const token = await getAccessToken(userId)
+export async function withPinterest<T>(connectionId: string, fn: (token: string) => Promise<T>): Promise<T> {
+  const token = await getAccessToken(connectionId)
   try {
     return await fn(token)
   } catch (e) {
     if (e instanceof Error && 'unauthorized' in e && (e as { unauthorized: boolean }).unauthorized) {
-      return fn(await refreshConnection(userId))
+      return fn(await refreshConnection(connectionId))
     }
     throw e
   }

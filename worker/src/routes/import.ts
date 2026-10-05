@@ -13,17 +13,15 @@ import { ServiceError } from '../lib/pin-service'
 export const importer = new Hono<AppEnv>()
 importer.use('*', limit('heavy'))
 
-async function importOne(userId: string, url: string) {
+async function importOne(userId: string, url: string, connectionId: string | null) {
   const { text: html, finalUrl } = await safeFetchText(url)
   const title = metaContent(html, 'property', 'og:title') || pageTitle(html) || new URL(finalUrl).hostname
   const description = metaContent(html, 'property', 'og:description') || metaContent(html, 'name', 'description') || ''
   const images = extractImages(html, finalUrl)
 
-  const { count } = await db
-    .from('scheduled_pins')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('destination_url', url)
+  let dup = db.from('scheduled_pins').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('destination_url', url)
+  if (connectionId) dup = dup.eq('connection_id', connectionId) // another account may pin the same page
+  const { count } = await dup
   const is_duplicate = (count ?? 0) > 0
 
   let copy: { titles: string[]; description: string; alt_text: string } = {
@@ -38,14 +36,14 @@ async function importOne(userId: string, url: string) {
 const urlSchema = z.string().trim().url().max(2048)
 
 /** One metered page import (used by the REST route and the assistant). */
-export async function importPageMetered(userId: string, url: string) {
+export async function importPageMetered(userId: string, url: string, connectionId: string | null = null) {
   const plan = PLANS[(await getProfile(userId)).plan]
   if (!(await consumeUsage(userId, 'imports', plan.website_imports))) {
     throw new ServiceError(`You have used all ${plan.website_imports} website imports on the ${plan.name} plan this month.`, 403, { upgrade_required: plan.id !== 'growth' })
   }
   try {
     await assertPublicUrl(url)
-    const out = await importOne(userId, url)
+    const out = await importOne(userId, url, connectionId)
     await invalidateProfile(userId)
     return out
   } catch (e) {
@@ -59,7 +57,7 @@ importer.post('/url', async (c) => {
   const parsed = z.object({ url: urlSchema }).safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: 'Enter a valid URL starting with https://' }, 400)
   try {
-    return c.json(await importPageMetered(c.get('userId'), parsed.data.url))
+    return c.json(await importPageMetered(c.get('userId'), parsed.data.url, c.get('connection')?.id ?? null))
   } catch (e) {
     if (e instanceof ServiceError) return c.json({ error: e.message, ...e.extra }, e.status as 400)
     throw e
@@ -79,7 +77,7 @@ importer.post('/bulk', async (c) => {
     return c.json({ error: `Not enough website imports left this month for ${urls.length} pages.`, upgrade_required: profilePlan.id !== 'growth' }, 403)
   }
   const results = await mapLimit(urls, 4, async (u) => {
-    try { return { ok: true as const, ...(await importOne(userId, u)) } }
+    try { return { ok: true as const, ...(await importOne(userId, u, c.get('connection')?.id ?? null)) } }
     catch (e) { return { ok: false as const, url: u, error: errMsg(e) } }
   })
   const failed = results.filter((r) => !r.ok).length

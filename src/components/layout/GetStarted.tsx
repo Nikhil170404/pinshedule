@@ -21,7 +21,7 @@ export function GetStarted() {
   const total = counts.pending + counts.processing + counts.published + counts.failed
 
   const steps = [
-    { done: !!summary.pinterest, title: 'Connect Pinterest', text: 'Done. Your boards are available.', href: '/dashboard/settings', cta: 'Settings' },
+    { done: !!summary.pinterest, title: 'Connect Pinterest', text: 'Connect the Pinterest account you want to schedule for.', href: '/dashboard/accounts', cta: 'Connect' },
     { done: total > 0, title: 'Make or add your first pin', text: 'Design one from a template, or upload an image you already have.', href: '/dashboard/design', cta: 'Open the designer' },
     { done: total >= 5, title: 'Fill your queue', text: 'Import a web page or bulk upload so the next week is covered.', href: '/dashboard/import', cta: 'Import a page' },
   ]

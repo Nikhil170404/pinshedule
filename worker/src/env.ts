@@ -21,6 +21,8 @@ export const env = {
   /** Use https://api-sandbox.pinterest.com/v5 while on Trial access. */
   pinterestApi: opt('PINTEREST_API_BASE', 'https://api.pinterest.com/v5').replace(/\/$/, ''),
   openaiKey: opt('OPENAI_API_KEY'),
+  /** Model for AI background images. gpt-image-1-mini is the low-cost option; set a larger one for higher fidelity. */
+  openaiImageModel: opt('OPENAI_IMAGE_MODEL', 'gpt-image-1-mini'),
   razorpayKeyId: opt('RAZORPAY_KEY_ID'),
   razorpayKeySecret: opt('RAZORPAY_KEY_SECRET'),
   razorpayWebhookSecret: opt('RAZORPAY_WEBHOOK_SECRET'),

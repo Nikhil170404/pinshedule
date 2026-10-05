@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, ImagePlus, X } from 'lucide-react'
+import { Download, ImagePlus, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Input, Textarea } from '@/components/ui/Input'
+import { Input, Select, Textarea } from '@/components/ui/Input'
 import { canvasToFile, loadPhoto, PALETTES, renderPin, TEMPLATES, type TemplateId } from '@/lib/pin-design'
-import { errorText } from '@/lib/api'
+import { api, ApiError, errorText } from '@/lib/api'
+import { refreshSummary, useSummary } from '@/lib/hooks'
 import { uploadImage, validateImage } from '@/lib/upload'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,12 @@ export function PinDesigner() {
   const [brand, setBrand] = useState('')
   const [photo, setPhoto] = useState<HTMLImageElement | null>(null)
   const [busy, setBusy] = useState(false)
+  const { summary } = useSummary()
+  const [aiTopic, setAiTopic] = useState('')
+  const [aiStyle, setAiStyle] = useState('photo')
+  const [aiBusy, setAiBusy] = useState(false)
+  // Older workers do not report AI image limits: show no count rather than NaN.
+  const aiLeft = summary && typeof summary.limits.ai_images === 'number' ? summary.limits.ai_images - (summary.used.ai_images ?? 0) : null
 
   const palette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0]
   const meta = TEMPLATES.find((t) => t.id === template)!
@@ -47,6 +54,24 @@ export function PinDesigner() {
     } catch (err) {
       toast.error(errorText(err))
     }
+  }
+
+  async function generateAi() {
+    const topic = (aiTopic || headline).trim()
+    if (topic.length < 3) return toast.error('Describe the picture first, for example: cozy reading nook with warm light.')
+    setAiBusy(true)
+    try {
+      const { image } = await api<{ image: string }>('/ai/image', { body: { topic, style: aiStyle } })
+      const img = new Image()
+      img.src = image
+      await img.decode()
+      setPhoto(img)
+      if (!TEMPLATES.find((t) => t.id === template)?.usesPhoto) setTemplate('card')
+      void refreshSummary()
+    } catch (err) {
+      toast.error(errorText(err), err instanceof ApiError && err.upgradeRequired ? { action: { label: 'Upgrade', onClick: () => router.push('/dashboard/upgrade') } } : undefined)
+    }
+    setAiBusy(false)
   }
 
   async function make() {
@@ -116,6 +141,17 @@ export function PinDesigner() {
               {photo && <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}><X size={15} aria-hidden /> Remove</Button>}
             </div>
             {!meta.usesPhoto && <p className="mt-2 text-xs text-muted">The {meta.name.toLowerCase()} layout does not use a photo. Adding one switches to Photo card.</p>}
+          </div>
+          <div className="rounded-lg border border-line bg-stone-50 p-3">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-ink"><Sparkles size={14} aria-hidden /> Background with AI <span className="text-xs font-normal text-muted">{aiLeft !== null ? `${Math.max(0, aiLeft)} left this month` : ''}</span></p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_9rem_auto]">
+              <Input aria-label="Describe the picture" value={aiTopic} maxLength={200} onChange={(e) => setAiTopic(e.target.value)} placeholder={headline || 'Cozy reading nook with warm light'} />
+              <Select aria-label="Style" value={aiStyle} onChange={(e) => setAiStyle(e.target.value)}>
+                <option value="photo">Photo</option><option value="illustration">Illustration</option><option value="minimal">Minimal</option>
+              </Select>
+              <Button type="button" variant="outline" onClick={generateAi} loading={aiBusy} disabled={aiLeft !== null && aiLeft <= 0}>Generate</Button>
+            </div>
+            <p className="mt-2 text-xs text-muted">Creates a picture with no text; your headline goes on top. Pinterest labels AI-modified images and lets people see fewer of them, so use it where a stock-style picture is enough.</p>
           </div>
           <div>
             <p className="mb-2 text-sm font-medium text-ink">Colors</p>

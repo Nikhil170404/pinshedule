@@ -7,8 +7,10 @@ const ORDER: Plan[] = ['free_trial', 'starter', 'pro', 'growth']
 export function planFeatures(p: PlanDetails): { text: string; on: boolean }[] {
   return [
     { text: `${p.pins_per_month.toLocaleString()} pins per month`, on: true },
+    { text: `${p.accounts.toLocaleString()} Pinterest account${p.accounts === 1 ? '' : 's'}`, on: true },
     { text: `${p.website_imports.toLocaleString()} website page imports`, on: true },
     { text: `${p.ai_generations.toLocaleString()} AI writing generations`, on: true },
+    { text: `${p.ai_images.toLocaleString()} AI background images`, on: true },
     { text: 'Bulk scheduling and CSV import', on: p.bulk_upload },
     { text: 'Best-time auto scheduling', on: p.smart_scheduler },
     { text: 'Sitemap import', on: p.sitemap_import },

@@ -4,7 +4,8 @@ import { secureHeaders } from 'hono/secure-headers'
 import { bodyLimit } from 'hono/body-limit'
 import { serve } from '@hono/node-server'
 import { env } from './env'
-import { requireUser, type AppEnv } from './lib/auth'
+import { requireUser, withAccount, type AppEnv } from './lib/auth'
+import { AccountError } from './lib/accounts'
 import { log, errMsg } from './lib/log'
 import { redis, db } from './lib/clients'
 import { startJobs } from './jobs'
@@ -14,6 +15,8 @@ import { importer } from './routes/import'
 import { ai } from './routes/ai'
 import { keywords } from './routes/keywords'
 import { account } from './routes/account'
+import { accounts } from './routes/accounts'
+import { proxy } from './routes/proxy'
 import { billing, razorpayWebhook } from './routes/billing'
 import { assistant } from './routes/assistant'
 
@@ -26,7 +29,7 @@ app.use('*', bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: '
 app.use('/v1/*', async (c, next) => { await next(); if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store') })
 app.use('/v1/*', cors({
   origin: (o) => (origins.has(o) ? o : null),
-  allowHeaders: ['Authorization', 'Content-Type'],
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Account-Id'],
   allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 600,
 }))
@@ -41,18 +44,22 @@ app.route('/webhooks/razorpay', razorpayWebhook as unknown as Hono<AppEnv>)
 
 const v1 = new Hono<AppEnv>()
 v1.use('*', requireUser)
+v1.use('*', withAccount)
 v1.route('/pins', pins)
 v1.route('/boards', boards)
 v1.route('/import', importer)
 v1.route('/ai', ai)
 v1.route('/keywords', keywords)
 v1.route('/account', account)
+v1.route('/accounts', accounts)
+v1.route('/proxy', proxy)
 v1.route('/billing', billing)
 v1.route('/assistant', assistant)
 app.route('/v1', v1)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
 app.onError((e, c) => {
+  if (e instanceof AccountError) return c.json({ error: e.message, ...e.extra }, e.status)
   log.error('unhandled', { path: c.req.path, error: errMsg(e) })
   return c.json({ error: 'Something went wrong. Please try again.' }, 500)
 })

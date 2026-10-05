@@ -1,5 +1,6 @@
 import { PLANS } from '@shared/plans'
 import { DAILY_PIN_SOFT_MAX } from '@shared/pace'
+import { MIN_PINS } from '@shared/best-times'
 import { PALETTES, PIN_H, PIN_W, TEMPLATES } from '@/lib/pin-design'
 
 /**
@@ -28,6 +29,11 @@ export const FACTS = {
   // Mirrors the pin designer and the pacing check, so the copy cannot drift from the code.
   designer: { width: PIN_W, height: PIN_H, templates: TEMPLATES.length, palettes: PALETTES.length },
   dailySoftMax: DAILY_PIN_SOFT_MAX,
+  accounts: { free: F.accounts, starter: S.accounts, pro: P.accounts, business: B.accounts },
+  aiImages: { free: F.ai_images, starter: S.ai_images, pro: P.ai_images, business: B.ai_images },
+  /** Personal best-time ranking needs this many published pins with results (shared/best-times.ts). */
+  personalTimingPins: MIN_PINS,
+  videoMaxMb: 50,
 }
 
 export const CHECKED = '2026-10-06'

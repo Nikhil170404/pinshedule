@@ -7,19 +7,19 @@ export async function refreshExpiring() {
   const soon = new Date(Date.now() + 3 * 86_400_000).toISOString()
   const { data } = await db
     .from('pinterest_connections')
-    .select('user_id')
+    .select('id')
     .eq('status', 'active')
     .lte('expires_at', soon)
-    .limit(500)
+    .limit(2000)
   let ok = 0
   let failed = 0
   await mapLimit(data ?? [], 4, async (c) => {
     try {
-      await refreshConnection(c.user_id as string)
+      await refreshConnection(c.id as string)
       ok++
     } catch (e) {
       failed++
-      if (!(e instanceof NotConnectedError)) log.warn('token refresh failed', { user: c.user_id, error: errMsg(e) })
+      if (!(e instanceof NotConnectedError)) log.warn('token refresh failed', { connection: c.id, error: errMsg(e) })
     }
   })
   if (ok || failed) log.info('token refresh', { ok, failed })
