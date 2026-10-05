@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { activeAccount } from '@/lib/account-store'
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 
@@ -22,15 +23,42 @@ export async function api<T = Record<string, unknown>>(path: string, init: { met
   try {
     res = await fetch(`${BASE}/v1${path}`, {
       method: init.method ?? (init.body !== undefined ? 'POST' : 'GET'),
-      headers: { Authorization: `Bearer ${session.access_token}`, ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        ...(activeAccount.get() ? { 'X-Account-Id': activeAccount.get() as string } : {}),
+        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     })
   } catch {
     throw new ApiError('Cannot reach the server. Check your connection and try again.', 0)
   }
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (res.status === 404 && data.account_missing) {
+    // That account was removed (maybe in another tab): forget it so the next call uses an account that exists.
+    activeAccount.set(null)
+    window.dispatchEvent(new Event('gpk:accounts-stale'))
+  }
   if (!res.ok) throw new ApiError(typeof data.error === 'string' ? data.error : 'Something went wrong.', res.status, data)
   return data as T
+}
+
+/** Like api(), but returns the response body as a Blob (used for images fetched through the worker). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new ApiError('Please sign in again.', 401)
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/v1${path}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+  } catch {
+    throw new ApiError('Cannot reach the server. Check your connection and try again.', 0)
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+    throw new ApiError(typeof data.error === 'string' ? data.error : 'Could not load that image.', res.status, data)
+  }
+  return res.blob()
 }
 
 export const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong.')

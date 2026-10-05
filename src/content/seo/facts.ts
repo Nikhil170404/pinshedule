@@ -1,4 +1,7 @@
 import { PLANS } from '@shared/plans'
+import { DAILY_PIN_SOFT_MAX } from '@shared/pace'
+import { MIN_PINS } from '@shared/best-times'
+import { PALETTES, PIN_H, PIN_W, TEMPLATES } from '@/lib/pin-design'
 
 /**
  * Every number about GoPinKaro that appears in SEO copy comes from here (plans) or from the product
@@ -23,9 +26,17 @@ export const FACTS = {
   titleMax: 100,
   descriptionMax: 800,
   scheduleAheadDays: 365,
+  // Mirrors the pin designer and the pacing check, so the copy cannot drift from the code.
+  designer: { width: PIN_W, height: PIN_H, templates: TEMPLATES.length, palettes: PALETTES.length },
+  dailySoftMax: DAILY_PIN_SOFT_MAX,
+  accounts: { free: F.accounts, starter: S.accounts, pro: P.accounts, business: B.accounts },
+  aiImages: { free: F.ai_images, starter: S.ai_images, pro: P.ai_images, business: B.ai_images },
+  /** Personal best-time ranking needs this many published pins with results (shared/best-times.ts). */
+  personalTimingPins: MIN_PINS,
+  videoMaxMb: 50,
 }
 
-export const CHECKED = '2026-10-03'
+export const CHECKED = '2026-10-06'
 
 /** Third-party sources consulted for facts about Pinterest and other tools (October 2026). */
 export const SRC = {
@@ -34,4 +45,10 @@ export const SRC = {
   imageSizeTailwind: { label: 'Tailwind: Pinterest image size chart', url: 'https://www.tailwindapp.com/blog/pinterest-image-size' },
   imageSizePubler: { label: 'Publer: Pinterest post sizes', url: 'https://publer.com/blog/pinterest-post-sizes/' },
   charLimits: { label: 'Pinterest character limits guide', url: 'https://advancedcharactercounter.com/pinterest-character-limit-for-pins-titles-and-descriptions-complete-guide/' },
+  tailwindPricing: { label: 'Tailwind pricing (official)', url: 'https://www.tailwindapp.com/pricing' },
+  blogtopinPricing: { label: 'BlogToPin pricing (official)', url: 'https://blogtopin.com/pricing' },
+  schedulerRoundup: { label: 'Pinterest schedulers compared: pinterestschedulers.com', url: 'https://pinterestschedulers.com/' },
+  pinboostrRoundup: { label: 'Best Pinterest scheduling tools 2026: PinBoostr', url: 'https://pinboostr.com/best-pinterest-scheduling-tools/' },
+  gainRoundup: { label: '8 best Pinterest scheduling tools in 2026: Gain', url: 'https://blog.gainapp.com/best-pinterest-scheduling-tools/' },
+  automationGuide: { label: 'Pinterest automation best practices: SocialKit', url: 'https://socialk.it/en/blog/pinterest-automation-guide' },
 }

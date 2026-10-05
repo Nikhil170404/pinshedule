@@ -5,6 +5,7 @@ import { pageByPath } from '@/content/seo'
 const featured = [
   'pinterest-scheduler', 'pinterest-bulk-scheduler', 'website-to-pinterest-pins', 'pinterest-automation-tool',
   'best-pinterest-tools', 'tailwind-alternative', 'free-pinterest-scheduler', 'guides/how-to-schedule-pinterest-pins',
+  'pinterest-pin-maker', 'pinterest-scheduler-pricing', 'blogtopin-alternative', 'pinterest-keyword-tool',
 ]
 
 export function Explore() {

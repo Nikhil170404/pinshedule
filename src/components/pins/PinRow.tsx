@@ -1,7 +1,7 @@
 'use client'
 
-import { ExternalLink, Pencil, RotateCw, Trash2 } from 'lucide-react'
-import { StatusBadge } from '@/components/ui/Badge'
+import { ExternalLink, Film, Images, Pencil, RotateCw, Trash2 } from 'lucide-react'
+import { Badge, StatusBadge } from '@/components/ui/Badge'
 import { cn, formatDateTime } from '@/lib/utils'
 import { SafeImage } from '@/components/ui/SafeImage'
 import type { ScheduledPin } from '@/types'
@@ -28,6 +28,8 @@ export function PinRow({ pin, selected, onSelect, onEdit, onDelete, onRetry, tz 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="min-w-0 max-w-full truncate text-sm font-medium text-ink">{pin.title || 'Untitled pin'}</p>
           <StatusBadge status={pin.status} />
+          {pin.media_type === 'video' && <Badge><Film size={11} aria-hidden /> Video</Badge>}
+          {pin.media_type === 'carousel' && <Badge><Images size={11} aria-hidden /> Carousel{pin.carousel_items ? ` · ${pin.carousel_items.length}` : ''}</Badge>}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted">
           {pin.status === 'published' ? 'Published ' : ''}{formatDateTime(when, tz)}{pin.board_name ? ` · ${pin.board_name}` : ''}

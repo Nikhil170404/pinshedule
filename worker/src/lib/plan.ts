@@ -1,7 +1,5 @@
-import { PLANS, type Plan } from '@shared/plans'
+import { effectivePlan, type Plan } from '@shared/plans'
 import { db, redis } from './clients'
-
-const GRACE_MS = 3 * 86_400_000
 
 export interface Profile {
   plan: Plan
@@ -24,10 +22,7 @@ export async function getProfile(userId: string): Promise<Profile> {
     .eq('id', userId)
     .maybeSingle()
 
-  let plan = ((data?.plan as Plan) ?? 'free_trial') as Plan
-  if (!(plan in PLANS)) plan = 'free_trial'
-  const expires = data?.plan_expires_at ? new Date(data.plan_expires_at).getTime() : null
-  if (plan !== 'free_trial' && expires && expires + GRACE_MS < Date.now()) plan = 'free_trial'
+  const plan = effectivePlan(data?.plan, data?.plan_expires_at)
 
   const profile: Profile = {
     plan,
@@ -42,12 +37,12 @@ export async function getProfile(userId: string): Promise<Profile> {
 
 export const invalidateProfile = (userId: string) => redis.del(`profile:${userId}`, `summary:${userId}`).catch(() => {})
 
-export async function consumeUsage(userId: string, kind: 'ai' | 'imports', limit: number, amount = 1): Promise<boolean> {
+export async function consumeUsage(userId: string, kind: 'ai' | 'imports' | 'ai_images', limit: number, amount = 1): Promise<boolean> {
   const { data, error } = await db.rpc('consume_usage', { p_user: userId, p_kind: kind, p_limit: limit, p_amount: amount })
   if (error) throw new Error(error.message)
   return data === true
 }
 
-export async function refundUsage(userId: string, kind: 'ai' | 'imports', amount = 1): Promise<void> {
+export async function refundUsage(userId: string, kind: 'ai' | 'imports' | 'ai_images', amount = 1): Promise<void> {
   await db.rpc('refund_usage', { p_user: userId, p_kind: kind, p_amount: amount })
 }

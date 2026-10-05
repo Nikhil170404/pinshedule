@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { BoardSelect } from '@/components/pins/BoardSelect'
+import { TimingNote } from '@/components/schedule/TimingNote'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
@@ -81,8 +82,9 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
             : mode === 'interval' ? { scheduled_at: new Date(startMs + i * stepMs).toISOString() } : {}),
         }
       })
-      const res = await api<{ created: number }>('/pins/schedule', { body: { pins, ...(mode === 'best' ? { auto: { per_day: Number(perDay) } } : {}) } })
+      const res = await api<{ created: number; warnings?: string[] }>('/pins/schedule', { body: { pins, ...(mode === 'best' ? { auto: { per_day: Number(perDay) } } : {}) } })
       toast.success(`${res.created} pins scheduled.`)
+      for (const w of res.warnings ?? []) toast.warning(w, { duration: 12000 })
       void refreshSummary()
       router.push('/dashboard/pins')
     } catch (e) {
@@ -119,10 +121,10 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select label="Pins per day" value={perDay} onChange={(e) => setPerDay(e.target.value)}
-                hint="Steady daily pinning outperforms big bursts. 1 to 5 a day is typical.">
+                hint="Steady daily pinning beats big bursts. 1 to 5 a day is typical; we warn you above 15.">
                 {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}
               </Select>
-              <p className="self-end pb-2 text-sm text-muted">Starts after your last scheduled pin, at high-engagement times in {summary?.timezone}.</p>
+              <p className="self-end pb-2 text-sm text-muted"><TimingNote perDay={Number(perDay)} /></p>
             </div>
           )}
           {!canAuto && summary && <div className="mt-3"><UpgradeNote>Best-time spacing is included in paid plans.</UpgradeNote></div>}

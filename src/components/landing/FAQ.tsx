@@ -1,11 +1,15 @@
 import { ChevronDown } from 'lucide-react'
+import { PLANS } from '@shared/plans'
 
 const faqs = [
   { q: 'Why do I sign in with Pinterest?', a: 'GoPinKaro publishes through the official Pinterest API, so connecting your account is the only step. Your Pinterest account is your login and there is no separate password.' },
   { q: 'Will scheduling get my account in trouble?', a: 'GoPinKaro only uses Pinterest\'s official API. Pinterest rewards steady, original pinning, so we space pins out, avoid on-the-hour posting and suggest a few pins a day rather than large bursts. You stay responsible for following Pinterest\'s community guidelines.' },
+  { q: 'How are the best times chosen?', a: 'At first from general Pinterest patterns: evening and afternoon hours in your own timezone, with small minute offsets so pins do not land on the hour. Once an account has about 30 published pins with results, GoPinKaro starts ranking hours from that account\'s own results, cautiously, because the hour matters far less than the pin itself. You can always pick exact times or a fixed interval.' },
+  { q: 'Can GoPinKaro design my pins?', a: 'Yes, with templates. The pin designer has four layouts and six color sets, lets you add your own photo or an AI-generated background, and saves a 1000 x 1500 image you can schedule straight away. When you import a web page it can also design every pin for you automatically. For fully custom artwork, design in Canva and upload it.' },
+  { q: 'Does it support video pins and carousels?', a: 'Yes. Choose Video (MP4 or MOV, 4 seconds to 15 minutes, up to 50 MB) or Carousel (2 to 5 images) when you create a pin. Bulk upload and the assistant currently handle image pins.' },
   { q: 'What image size works best?', a: 'Vertical images with a 2:3 ratio, such as 1000 by 1500 pixels. JPG, PNG, WEBP and GIF files up to 20 MB are supported.' },
   { q: 'What happens when a pin fails?', a: 'Temporary Pinterest errors are retried automatically with increasing delays. If a pin still cannot be published you see the reason in your Pins list and can fix it and retry in one click.' },
-  { q: 'Can I connect more than one Pinterest account?', a: 'Each GoPinKaro login is tied to one Pinterest account. Use a separate login for each account you manage.' },
+  { q: 'Can I connect more than one Pinterest account?', a: `Yes. One login manages ${PLANS.free_trial.accounts} account on Free, ${PLANS.starter.accounts} on Starter, ${PLANS.pro.accounts} on Pro and ${PLANS.growth.accounts} on Business, all from one dashboard. Each account keeps its own boards, queue, calendar and analytics, you switch between them in the sidebar, and the monthly pin allowance is shared. To add one, sign in to it on Pinterest first, then choose Add account.` },
   { q: 'Can I cancel any time?', a: 'Yes. Cancel from Plan and billing and you keep your plan until the end of the period you paid for. Your scheduled pins stay in your queue.' },
   { q: 'Is GoPinKaro affiliated with Pinterest?', a: 'No. GoPinKaro is an independent product that uses the public Pinterest API.' },
 ]

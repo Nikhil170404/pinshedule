@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Globe, Map, Search } from 'lucide-react'
+import { Check, Globe, Map, Search, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -9,7 +9,8 @@ import { Card, PageHeader } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { BulkComposer, type DraftRow } from '@/components/schedule/BulkComposer'
-import { api, errorText } from '@/lib/api'
+import { api, apiBlob, errorText } from '@/lib/api'
+import { designPinFile, layoutFor, PALETTES, photoFromBlob, tidyHeadline, type AutoLayout } from '@/lib/pin-design'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { PLANS } from '@/types'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,11 @@ export default function ImportPage() {
   const [filter, setFilter] = useState('')
   const [pages, setPages] = useState<PageState[]>([])
   const [rows, setRows] = useState<DraftRow[] | null>(null)
+  // Optional: turn each page photo into a designed pin (photo + headline) instead of using it as it is.
+  const [autoDesign, setAutoDesign] = useState(false)
+  const [layout, setLayout] = useState<AutoLayout>('mixed')
+  const [paletteId, setPaletteId] = useState(PALETTES[0].id)
+  const [designing, setDesigning] = useState<{ done: number; total: number } | null>(null)
 
   const toPage = (r: Imported): PageState => ({ ...r, selected: new Set(r.images.slice(0, 1)), title: r.ai.titles[0] ?? r.page_title })
 
@@ -84,12 +90,44 @@ export default function ImportPage() {
     }))
   }
 
-  function build() {
-    const out: DraftRow[] = pages.flatMap((p) => [...p.selected].map((src) => ({
+  async function build() {
+    const base: DraftRow[] = pages.flatMap((p) => [...p.selected].map((src) => ({
       id: crypto.randomUUID(), imageUrl: src, preview: src, title: p.title, description: p.ai.description, link: p.url,
     })))
-    if (out.length === 0) return toast.error('Select at least one image.')
-    setRows(out.slice(0, 200))
+    if (base.length === 0) return toast.error('Select at least one image.')
+    const picked = base.slice(0, 200)
+    if (!autoDesign) return setRows(picked)
+
+    // Draw each pin in the browser: fetch the photo through the worker (so the canvas stays clean), lay the
+    // headline over it, and keep the result as a local file that is uploaded when the batch is scheduled.
+    const palette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0]
+    const total = picked.length
+    let done = 0
+    let failed = 0
+    setDesigning({ done, total })
+    const out: DraftRow[] = new Array(total)
+    let next = 0
+    await Promise.all(Array.from({ length: Math.min(3, total) }, async () => {
+      while (next < total) {
+        const i = next++
+        const row = picked[i]
+        try {
+          const photo = await photoFromBlob(await apiBlob(`/proxy/image?url=${encodeURIComponent(row.imageUrl!)}`))
+          const file = await designPinFile({
+            template: layoutFor(i, layout), palette, headline: tidyHeadline(row.title), kicker: '', number: '',
+            brand: new URL(row.link).hostname.replace(/^www\./, ''), photo,
+          })
+          out[i] = { ...row, file, imageUrl: undefined, preview: URL.createObjectURL(file) }
+        } catch {
+          failed++
+          out[i] = row // keep the original image for this one rather than losing the pin
+        }
+        setDesigning({ done: ++done, total })
+      }
+    }))
+    setDesigning(null)
+    if (failed) toast.message(`${failed} image${failed > 1 ? 's' : ''} could not be designed, so the original ${failed > 1 ? 'images are' : 'image is'} used.`)
+    setRows(out)
   }
 
   if (rows) {
@@ -192,9 +230,40 @@ export default function ImportPage() {
               )}
             </Card>
           ))}
+          <Card className="p-4 sm:p-5">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-[#e60023]" checked={autoDesign} onChange={(e) => setAutoDesign(e.target.checked)} />
+              <span>
+                <span className="flex items-center gap-1.5 text-sm font-medium text-ink"><Wand2 size={15} aria-hidden /> Design each pin automatically</span>
+                <span className="mt-0.5 block text-xs text-muted">Puts the page title over each photo as a finished 1000 x 1500 pin. Not AI: it is a template layout, and you can still edit everything on the next screen.</span>
+              </span>
+            </label>
+            {autoDesign && (
+              <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-line pt-4">
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-ink">Layout</p>
+                  <div className="inline-flex rounded-lg bg-stone-100 p-1" role="group" aria-label="Layout">
+                    {([['mixed', 'Mixed'], ['card', 'Photo card'], ['split', 'Photo + panel']] as const).map(([k, label]) => (
+                      <button key={k} type="button" aria-pressed={layout === k} onClick={() => setLayout(k)}
+                        className={cn('h-8 rounded-md px-3 text-[13px] font-medium', layout === k ? 'bg-white text-ink shadow-sm' : 'text-stone-600')}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-ink">Colors</p>
+                  <div className="flex gap-2" role="group" aria-label="Colors">
+                    {PALETTES.map((p) => (
+                      <button key={p.id} type="button" aria-label={p.name} aria-pressed={paletteId === p.id} title={p.name} onClick={() => setPaletteId(p.id)}
+                        className={cn('h-8 w-8 rounded-full border-2', paletteId === p.id ? 'border-ink' : 'border-line')} style={{ background: `linear-gradient(135deg, ${p.bg} 55%, ${p.accent} 55%)` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setPages([])}>Start over</Button>
-            <Button size="lg" onClick={build}>Continue</Button>
+            <Button variant="ghost" onClick={() => setPages([])} disabled={!!designing}>Start over</Button>
+            <Button size="lg" onClick={build} loading={!!designing}>{designing ? `Designing ${designing.done} of ${designing.total}` : 'Continue'}</Button>
           </div>
         </div>
       )}

@@ -1,9 +1,7 @@
 'use client'
 
-import { Suspense, useCallback, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useDropzone } from 'react-dropzone'
-import { ImagePlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card, PageHeader } from '@/components/ui/Card'
@@ -14,9 +12,11 @@ import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { SimilarNotice } from '@/components/pins/SimilarNotice'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { uploadImage, validateImage } from '@/lib/upload'
+import { isOwnImage } from '@/lib/upload'
 import { PIN_LIMITS, PLANS } from '@/types'
 import { cn, toLocalInput } from '@/lib/utils'
+import { MediaField, type MediaFieldHandle } from '@/components/schedule/MediaField'
+import { TimingNote } from '@/components/schedule/TimingNote'
 
 function NewPin() {
   const router = useRouter()
@@ -24,11 +24,13 @@ function NewPin() {
   const { summary } = useSummary()
   const canAuto = summary ? PLANS[summary.plan].smart_scheduler : false
 
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState('')
+  // A pin made in the designer arrives as an already-uploaded image (?image=), accepted only from our own bucket.
+  const designed = params.get('image')
+  const initialImage = designed && isOwnImage(designed) ? designed : ''
+  const media = useRef<MediaFieldHandle>(null)
   const [title, setTitle] = useState(params.get('title') ?? '')
   const [description, setDescription] = useState(params.get('description') ?? '')
-  const [altText, setAltText] = useState('')
+  const [altText, setAltText] = useState(params.get('alt') ?? '')
   const [link, setLink] = useState('')
   const [board, setBoard] = useState({ id: '', name: '' })
   const [mode, setMode] = useState<'best' | 'custom'>('custom')
@@ -37,33 +39,23 @@ function NewPin() {
 
   const effectiveMode = canAuto ? mode : 'custom'
 
-  const onDrop = useCallback((files: File[]) => {
-    const f = files[0]
-    if (!f) return
-    const problem = validateImage(f)
-    if (problem) return toast.error(problem)
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
-  }, [])
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1 })
-
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!file) return toast.error('Add an image first.')
     if (!board.id) return toast.error('Choose a board.')
     if (effectiveMode === 'custom' && !when) return toast.error('Pick a date and time.')
     if (link && !/^https?:\/\//i.test(link)) return toast.error('The destination link must start with https://')
 
     setBusy(true)
     try {
-      const image_url = await uploadImage(file)
+      const picked = await media.current!.resolve()
       const pin = {
-        image_url, title, description, alt_text: altText, board_id: board.id, board_name: board.name,
+        ...picked, title, description, alt_text: altText, board_id: board.id, board_name: board.name,
         destination_url: link || null,
         ...(effectiveMode === 'custom' ? { scheduled_at: new Date(when).toISOString() } : {}),
       }
-      await api('/pins/schedule', { body: { pins: [pin], ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
+      const res = await api<{ warnings?: string[] }>('/pins/schedule', { body: { pins: [pin], ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
       toast.success('Pin scheduled.')
+      for (const w of res.warnings ?? []) toast.warning(w, { duration: 12000 })
       void refreshSummary()
       router.push('/dashboard/pins')
     } catch (err) {
@@ -74,29 +66,9 @@ function NewPin() {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="New pin" description="Upload an image, add the details and choose when it goes live." />
+      <PageHeader title="New pin" description="Add an image, video or carousel, then the details and when it goes live." />
       <form onSubmit={submit} className="space-y-5" noValidate>
-        <Card className="p-4 sm:p-5">
-          <p className="mb-2 text-sm font-medium text-ink">Image</p>
-          {preview ? (
-            <div className="relative w-fit">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={preview} alt="Selected pin" className="max-h-72 rounded-lg border border-line object-contain" />
-              <button type="button" onClick={() => { setFile(null); setPreview('') }} aria-label="Remove image"
-                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-stone-900/70 text-white hover:bg-stone-900">
-                <X size={15} />
-              </button>
-            </div>
-          ) : (
-            <div {...getRootProps()} className={cn('flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center transition-colors',
-              isDragActive ? 'border-brand bg-brand-soft' : 'border-stone-300 hover:border-stone-400 hover:bg-stone-50')}>
-              <input {...getInputProps()} />
-              <ImagePlus size={24} className="mb-2 text-stone-400" aria-hidden />
-              <p className="text-sm font-medium text-ink">{isDragActive ? 'Drop the image here' : 'Choose an image or drag it here'}</p>
-              <p className="mt-1 text-xs text-muted">Vertical 2:3 images (for example 1000 x 1500) perform best. JPG, PNG, WEBP or GIF, up to 20 MB.</p>
-            </div>
-          )}
-        </Card>
+        <MediaField ref={media} initialImageUrl={initialImage} />
 
         <Card className="space-y-4 p-4 sm:p-5">
           <Input label="Title" value={title} maxLength={PIN_LIMITS.title} onChange={(e) => setTitle(e.target.value)}
@@ -132,7 +104,7 @@ function NewPin() {
             {effectiveMode === 'custom' ? (
               <Input aria-label="Publish date and time" type="datetime-local" value={when} min={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} className="sm:max-w-xs" />
             ) : (
-              <p className="text-sm text-muted">GoPinKaro picks the next high-engagement slot after your last scheduled pin, in {summary?.timezone ?? 'your'} time.</p>
+              <p className="text-sm text-muted"><TimingNote perDay={2} /></p>
             )}
             {!canAuto && summary && <div className="mt-3"><UpgradeNote>Best-time scheduling is included in paid plans.</UpgradeNote></div>}
           </div>

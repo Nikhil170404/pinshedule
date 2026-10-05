@@ -1,12 +1,17 @@
-import { BarChart3, CalendarClock, Globe, Layers, Wand2, RefreshCw } from 'lucide-react'
+import { BarChart3, CalendarClock, Film, Globe, Layers, MessageSquare, Palette, RefreshCw, ShieldCheck, Users, Wand2 } from 'lucide-react'
 
 export const features = [
+  { icon: Users, title: 'Up to 100 accounts', text: 'Connect every Pinterest account you run and switch between them in the sidebar. Each keeps its own boards, queue, calendar and analytics, and one dashboard shows which ones need attention.' },
   { icon: Layers, title: 'Bulk scheduling', text: 'Drop in up to 200 images or a CSV, write once, and spread the pins across days with a fixed interval or best-time slots.' },
   { icon: Globe, title: 'Website to pins', text: 'Paste a post, product page or a whole sitemap. We find the images and draft titles and descriptions for you to review.' },
-  { icon: CalendarClock, title: 'Best-time publishing', text: 'Pins go out at high-engagement times in your timezone, with natural minute offsets instead of robotic on-the-hour posting.' },
+  { icon: CalendarClock, title: 'Best-time publishing', text: 'Pins go out in the evening and afternoon hours Pinterest is typically busiest in your timezone, with natural minute offsets. Once an account has enough published pins, its own results start to guide the hours.' },
   { icon: RefreshCw, title: 'Reliable delivery', text: 'A dedicated publishing service retries temporary Pinterest errors, refreshes your connection automatically and shows exactly why a pin failed.' },
   { icon: Wand2, title: 'AI writer', text: 'Three search-friendly title and description options for any topic. Edit freely before anything is scheduled.' },
   { icon: BarChart3, title: 'Live dashboard and analytics', text: 'Statuses update the moment a pin publishes. See impressions, saves and clicks pulled from Pinterest.' },
+  { icon: Palette, title: 'Pin designer', text: 'Make a 1000 x 1500 pin from four templates and six color sets, with your own photo or an AI background, or let GoPinKaro design every imported page automatically. Then schedule it in one click.' },
+  { icon: Film, title: 'Video and carousel pins', text: 'Schedule a video (MP4 or MOV) or a carousel of 2 to 5 images as easily as a single image. Videos are uploaded and processed by Pinterest before the pin is created.' },
+  { icon: MessageSquare, title: 'Assistant that does the work', text: 'Ask in plain language to schedule a week, retry failures or report on the month. It shows what it will do and waits for your OK.' },
+  { icon: ShieldCheck, title: 'Pacing check', text: 'After you schedule, you are told if a day gets crowded or an image repeats, so a big batch does not look like spam to Pinterest.' },
 ]
 
 export function Features() {

@@ -5,12 +5,13 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   LayoutDashboard, CalendarDays, ListChecks, BarChart3, Wand2, Hash, Columns3, Settings, CreditCard,
-  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles,
+  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles, Palette, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/ui/Logo'
 import { Modal } from '@/components/ui/Modal'
+import { AccountSwitcher } from '@/components/accounts/AccountSwitcher'
 import { useSummary } from '@/lib/hooks'
 import { Badge } from '@/components/ui/Badge'
 
@@ -21,6 +22,7 @@ const groups = [
     items: [
       { href: '/dashboard/assistant', label: 'Assistant', icon: Sparkles },
       { href: '/dashboard/schedule', label: 'New pin', icon: PlusSquare },
+      { href: '/dashboard/design', label: 'Pin designer', icon: Palette },
       { href: '/dashboard/bulk', label: 'Bulk schedule', icon: Layers },
       { href: '/dashboard/import', label: 'From website', icon: Globe },
       { href: '/dashboard/ai-writer', label: 'AI writer', icon: Wand2 },
@@ -32,6 +34,7 @@ const groups = [
       { href: '/dashboard/pins', label: 'Pins', icon: ListChecks },
       { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
       { href: '/dashboard/boards', label: 'Boards', icon: Columns3 },
+      { href: '/dashboard/accounts', label: 'Accounts', icon: Users },
     ],
   },
   {
@@ -83,6 +86,7 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-white lg:flex">
       <div className="flex h-16 shrink-0 items-center border-b border-line px-5"><Logo href="/dashboard" /></div>
+      <div className="border-b border-line px-3 py-3"><AccountSwitcher /></div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
         {groups.map((g, i) => (
           <div key={i}>
@@ -110,14 +114,15 @@ export function MobileHeader() {
   const { summary } = useSummary()
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-white/95 px-4 backdrop-blur lg:hidden">
-      <Logo href="/dashboard" />
-      {summary?.pinterest?.status === 'needs_reconnect' ? (
-        <Link href="/dashboard/settings" className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800">
-          <AlertTriangle size={14} aria-hidden /> Reconnect
-        </Link>
-      ) : summary ? (
-        <Link href="/dashboard/billing"><Badge tone={summary.plan === 'free_trial' ? 'neutral' : 'brand'}>{summary.plan_name}</Badge></Link>
-      ) : null}
+      <Logo href="/dashboard" showText={false} />
+      <div className="flex min-w-0 items-center gap-2">
+        <AccountSwitcher compact />
+        {summary?.pinterest?.status === 'needs_reconnect' ? (
+          <Link href="/dashboard/accounts" aria-label="Reconnect Pinterest" className="flex shrink-0 items-center rounded-lg bg-amber-50 p-2 text-amber-800"><AlertTriangle size={16} aria-hidden /></Link>
+        ) : summary ? (
+          <Link href="/dashboard/billing" className="shrink-0"><Badge tone={summary.plan === 'free_trial' ? 'neutral' : 'brand'}>{summary.plan_name}</Badge></Link>
+        ) : null}
+      </div>
     </header>
   )
 }

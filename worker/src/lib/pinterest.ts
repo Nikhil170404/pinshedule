@@ -69,13 +69,32 @@ export interface NewPin {
   description?: string | null
   alt_text?: string | null
   link?: string | null
+  /** The image, the video cover, or the first carousel image. */
   image_url: string
+  media_type?: 'image' | 'video' | 'carousel'
+  /** Pinterest's id for an uploaded video that has finished processing. */
+  video_media_id?: string | null
+  carousel_items?: { url: string }[] | null
+}
+
+/** How the pin's media is described to Pinterest (API v5 `media_source`). */
+export function mediaSource(pin: NewPin): Record<string, unknown> {
+  if (pin.media_type === 'video') {
+    if (!pin.video_media_id) throw new Error('Video has not been uploaded yet')
+    return { source_type: 'video_id', media_id: pin.video_media_id, cover_image_url: pin.image_url }
+  }
+  if (pin.media_type === 'carousel') {
+    const items = pin.carousel_items ?? []
+    if (items.length < 2 || items.length > 5) throw new Error('A carousel needs 2 to 5 images')
+    return { source_type: 'multiple_image_urls', items: items.map((i) => ({ url: i.url })), index: 0 }
+  }
+  return { source_type: 'image_url', url: pin.image_url }
 }
 
 export function createPin(token: string, pin: NewPin) {
   const body: Record<string, unknown> = {
     board_id: pin.board_id,
-    media_source: { source_type: 'image_url', url: pin.image_url },
+    media_source: mediaSource(pin),
   }
   if (pin.title) body.title = pin.title
   if (pin.description) body.description = pin.description
@@ -157,4 +176,35 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
     throw new OAuthError(b.message ?? `Token refresh failed (HTTP ${res.status})`, res.status)
   }
   return (await res.json()) as TokenResponse
+}
+
+// ─── Video upload ───────────────────────────────────────────────────────────
+// Pinterest takes videos in three steps: register an upload, send the file to the storage URL it returns,
+// then wait until Pinterest has processed it before creating the pin.
+export interface MediaRegistration { media_id: string; media_type: string; upload_url: string; upload_parameters: Record<string, string> }
+export type MediaStatus = 'registered' | 'processing' | 'succeeded' | 'failed'
+
+export function registerVideoUpload(token: string) {
+  return call<MediaRegistration>('/media', token, { method: 'POST', body: JSON.stringify({ media_type: 'video' }) })
+}
+
+export function getMedia(token: string, mediaId: string) {
+  return call<{ media_id: string; status: MediaStatus }>(`/media/${encodeURIComponent(mediaId)}`, token)
+}
+
+/** Send the file to the storage URL Pinterest handed out. The form fields come first and the file last. */
+export async function uploadMediaFile(reg: MediaRegistration, bytes: Uint8Array, contentType: string) {
+  const form = new FormData()
+  for (const [k, v] of Object.entries(reg.upload_parameters ?? {})) form.append(k, v)
+  form.append('file', new Blob([bytes], { type: contentType }), 'video')
+  let res: Response
+  try {
+    res = await fetch(reg.upload_url, { method: 'POST', body: form, signal: AbortSignal.timeout(180_000) })
+  } catch (e) {
+    throw new PinterestError(`Network error uploading the video: ${e instanceof Error ? e.message : e}`, 0)
+  }
+  if (!res.ok) {
+    // 5xx is worth retrying later; 4xx means the upload itself was rejected.
+    throw new PinterestError(`Pinterest storage rejected the video (HTTP ${res.status})`, res.status >= 500 ? 502 : 400)
+  }
 }
