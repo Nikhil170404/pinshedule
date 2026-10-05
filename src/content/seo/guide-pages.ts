@@ -153,7 +153,7 @@ export const guidePages: SeoPage[] = [
       table(['Situation', 'Starting pace'], [
         ['New account or small blog', '1 pin a day'],
         ['Active blog or small shop', '2 to 3 pins a day'],
-        ['Large catalogue and plenty of images', '3 to 5 pins a day, with varied images'],
+        ['Large catalog and plenty of images', '3 to 5 pins a day, with varied images'],
       ], 'These are our recommendations, not Pinterest rules.'),
       h2('quality', 'Quality and freshness matter more than the count'),
       ul(
@@ -201,13 +201,13 @@ export const guidePages: SeoPage[] = [
       ),
       h2('writing', 'Write for people first'),
       p('Keyword stuffing makes pins read badly and does not help. Use the main phrase once or twice, and write the rest like a sentence you would say to a person. The AI writer in GoPinKaro is instructed to write natural copy, but you should always read and edit it.'),
-      h2('boards', 'Organise boards around searches'),
+      h2('boards', 'Organize boards around searches'),
       p('Boards are searchable and group your pins by topic. Prefer a focused board such as "Small kitchen storage ideas" to a vague one such as "Home".'),
       h2('consistency', 'Be consistent'),
       p('Fresh pins that point to useful pages, published steadily, give Pinterest more to work with than occasional bursts. A scheduler helps you keep that rhythm.'),
     ],
     faqs: [
-      { q: 'What is Pinterest SEO?', a: 'Optimising pins, boards and pages with the words people search for on Pinterest so your pins appear in results.' },
+      { q: 'What is Pinterest SEO?', a: 'Optimizing pins, boards and pages with the words people search for on Pinterest so your pins appear in results.' },
       { q: 'Where should I put keywords on Pinterest?', a: 'In pin titles, descriptions, alt text, board names and board descriptions, and make sure the destination page matches.' },
       { q: 'How do I find the best keywords for Pinterest?', a: 'Use Pinterest search suggestions, Pinterest Trends and your own analytics to find phrases your audience uses, then write them naturally.' },
     ],

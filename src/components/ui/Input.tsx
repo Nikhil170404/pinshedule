@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const field =
-  'w-full rounded-lg border border-line bg-white px-3 text-sm text-ink placeholder:text-stone-400 ' +
+  'w-full rounded-lg border border-line bg-white px-3 text-sm text-ink placeholder:text-stone-500 ' +
   'focus:outline-none focus:border-stone-400 focus:ring-2 focus:ring-stone-200 disabled:bg-stone-50 disabled:text-stone-400'
 
 export function Field({ label, hint, error, htmlFor, children, className }: {

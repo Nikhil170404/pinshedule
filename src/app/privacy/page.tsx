@@ -11,7 +11,7 @@ export const metadata: Metadata = pageMeta({
 const sections = [
   { title: 'What we collect', body: [
     'Account: your Pinterest user ID, username and profile image URL, received when you sign in with Pinterest. We do not ask for or store your email address or a password.',
-    'Pinterest connections: for every Pinterest account you connect, its username, profile image URL and OAuth access and refresh tokens, stored encrypted (AES-256-GCM). Tokens are never exposed to your browser. A login can connect several accounts, and you should only connect accounts you own or are authorised to manage.',
+    'Pinterest connections: for every Pinterest account you connect, its username, profile image URL and OAuth access and refresh tokens, stored encrypted (AES-256-GCM). Tokens are never exposed to your browser. A login can connect several accounts, and you should only connect accounts you own or are authorized to manage.',
     'Your content: images and videos you upload, titles, descriptions, links, boards and schedules that you create in GoPinKaro, for each connected account.',
     'Performance data: impressions, saves and clicks for your account and for pins published through GoPinKaro, retrieved from Pinterest with your permission.',
     'Billing: handled by Razorpay. We store your plan, subscription ID and renewal date, never card numbers.',

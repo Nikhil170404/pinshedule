@@ -90,7 +90,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main">
         {groups.map((g, i) => (
           <div key={i}>
-            {'label' in g && <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-stone-400">{g.label}</p>}
+            {'label' in g && <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-stone-500">{g.label}</p>}
             <div className="space-y-0.5">{g.items.map((it) => <NavLink key={it.href} {...it} />)}</div>
           </div>
         ))}
@@ -160,7 +160,7 @@ export function MobileTabBar() {
         <div className="space-y-4">
           {[...groups.slice(1), { label: 'Account', items: account }].map((g, i) => (
             <div key={i}>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">{'label' in g ? g.label : ''}</p>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500">{'label' in g ? g.label : ''}</p>
               <div className="grid grid-cols-1 gap-0.5">
                 {g.items.map((it) => <NavLink key={it.href} {...it} onNavigate={() => setMore(false)} />)}
               </div>

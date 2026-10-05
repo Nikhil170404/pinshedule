@@ -14,7 +14,7 @@ import { validateImage } from '@/lib/upload'
 import { PLANS } from '@/types'
 import { cn } from '@/lib/utils'
 
-const TEMPLATE = 'image_url,title,description,link\nhttps://example.com/images/pin-1.jpg,"Small kitchen storage ideas","Smart ways to organise a small kitchen. Save for later.",https://example.com/blog/kitchen-storage\n'
+const TEMPLATE = 'image_url,title,description,link\nhttps://example.com/images/pin-1.jpg,"Small kitchen storage ideas","Smart ways to organize a small kitchen. Save for later.",https://example.com/blog/kitchen-storage\n'
 
 const fileName = (f: File) => f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim()
 

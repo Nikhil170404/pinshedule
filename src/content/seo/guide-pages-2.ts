@@ -20,7 +20,7 @@ export const guidePages2: SeoPage[] = [
       table(['Source', 'Finding'], [
         ['Tailwind benchmark study (1.2 million pins, 17,000+ accounts, as reported)', 'No universal best time. Timing did not predict success; consistency, fresh content and alt text on every pin did.'],
         ['Social Champ analysis of 200,000+ posts', 'Best between 8 PM and 11 PM, especially on weekends.'],
-        ['Other 2026 analyses', 'Activity peaks around midday and early afternoon, roughly 10 AM to 4 PM on weekdays.'],
+        ['Other 2026 analyzes', 'Activity peaks around midday and early afternoon, roughly 10 AM to 4 PM on weekdays.'],
       ], 'Findings as reported by the sources below, October 2026. They use different data, regions and methods, which is why they differ.'),
       p('The disagreement is the finding. Audiences differ by niche, country and season, and Pinterest content has a long life: a pin can be found weeks or months after it is published, so the hour it went live matters far less than it does on a feed that moves on within hours.'),
       h2('what-matters', 'What matters more than the hour'),
@@ -64,7 +64,7 @@ export const guidePages2: SeoPage[] = [
       h2('search-bar', 'Start with the search bar'),
       p('Type a broad topic into Pinterest\'s search bar and watch the suggestions that appear as you type. They are based on what people actually search for, which makes them the fastest source of real phrases. Write down the ones that match your content, then add a word and see how the suggestions change.'),
       h2('guided', 'Use guided search'),
-      p('After you search, Pinterest shows coloured buttons under the search bar with related phrases. They show how people narrow a topic, such as "small kitchen storage ideas" becoming "small kitchen storage ideas on a budget". These longer phrases are called long-tail keywords. They usually have fewer searches, but the people using them know what they want.'),
+      p('After you search, Pinterest shows colored buttons under the search bar with related phrases. They show how people narrow a topic, such as "small kitchen storage ideas" becoming "small kitchen storage ideas on a budget". These longer phrases are called long-tail keywords. They usually have fewer searches, but the people using them know what they want.'),
       h2('trends', 'Check Pinterest Trends'),
       p('Pinterest Trends shows which searches are rising or falling over time, which helps you publish ahead of a season. GoPinKaro\'s keyword tool surfaces the same trend data inside the dashboard, with weekly, monthly and yearly growth for up to 50 trending keywords in 14 regions, which you can filter by a word.'),
       callout('Growth is not volume. A keyword up 300% could still be small, and a very large keyword can be flat. Use trend data to choose timing and topics, and the search bar to confirm that real people use the phrase.', 'Read the numbers carefully'),
@@ -165,7 +165,7 @@ export const guidePages2: SeoPage[] = [
       p('These changes followed widespread complaints about low-quality AI images flooding feeds. They were announced in 2025; check Pinterest\'s own pages for how they work today.'),
       h2('meaning', 'What this means for creators'),
       ul(
-        '**It is not a ban.** Labelled pins can still be published and found.',
+        '**It is not a ban.** Labeled pins can still be published and found.',
         '**There is a trade-off.** If people can ask to see less AI content, an all-AI feed may reach fewer of them.',
         '**Originality helps.** Your own photos, product images and designs carry no such label and show people something real.',
       ),
@@ -185,7 +185,7 @@ export const guidePages2: SeoPage[] = [
     ],
     faqs: [
       { q: 'Does Pinterest ban AI-generated images?', a: 'No. It labels images detected as AI-generated or AI-modified and lets people see fewer of them.' },
-      { q: 'How does Pinterest detect AI images?', a: 'It says its classifiers analyse metadata and visual cues, so a pin can be labelled even without an explicit AI marker. Creators can appeal a label.' },
+      { q: 'How does Pinterest detect AI images?', a: 'It says its classifiers analyze metadata and visual cues, so a pin can be labeled even without an explicit AI marker. Creators can appeal a label.' },
       { q: 'Should I use AI images on Pinterest?', a: 'Use them sparingly and where a generic picture is enough. Your own photos avoid the label and show people something real.' },
       { q: 'Does GoPinKaro generate images with AI?', a: 'Only if you ask: the pin designer can create an optional AI background. The automatic page design uses your own photos.' },
     ],
@@ -201,13 +201,13 @@ export const guidePages2: SeoPage[] = [
     title: 'Is Pinterest scheduling safe? What is allowed',
     description: 'Is scheduling Pinterest pins against the rules? What Pinterest allows, what it treats as spam, common myths, and what to do if your impressions drop.',
     h1: 'Is scheduling Pinterest pins safe? What Pinterest allows and what to avoid',
-    intro: 'Scheduling pins is not against Pinterest\'s rules: Pinterest runs an official API so approved tools can publish for you. What causes trouble is spammy behaviour, such as repeating the same pins or mass-saving, and tools that log in as you. Here is what is known, what is folklore, and what to check if reach drops.',
+    intro: 'Scheduling pins is not against Pinterest\'s rules: Pinterest runs an official API so approved tools can publish for you. What causes trouble is spammy behavior, such as repeating the same pins or mass-saving, and tools that log in as you. Here is what is known, what is folklore, and what to check if reach drops.',
     updated: CHECKED,
     published: CHECKED,
     cta: { label: 'See how GoPinKaro connects', redirect: '/dashboard/accounts' },
     blocks: [
       h2('allowed', 'What is allowed'),
-      p('Publishing on a schedule through Pinterest\'s official API is allowed, and Pinterest even offers its own scheduler. What matters is how a tool gets access: through Pinterest\'s own authorisation page (OAuth), not by asking for your password. See our checklist for [choosing a safe scheduler](/safest-pinterest-scheduler).'),
+      p('Publishing on a schedule through Pinterest\'s official API is allowed, and Pinterest even offers its own scheduler. What matters is how a tool gets access: through Pinterest\'s own authorization page (OAuth), not by asking for your password. See our checklist for [choosing a safe scheduler](/safest-pinterest-scheduler).'),
       h2('spam', 'What Pinterest treats as spam'),
       ul(
         'Creating the same or similar pins and sharing them repeatedly.',
@@ -218,7 +218,7 @@ export const guidePages2: SeoPage[] = [
       p('Pinterest does not publish a daily pin limit. Community guidance repeated across tool help pages is roughly 5 to 15 new pins a day for most accounts, and spacing identical images several days apart across boards. Treat those as cautious rules of thumb, not official numbers.'),
       h2('myths', 'Common myths'),
       table(['Claim', 'What we can say'], [
-        ['"Schedulers get you banned."', 'Not scheduling itself. Risky behaviour and unofficial tools do.'],
+        ['"Schedulers get you banned."', 'Not scheduling itself. Risky behavior and unofficial tools do.'],
         ['"Only Pinterest\'s own scheduler is safe."', 'Pinterest provides an API precisely so partners can publish. Tools using it with OAuth follow its model.'],
         ['"There is a secret safe number of pins."', 'No official figure exists. Steady, varied pinning is the safer pattern.'],
         ['"Shadowbans are always caused by tools."', 'Reach drops have many causes: seasonality, content changes, link problems, or repeated pins.'],
@@ -242,7 +242,7 @@ export const guidePages2: SeoPage[] = [
       callout('Pinterest decides what counts as spam, and no tool can promise that an account will never be limited. Original, varied pins at a steady pace are the best protection.', 'Be realistic'),
     ],
     faqs: [
-      { q: 'Is it against Pinterest rules to schedule pins?', a: 'No. Pinterest provides an official API and its own scheduler. The risk is in spammy behaviour and in tools that log in as you.' },
+      { q: 'Is it against Pinterest rules to schedule pins?', a: 'No. Pinterest provides an official API and its own scheduler. The risk is in spammy behavior and in tools that log in as you.' },
       { q: 'Can scheduling pins cause a shadowban?', a: 'Scheduling alone does not. Repeating the same pins, an unnatural pace and unofficial automation are the common causes people cite.' },
       { q: 'How many pins a day is safe?', a: 'Pinterest gives no official number. Commonly repeated guidance is about 5 to 15 new pins a day.' },
       { q: 'What should I check if my reach drops?', a: 'Season, recent content changes, broken links, repeated images and pace. Slow down and publish fresh pins for a couple of weeks.' },
@@ -275,7 +275,7 @@ export const guidePages2: SeoPage[] = [
       p('**Main search phrase + the benefit or detail that makes it specific.** Keep it natural: it should read like something a person would click, not a list of keywords.'),
       h2('titles', 'Title examples'),
       table(['Weak', 'Stronger', 'Why it works'], [
-        ['Mum\'s Tuesday special', 'Easy weeknight chicken pasta ready in 20 minutes', 'Starts with what people search for, adds a concrete benefit'],
+        ['Mom\'s Tuesday special', 'Easy weeknight chicken pasta ready in 20 minutes', 'Starts with what people search for, adds a concrete benefit'],
         ['My new reading corner', 'Cozy reading nook ideas on a small budget', 'Names the idea and the audience\'s constraint'],
         ['Weekend away', 'Weekend coast trip guide: where to stay and eat', 'Says what the pin contains'],
         ['Handmade mug', 'Handmade ceramic coffee mug in speckled blue glaze', 'Product, material and style in one line'],
@@ -288,7 +288,7 @@ export const guidePages2: SeoPage[] = [
         'Optionally two or three relevant hashtags at the end.',
       ),
       h3('Example'),
-      p('"Small kitchen storage ideas that make the most of every inch: floating shelves, hanging rails and slim rolling carts. A good starting point for renters and tiny flats. Save this for your next organising weekend and read the full guide on the blog."'),
+      p('"Small kitchen storage ideas that make the most of every inch: floating shelves, hanging rails and slim rolling carts. A good starting point for renters and tiny apartments. Save this for your next organizing weekend and read the full guide on the blog."'),
       h2('alt', 'Alt text examples'),
       ul('Weak: "image1.jpg".', 'Better: "White kitchen with open shelves holding glass jars and a hanging rail with copper utensils."'),
       h2('mistakes', 'Common mistakes'),
@@ -398,7 +398,7 @@ export const guidePages2: SeoPage[] = [
       ]),
       h2('gopinkaro', 'How GoPinKaro supports this'),
       p(`One login manages up to ${FACTS.accounts.business} accounts, with a searchable switcher, an Accounts page that flags accounts needing attention, and per-account boards, queues, calendars and analytics. The monthly pin allowance is shared across accounts. See [managing multiple accounts](/manage-multiple-pinterest-accounts) and [the agency guide](/use-cases/agencies).`),
-      callout('Only connect Pinterest accounts you own or are authorised to manage.', 'Permission first'),
+      callout('Only connect Pinterest accounts you own or are authorized to manage.', 'Permission first'),
     ],
     faqs: [
       { q: 'Can you have multiple Pinterest accounts?', a: 'Yes, within Pinterest\'s rules. As reported, one email can hold one personal and one business account, and more business accounts need separate emails. Check Pinterest Help for the current rules.' },

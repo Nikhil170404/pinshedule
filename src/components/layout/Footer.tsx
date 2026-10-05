@@ -27,7 +27,7 @@ export function Footer() {
           </div>
           {cols.map((c) => (
             <div key={c.title}>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-400">{c.title}</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">{c.title}</h3>
               <ul className="space-y-2.5">
                 {c.links.map((l) => <li key={l.href}><Link href={l.href} className="text-sm text-stone-600 hover:text-ink">{l.label}</Link></li>)}
               </ul>

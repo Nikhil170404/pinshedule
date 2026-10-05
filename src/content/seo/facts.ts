@@ -71,4 +71,9 @@ export const SRC = {
   keywordResearch: { label: 'Tailwind: Pinterest keyword research', url: 'https://www.tailwindapp.com/pinterest-marketing/course/pinterest-keyword-research' },
   pinterestAccountsHelp: { label: 'Pinterest Help: linked accounts', url: 'https://help.pinterest.com/en-gb/node/996' },
   metricoolMulti: { label: 'Metricool: Manage multiple Pinterest accounts', url: 'https://metricool.com/manage-multiple-pinterest-accounts/' },
+  seasonalCommunity: { label: 'Pinterest Business Community: when to pin holiday content', url: 'https://community.pinterest.biz/t/when-should-i-pin-holiday-content-when-should-i-pin-fall-and-winter-travel-content/14652' },
+  seasonalGuide: { label: 'SocialKit: Pinterest seasonal marketing', url: 'https://socialk.it/en/blog/pinterest-seasonal-marketing' },
+  contentCalendar: { label: 'Brandghost: Pinterest content calendar', url: 'https://blog.brandghost.ai/posts/pinterest-content-calendar/' },
+  statsSocialChamp: { label: 'Social Champ: Pinterest statistics', url: 'https://www.socialchamp.com/blog/pinterest-statistics/' },
+  statsSocialPilot: { label: 'SocialPilot: Pinterest statistics', url: 'https://www.socialpilot.co/blog/pinterest-statistics' },
 }

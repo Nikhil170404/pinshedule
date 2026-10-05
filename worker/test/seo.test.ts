@@ -80,3 +80,11 @@ test('every page can reach every hub and is reachable from one', () => {
   // any page that nothing points at so it gets deliberate links too.
   assert.ok(orphans.length <= 6, `pages that no other page lists as related: ${orphans.join(', ')}`)
 })
+
+test('copy uses American English (the first market is the US)', () => {
+  const british = /\b(colou?r(?:ed|ful)?(?<=colour|coloured|colourful)|authoris\w+|personalis\w+|organis\w+|summaris\w+|optimis\w+|recognis\w+|analyse[ds]?|behaviour\w*|labelled|licence|catalogue\w*|judgement\w*|cosy|favour\w*|towards|whilst|amongst|learnt|\bmum\b|tick(?:ed)? (?:the|up|"))\b/i
+  for (const p of allPages) {
+    const hit = pageText(p).match(british)
+    assert.ok(!hit, `${p.path}: British spelling "${hit?.[0]}"`)
+  }
+})
