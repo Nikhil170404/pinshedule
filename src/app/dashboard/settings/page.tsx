@@ -60,7 +60,7 @@ export default function SettingsPage() {
             <div>
               <p className="font-medium text-ink">{conn ? (conn.label || `@${conn.username ?? 'connected'}`) : 'Not connected'}</p>
               <p className="text-xs text-muted">
-                {summary.accounts.count} of {summary.accounts.limit} account{summary.accounts.limit === 1 ? '' : 's'} connected.
+                {summary.accounts ? `${summary.accounts.count} of ${summary.accounts.limit} account${summary.accounts.limit === 1 ? '' : 's'} connected.` : ''}
                 {conn?.status === 'needs_reconnect' ? ' The selected account needs to be reconnected.' : ''}
               </p>
             </div>

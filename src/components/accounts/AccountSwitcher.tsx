@@ -21,6 +21,7 @@ export function AccountSwitcher({ compact = false }: { compact?: boolean }) {
   const [query, setQuery] = useState('')
   const q = useDeferredValue(query).trim().toLowerCase()
 
+  if (data?.unavailable) return null
   if (!loaded) return <Skeleton className={compact ? 'h-9 w-28' : 'h-12 w-full'} />
   if (accounts.length === 0) {
     return <a href={ADD} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand px-3 text-sm font-medium text-white hover:bg-brand-dark"><Plus size={15} aria-hidden /> Connect Pinterest</a>

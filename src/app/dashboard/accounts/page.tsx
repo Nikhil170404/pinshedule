@@ -107,6 +107,8 @@ function AccountsView() {
 
   if (!loaded) return <div><PageHeader title="Pinterest accounts" /><Skeleton className="h-64" /></div>
 
+  if (data?.unavailable) return <div><PageHeader title="Pinterest accounts" /><Card><EmptyState icon={Users} title="Accounts are not available yet" description="The service is being updated. Try again in a few minutes." /></Card></div>
+
   const canAdd = data?.can_add ?? false
   const limit = data?.limit ?? 1
 

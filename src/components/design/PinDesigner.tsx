@@ -32,7 +32,8 @@ export function PinDesigner() {
   const [aiTopic, setAiTopic] = useState('')
   const [aiStyle, setAiStyle] = useState('photo')
   const [aiBusy, setAiBusy] = useState(false)
-  const aiLeft = summary ? summary.limits.ai_images - summary.used.ai_images : null
+  // Older workers do not report AI image limits: show no count rather than NaN.
+  const aiLeft = summary && typeof summary.limits.ai_images === 'number' ? summary.limits.ai_images - (summary.used.ai_images ?? 0) : null
 
   const palette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0]
   const meta = TEMPLATES.find((t) => t.id === template)!

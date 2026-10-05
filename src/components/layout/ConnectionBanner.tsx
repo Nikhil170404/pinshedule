@@ -24,7 +24,8 @@ export function ConnectionBanner() {
   const { summary } = useSummary()
   if (!summary) return null
   const conn = summary.pinterest
-  const over = summary.accounts.count > summary.accounts.limit
+  const accounts = summary.accounts
+  const over = !!accounts && accounts.count > accounts.limit
   return (
     <>
       {conn === null && <Banner action={<a href={ADD} className={actionClass}>Connect Pinterest</a>}>Connect your Pinterest account to publish pins.</Banner>}
@@ -35,7 +36,7 @@ export function ConnectionBanner() {
       )}
       {over && (
         <Banner action={<Link href="/dashboard/accounts" className={actionClass}>Manage accounts</Link>}>
-          Your plan includes {summary.accounts.limit} Pinterest account{summary.accounts.limit === 1 ? '' : 's'} but {summary.accounts.count} are connected. Remove some or upgrade.
+          Your plan includes {accounts!.limit} Pinterest account{accounts!.limit === 1 ? '' : 's'} but {accounts!.count} are connected. Remove some or upgrade.
         </Banner>
       )}
     </>

@@ -48,5 +48,6 @@ export interface Summary {
   used: { pins: number; ai: number; imports: number; ai_images: number }
   /** The Pinterest account the dashboard is currently working on. */
   pinterest: { id: string; username: string | null; label: string | null; status: 'active' | 'needs_reconnect' } | null
-  accounts: { count: number; limit: number }
+  /** Absent when talking to a worker that predates multi-account support. */
+  accounts?: { count: number; limit: number }
 }

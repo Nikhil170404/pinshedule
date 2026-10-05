@@ -17,7 +17,11 @@ export interface AccountInfo {
   stats: { pending: number; failed: number; published_30d: number; last_published_at: string | null; next_at: string | null }
 }
 
-export interface AccountsData { accounts: AccountInfo[]; limit: number; count: number; can_add: boolean; plan_name: string }
+export interface AccountsData {
+  accounts: AccountInfo[]; limit: number; count: number; can_add: boolean; plan_name: string
+  /** The API could not list accounts (for example an older worker). The dashboard then works unscoped, as before. */
+  unavailable?: boolean
+}
 
 const dataStore = createStore<AccountsData>()
 let inflight: Promise<void> | null = null
@@ -28,7 +32,8 @@ export const accountName = (a: Pick<AccountInfo, 'label' | 'username'> | null | 
 export function refreshAccounts() {
   inflight ??= api<AccountsData>('/accounts')
     .then((d) => dataStore.set(d))
-    .catch(() => {})
+    // Never leave the dashboard waiting forever: without an account list it falls back to showing everything.
+    .catch(() => dataStore.set({ accounts: [], limit: 1, count: 0, can_add: false, plan_name: '', unavailable: true }))
     .finally(() => { inflight = null })
   return inflight
 }
