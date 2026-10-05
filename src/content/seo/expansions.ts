@@ -5,7 +5,7 @@ const { free, starter } = FACTS
 
 /**
  * Extra sections appended to existing pages. Examples are illustrations of how to write and plan,
- * clearly labelled as such. No statistics or results are claimed.
+ * clearly labeled as such. No statistics or results are claimed.
  */
 export const expansions: Record<string, Block[]> = {
   'use-cases/bloggers': [
@@ -16,7 +16,7 @@ export const expansions: Record<string, Block[]> = {
       ['2', 'A list format', '10 quick pasta dinners ready in 30 minutes'],
       ['3', 'A single benefit', 'One-pot pasta recipes with almost no washing up'],
       ['4', 'A question', 'What to cook when you only have pasta and a jar of sauce?'],
-      ['5', 'A seasonal angle', 'Cosy pasta bakes for cold evenings'],
+      ['5', 'A seasonal angle', 'Cozy pasta bakes for cold evenings'],
     ], 'Illustrative example only.'),
     p('Each pin uses a different image and headline but links to the same post. Schedule them a few days apart rather than together.'),
     h2('weekly-routine', 'A weekly routine that takes under an hour'),
@@ -64,7 +64,7 @@ export const expansions: Record<string, Block[]> = {
   ],
 
   'use-cases/shopify-stores': [
-    h2('collection-strategy', 'Organise boards the way shoppers search'),
+    h2('collection-strategy', 'Organize boards the way shoppers search'),
     p('Shoppers search for ideas ("small balcony furniture") rather than for your category names. Create boards around those searches and route products onto them, instead of mirroring your store menu. The Boards page lets you see what you have and create new boards, and the assistant can suggest which board fits a pin.'),
     h2('example-plan', 'An example month for a 40-product store'),
     table(['Week', 'Focus', 'Pace'], [
@@ -72,7 +72,7 @@ export const expansions: Record<string, Block[]> = {
       ['2', 'A seasonal collection', '3 pins a day'],
       ['3', 'New arrivals, one pin per new product', '2 pins a day'],
       ['4', 'Gift guides linking to several products', '2 pins a day'],
-    ], 'Illustrative planning example, not a result. Adjust to your catalogue and capacity.'),
+    ], 'Illustrative planning example, not a result. Adjust to your catalog and capacity.'),
     p(`At two to three pins a day this is roughly 60 to 90 pins a month, which fits within the Starter plan (${starter.pins} pins a month).`),
     h2('quality', 'Quality checks before you schedule'),
     ul(
@@ -115,7 +115,7 @@ export const expansions: Record<string, Block[]> = {
     ul(
       '**One idea per pin.** A clear headline and one image beat a crowded collage.',
       '**High contrast text.** Test it at thumbnail size.',
-      '**Consistent branding.** A small logo or colour palette helps pins look like yours without dominating them.',
+      '**Consistent branding.** A small logo or color palette helps pins look like yours without dominating them.',
       '**Variety across a page.** Make several different pins for the same page.',
     ),
     h2('batch', 'Exporting in batches'),

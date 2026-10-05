@@ -16,7 +16,8 @@ export function pageMeta({ title, description = site.description, path }: { titl
   return {
     ...(title ? { title } : {}),
     description,
-    alternates: { canonical: path },
+    // One language and one target market for now: the United States. x-default tells search engines nothing else exists.
+    alternates: { canonical: path, languages: { 'en-US': path, 'x-default': path } },
     openGraph: { title: full, description, url: path, type: 'website', siteName: site.name, locale: 'en_US', images: [site.ogImage] },
     twitter: { card: 'summary_large_image', title: full, description, images: [site.ogImage.url] },
   }

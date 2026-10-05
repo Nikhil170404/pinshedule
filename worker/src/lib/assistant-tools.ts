@@ -174,7 +174,7 @@ const readTools: Record<string, ReadTool> = {
     kind: 'read', label: 'Finding best posting times',
     run: async (c, a) => {
       const r = await previewSlots(c.userId, account(c).id, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10))
-      return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)), based_on: r.source === 'personal' ? `this account's last ${r.sample} published pins` : 'general Pinterest patterns (not enough results yet to personalise)' }
+      return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)), based_on: r.source === 'personal' ? `this account's last ${r.sample} published pins` : 'general Pinterest patterns (not enough results yet to personalize)' }
     },
   },
 }

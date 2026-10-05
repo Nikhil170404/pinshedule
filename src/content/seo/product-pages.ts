@@ -83,7 +83,7 @@ export const productPages: SeoPage[] = [
     updated: CHECKED,
     blocks: [
       h2('what-to-automate', 'What is worth automating on Pinterest'),
-      p('Pinterest work falls into repeatable chores and judgement calls. Automate the chores: collecting images from a page, writing a first draft of each title and description, choosing publish times, and re-trying a publish that failed. Keep the judgement calls with a person: which pages deserve pins, whether the image is good, and whether the wording sounds right.'),
+      p('Pinterest work falls into repeatable chores and judgment calls. Automate the chores: collecting images from a page, writing a first draft of each title and description, choosing publish times, and re-trying a publish that failed. Keep the judgment calls with a person: which pages deserve pins, whether the image is good, and whether the wording sounds right.'),
       h2('workflow', 'The GoPinKaro automation workflow'),
       steps(
         ['Import', `Paste a page URL, or a sitemap on Pro and above. Up to ${FACTS.importBatchMax} pages can be imported in one batch. GoPinKaro reads the page, pulls the usable images and writes three title options, a description and alt text.`],
@@ -273,12 +273,12 @@ export const productPages: SeoPage[] = [
       h2('single-page', 'Import a single page'),
       steps(
         ['Paste the URL', 'Use any public blog post, product page or landing page. GoPinKaro fetches the page, reads its title and description, and collects the usable images.'],
-        ['Pick the images', 'Small icons, logos and tracking images are filtered out. Tick the images you want to pin. The page title and description become the starting point for the copy.'],
+        ['Pick the images', 'Small icons, logos and tracking images are filtered out. Check the images you want to pin. The page title and description become the starting point for the copy.'],
         ['Choose a title', 'Three title options and a description are written for you. Pick one or rewrite it. An alt text is drafted too.'],
         ['Review and schedule', 'Every selected image becomes a pin that links back to the page. Pick a board and a pace and schedule the batch.'],
       ),
       h2('sitemap', 'Import a whole sitemap'),
-      p(`On the Pro plan and above, paste your website address and GoPinKaro reads your sitemap and lists the pages it finds. Tick up to ${FACTS.importBatchMax} pages at a time, import them, and review all the pins in one editor. This is how a library of old posts becomes weeks of scheduled pins.`),
+      p(`On the Pro plan and above, paste your website address and GoPinKaro reads your sitemap and lists the pages it finds. Select up to ${FACTS.importBatchMax} pages at a time, import them, and review all the pins in one editor. This is how a library of old posts becomes weeks of scheduled pins.`),
       h2('quality', 'What makes the drafts good'),
       ul(
         'Titles put the main keyword first and stay within the length Pinterest displays.',
@@ -286,7 +286,7 @@ export const productPages: SeoPage[] = [
         'Alt text describes the image rather than repeating keywords.',
         'Page text is treated as data only, so instructions hidden in a page cannot change how GoPinKaro behaves.',
       ),
-      callout('Pinterest favours pins that are fresh and useful. Create more than one image per page where you can, with different layouts or headlines, instead of repeating the same image.', 'Tip'),
+      callout('Pinterest favors pins that are fresh and useful. Create more than one image per page where you can, with different layouts or headlines, instead of repeating the same image.', 'Tip'),
       h2('limits', 'Limits'),
       table(['Plan', 'Page imports per month', 'Sitemap import'], [
         ['Free', String(free.imports), 'No'],

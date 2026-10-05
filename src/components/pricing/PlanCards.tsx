@@ -48,7 +48,7 @@ export function PlanCards({ cycle, current, renderCta, highlight = 'pro' }: {
             <div className="mt-5">{renderCta(p, isCurrent)}</div>
             <ul className="mt-5 space-y-2.5 border-t border-line pt-5 text-sm">
               {planFeatures(p).map((f) => (
-                <li key={f.text} className={cn('flex items-start gap-2.5', f.on ? 'text-ink' : 'text-stone-400')}>
+                <li key={f.text} className={cn('flex items-start gap-2.5', f.on ? 'text-ink' : 'text-stone-500')}>
                   {f.on ? <Check size={16} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden /> : <Minus size={16} className="mt-0.5 shrink-0" aria-hidden />}
                   <span>{f.text}</span>
                 </li>
