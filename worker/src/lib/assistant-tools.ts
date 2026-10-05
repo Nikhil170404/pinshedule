@@ -174,7 +174,7 @@ const readTools: Record<string, ReadTool> = {
     kind: 'read', label: 'Finding best posting times',
     run: async (c, a) => {
       const r = await previewSlots(c.userId, account(c).id, Math.min(Math.max(1, Number(a.count) || 5), 20), Math.min(Math.max(1, Number(a.per_day) || 2), 10))
-      return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)) }
+      return { timezone: r.timezone, slots: r.slots.map((s) => fmt(s, r.timezone)), based_on: r.source === 'personal' ? `this account's last ${r.sample} published pins` : 'general Pinterest patterns (not enough results yet to personalise)' }
     },
   },
 }
@@ -207,7 +207,7 @@ const schedulePinsArgs = z.object({
   start_at: isoDate.optional(),
 })
 
-interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile']; warnings?: string[] }
+interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile']; warnings?: string[]; timing?: Prepared['timing'] }
 
 const writeTools: Record<string, WriteTool> = {
   schedule_pins: {
@@ -231,18 +231,18 @@ const writeTools: Record<string, WriteTool> = {
       }
       const prepared = await prepareSchedule(c.userId, account(c).id, {
         pins: pins as never,
-        auto: pins.some((p) => !p.scheduled_at) ? { per_day: args.per_day ?? 2, start_after: args.start_at } : undefined,
+        auto: pins.some((p) => !p.scheduled_at) ? { per_day: args.per_day ?? 2, start_after: args.start_at, use_data: true } : undefined,
       })
       const sorted = [...prepared.rows].sort((x, y) => x.scheduled_at.localeCompare(y.scheduled_at))
       const boards = [...new Set(prepared.rows.map((r) => r.board_name))].join(', ')
       return {
         summary: `Schedule ${prepared.rows.length} pin${prepared.rows.length > 1 ? 's' : ''} to ${boards} on @${account(c).pinterest_username ?? 'your account'}, from ${fmt(sorted[0].scheduled_at, c.tz)} to ${fmt(sorted[sorted.length - 1].scheduled_at, c.tz)}`,
         details: sorted.slice(0, 6).map((r) => `${fmt(r.scheduled_at, c.tz)}: ${clip(r.title || 'Untitled pin', 55)}`).concat(sorted.length > 6 ? [`and ${sorted.length - 6} more`] : []).concat(prepared.warnings.map((w) => `Heads up: ${w}`)),
-        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile, warnings: prepared.warnings } satisfies SchedulePayload,
+        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile, warnings: prepared.warnings, timing: prepared.timing } satisfies SchedulePayload,
       }
     },
     commit: async (c, payload: SchedulePayload) => {
-      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile, warnings: payload.warnings ?? [] })
+      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile, warnings: payload.warnings ?? [], timing: payload.timing ?? null })
       return `Scheduled ${r.created} pin${r.created > 1 ? 's' : ''}, from ${fmt(r.first_at, c.tz)} to ${fmt(r.last_at, c.tz)}.`
     },
   },

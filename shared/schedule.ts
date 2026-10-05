@@ -5,11 +5,12 @@
  * A fixed, general-purpose ranking: it is not learned from an individual account's own audience, so
  * user-facing copy must describe it as "typically busy hours" and not as personalised timing.
  */
-const PREFERRED_HOURS = [20, 14, 21, 9, 12, 16, 18, 11, 7, 22]
+export const GENERAL_HOURS = [20, 14, 21, 9, 12, 16, 18, 11, 7, 22] as const
 
-export function hoursForPerDay(perDay: number): number[] {
-  const n = Math.min(Math.max(1, Math.floor(perDay)), PREFERRED_HOURS.length)
-  return PREFERRED_HOURS.slice(0, n).sort((a, b) => a - b)
+/** The best `perDay` hours of a ranking (best first), in clock order. Defaults to the general ranking. */
+export function hoursForPerDay(perDay: number, ranked: readonly number[] = GENERAL_HOURS): number[] {
+  const n = Math.min(Math.max(1, Math.floor(perDay)), ranked.length)
+  return ranked.slice(0, n).slice().sort((a, b) => a - b)
 }
 
 export function isValidTimeZone(tz: string): boolean {
@@ -50,9 +51,9 @@ function localYmd(utc: number, tz: string) {
  * Generate `count` slots, `perDay` per local day, strictly after `after`.
  * A small deterministic-looking minute offset avoids robotic on-the-hour posting.
  */
-export function generateSlots(opts: { after: Date; count: number; perDay: number; timeZone: string; minLeadMs?: number }): Date[] {
+export function generateSlots(opts: { after: Date; count: number; perDay: number; timeZone: string; minLeadMs?: number; /** Hours ranked best first, e.g. learned from the account's results. */ ranked?: readonly number[] }): Date[] {
   const { count, perDay, timeZone } = opts
-  const hours = hoursForPerDay(perDay)
+  const hours = hoursForPerDay(perDay, opts.ranked)
   const earliest = Math.max(opts.after.getTime(), Date.now() + (opts.minLeadMs ?? 5 * 60_000))
   const slots: Date[] = []
   const start = localYmd(earliest, timeZone)

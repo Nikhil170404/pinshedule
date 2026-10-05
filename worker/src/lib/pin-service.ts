@@ -8,6 +8,9 @@ import { getProfile, invalidateProfile, type Profile } from './plan'
 import { dequeue, enqueue } from './queue'
 import { aiEnabled, embed } from './ai'
 import { errMsg, log } from './log'
+import { isOwnVideoUrl } from './media'
+import { loadTiming } from './timing'
+import type { Timing } from '@shared/best-times'
 
 /** Thrown by service functions; routes map it to an HTTP response, the assistant maps it to tool output. */
 export class ServiceError extends Error {
@@ -19,8 +22,16 @@ export class ServiceError extends Error {
 const httpsUrl = z.string().trim().max(PIN_LIMITS.link).url().refine((u) => u.startsWith('https://'), 'Must be an https URL')
 const optionalUrl = z.union([z.literal(''), z.string().trim().max(PIN_LIMITS.link).url()]).nullish()
 
+// The worker (not Pinterest) downloads this URL, so the rule is "our own storage", which also fixes the scheme.
+const videoUrl = z.string().trim().max(PIN_LIMITS.link).url().refine(isOwnVideoUrl, 'Upload the video through GoPinKaro first')
+
 export const pinInput = z.object({
   image_url: httpsUrl,
+  media_type: z.enum(['image', 'video', 'carousel']).optional().default('image'),
+  /** Video pins: the uploaded video. `image_url` is then its cover image. */
+  video_url: videoUrl.optional(),
+  /** Carousel pins: 2 to 5 images. `image_url` is then the first one. */
+  carousel_items: z.array(z.object({ url: httpsUrl })).min(2, 'A carousel needs at least 2 images').max(5, 'A carousel can have at most 5 images').optional(),
   title: z.string().trim().max(PIN_LIMITS.title).optional().default(''),
   description: z.string().trim().max(PIN_LIMITS.description).optional().default(''),
   alt_text: z.string().trim().max(PIN_LIMITS.altText).optional().default(''),
@@ -28,12 +39,22 @@ export const pinInput = z.object({
   board_name: z.string().trim().max(100).optional().default(''),
   destination_url: optionalUrl,
   scheduled_at: z.string().datetime({ offset: true }).optional(),
+}).superRefine((p, ctx) => {
+  if (p.media_type === 'video' && !p.video_url) ctx.addIssue({ code: 'custom', path: ['video_url'], message: 'Add the video file' })
+  if (p.media_type === 'carousel' && !p.carousel_items) ctx.addIssue({ code: 'custom', path: ['carousel_items'], message: 'Add 2 to 5 images' })
+  if (p.media_type !== 'video' && p.video_url) ctx.addIssue({ code: 'custom', path: ['video_url'], message: 'Only video pins carry a video' })
+  if (p.media_type !== 'carousel' && p.carousel_items) ctx.addIssue({ code: 'custom', path: ['carousel_items'], message: 'Only carousel pins carry several images' })
 })
 
 export const scheduleBody = z.object({
   pins: z.array(pinInput).min(1),
   /** Pins without scheduled_at are spread over best-time slots, `per_day` per day. */
-  auto: z.object({ per_day: z.number().int().min(1).max(10).default(2), start_after: z.string().datetime({ offset: true }).optional() }).optional(),
+  auto: z.object({
+    per_day: z.number().int().min(1).max(10).default(2),
+    start_after: z.string().datetime({ offset: true }).optional(),
+    /** Use this account's own results to choose hours once there is enough data (default). False forces the general ranking. */
+    use_data: z.boolean().default(true),
+  }).optional(),
 })
 export type ScheduleBody = z.infer<typeof scheduleBody>
 
@@ -54,10 +75,10 @@ async function lastQueued(connectionId: string): Promise<Date> {
 }
 
 export interface PreparedRow {
-  id: string; connection_id: string; image_url: string; title: string; description: string; alt_text: string; board_id: string
+  id: string; connection_id: string; media_type: 'image' | 'video' | 'carousel'; video_url: string; carousel_items: { url: string }[] | null; image_url: string; title: string; description: string; alt_text: string; board_id: string
   board_name: string; destination_url: string; scheduled_at: string; batch_id: string
 }
-export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile; warnings: string[] }
+export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile; warnings: string[]; timing: Pick<Timing, 'source' | 'sample' | 'confidence'> | null }
 
 /** Validate plan gates, resolve times and build the rows. No writes, so it is safe for dry runs. */
 export async function prepareSchedule(userId: string, connectionId: string, body: ScheduleBody): Promise<Prepared> {
@@ -69,12 +90,15 @@ export async function prepareSchedule(userId: string, connectionId: string, body
 
   const needSlots = pins.filter((p) => !p.scheduled_at).length
   let slots: Date[] = []
+  let timing: Prepared['timing'] = null
   if (needSlots > 0) {
     if (!auto) throw new ServiceError('Every pin needs a scheduled_at, or enable auto scheduling.')
     if (!plan.smart_scheduler) throw new ServiceError('Auto-scheduling at best times is available on paid plans.', 403, { upgrade_required: true })
     const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
     const after = auto.start_after ? new Date(auto.start_after) : await lastQueued(connectionId)
-    slots = generateSlots({ after, count: needSlots, perDay: auto.per_day, timeZone: tz })
+    const learned = auto.use_data ? await loadTiming(connectionId, tz) : null
+    timing = learned ? { source: learned.source, sample: learned.sample, confidence: learned.confidence } : { source: 'general', sample: 0, confidence: null }
+    slots = generateSlots({ after, count: needSlots, perDay: auto.per_day, timeZone: tz, ranked: learned?.hours })
   }
 
   const now = Date.now()
@@ -85,11 +109,14 @@ export async function prepareSchedule(userId: string, connectionId: string, body
     if (at.getTime() < now - 60_000) throw new ServiceError('Scheduled time must be in the future.')
     if (at.getTime() > now + 365 * 86_400_000) throw new ServiceError('Pins can be scheduled up to 1 year ahead.')
     return {
-      id: randomUUID(), connection_id: connectionId, image_url: p.image_url, title: p.title, description: p.description, alt_text: p.alt_text,
+      id: randomUUID(), connection_id: connectionId,
+      media_type: p.media_type, video_url: p.video_url ?? '', carousel_items: p.carousel_items ?? null,
+      // A carousel's thumbnail is always its first image, whatever the client sent.
+      image_url: p.media_type === 'carousel' && p.carousel_items ? p.carousel_items[0].url : p.image_url, title: p.title, description: p.description, alt_text: p.alt_text,
       board_id: p.board_id, board_name: p.board_name, destination_url: p.destination_url || '', scheduled_at: at.toISOString(), batch_id: batchId,
     }
   })
-  return { rows, plan, profile, warnings: await pacing(connectionId, rows, profile.timezone) }
+  return { rows, plan, profile, warnings: await pacing(connectionId, rows, profile.timezone), timing }
 }
 
 /** Compare the new rows with the account's pins already near them in time. Best effort: a failed lookup means no warnings. */
@@ -121,7 +148,7 @@ async function indexPins(userId: string, rows: { id: string; title: string; desc
   }
 }
 
-export async function commitSchedule(userId: string, { rows, plan, profile, warnings }: Prepared) {
+export async function commitSchedule(userId: string, { rows, plan, profile, warnings, timing }: Prepared) {
   const { data, error } = await db.rpc('schedule_pins', { p_user: userId, p_rows: rows, p_limit: plan.pins_per_month })
   if (error) {
     const m = error.message.match(/quota_exceeded:(\d+):(\d+)/)
@@ -136,7 +163,7 @@ export async function commitSchedule(userId: string, { rows, plan, profile, warn
   await invalidateProfile(userId)
   void indexPins(userId, rows)
   const times = rows.map((r) => r.scheduled_at).sort()
-  return { created: created.length, ids: created.map((r) => r.id), first_at: times[0], last_at: times[times.length - 1], warnings }
+  return { created: created.length, ids: created.map((r) => r.id), first_at: times[0], last_at: times[times.length - 1], warnings, timing }
 }
 
 export async function schedulePins(userId: string, connectionId: string, body: ScheduleBody) {
@@ -181,6 +208,7 @@ export async function previewSlots(userId: string, connectionId: string, count: 
   const profile = await getProfile(userId)
   if (!PLANS[profile.plan].smart_scheduler) throw new ServiceError('Best-time scheduling is available on paid plans.', 403, { upgrade_required: true })
   const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
-  const slots = generateSlots({ after: await lastQueued(connectionId), count, perDay, timeZone: tz })
-  return { slots: slots.map((s) => s.toISOString()), timezone: tz }
+  const learned = await loadTiming(connectionId, tz)
+  const slots = generateSlots({ after: await lastQueued(connectionId), count, perDay, timeZone: tz, ranked: learned.hours })
+  return { slots: slots.map((s) => s.toISOString()), timezone: tz, source: learned.source, sample: learned.sample }
 }

@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/Card'
 import { AccountAvatar } from './AccountAvatar'
 import { accountName, useAccounts, type AccountInfo } from '@/lib/accounts'
 import { cn } from '@/lib/utils'
+import { PLANS } from '@/types'
 
 const ADD = '/api/auth/pinterest?add=1'
 
@@ -55,7 +56,9 @@ export function AccountSwitcher({ compact = false }: { compact?: boolean }) {
             <Link href="/dashboard/accounts" onClick={() => setOpen(false)} className="text-sm font-medium text-ink hover:underline">Manage accounts</Link>
             {data?.can_add
               ? <a href={ADD} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-medium text-ink hover:bg-stone-50"><Plus size={15} aria-hidden /> Add account</a>
-              : <Link href="/dashboard/upgrade" onClick={() => setOpen(false)} className="text-sm font-medium text-brand hover:underline">Upgrade for more accounts</Link>}
+              : (data?.limit ?? 0) >= PLANS.growth.accounts
+                ? <span className="text-xs text-muted">Account limit reached</span>
+                : <Link href="/dashboard/upgrade" onClick={() => setOpen(false)} className="text-sm font-medium text-brand hover:underline">Upgrade for more accounts</Link>}
           </div>
         }>
         {accounts.length > 6 && (

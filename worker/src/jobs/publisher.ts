@@ -3,9 +3,13 @@ import { claimDue, enqueue } from '../lib/queue'
 import { createPin, PinterestError } from '../lib/pinterest'
 import { NotConnectedError, withPinterest } from '../lib/tokens'
 import { soleConnectionId } from '../lib/accounts'
+import { ensureVideo, MediaPendingError, MediaRejectedError } from '../lib/media'
 import { errMsg, log } from '../lib/log'
 
 const MAX_ATTEMPTS = 4
+// A video can legitimately take a while to process on Pinterest's side: allow many short waits instead of a few long ones.
+const MEDIA_PENDING_ATTEMPTS = 12
+const MEDIA_PENDING_DELAY_MS = 90_000
 const BACKOFF_MIN = [5, 15, 60] // minutes before attempt 2, 3, 4
 
 interface PinRow {
@@ -13,6 +17,10 @@ interface PinRow {
   user_id: string
   connection_id: string | null
   image_url: string
+  media_type: 'image' | 'video' | 'carousel'
+  video_url: string | null
+  carousel_items: { url: string }[] | null
+  media_id: string | null
   title: string | null
   description: string | null
   alt_text: string | null
@@ -26,16 +34,21 @@ async function publishOne(pin: PinRow) {
     // Pins queued before accounts existed carry no account: use it only when the login has exactly one.
     const connectionId = pin.connection_id ?? (await soleConnectionId(pin.user_id))
     if (!connectionId) throw new NotConnectedError('The Pinterest account for this pin was removed. Delete the pin or add the account again.')
-    const res = await withPinterest(connectionId, (token) =>
-      createPin(token, {
+    const res = await withPinterest(connectionId, async (token) => {
+      // Videos are uploaded and processed by Pinterest first; the pin is created once that has finished.
+      const videoId = pin.media_type === 'video' ? await ensureVideo(token, pin) : null
+      return createPin(token, {
         board_id: pin.board_id,
         title: pin.title,
         description: pin.description,
         alt_text: pin.alt_text,
         link: pin.destination_url,
         image_url: pin.image_url,
+        media_type: pin.media_type,
+        video_media_id: videoId,
+        carousel_items: pin.carousel_items,
       })
-    )
+    })
     await db
       .from('scheduled_pins')
       .update({ status: 'published', pinterest_pin_id: res.id, published_at: new Date().toISOString(), error_message: null })
@@ -43,12 +56,13 @@ async function publishOne(pin: PinRow) {
     return 'published' as const
   } catch (e) {
     const msg = errMsg(e)
-    const permanent = e instanceof NotConnectedError
+    const permanent = e instanceof NotConnectedError || e instanceof MediaRejectedError
+    const pending = e instanceof MediaPendingError
     const transient = e instanceof PinterestError && e.transient
 
-    if (!permanent && transient && pin.attempts < MAX_ATTEMPTS) {
+    if (!permanent && transient && pin.attempts < (pending ? MEDIA_PENDING_ATTEMPTS : MAX_ATTEMPTS)) {
       const retryAfter = e instanceof PinterestError && e.retryAfterSec ? e.retryAfterSec * 1000 : 0
-      const delay = Math.max(retryAfter, BACKOFF_MIN[Math.min(pin.attempts - 1, BACKOFF_MIN.length - 1)] * 60_000)
+      const delay = pending ? MEDIA_PENDING_DELAY_MS : Math.max(retryAfter, BACKOFF_MIN[Math.min(pin.attempts - 1, BACKOFF_MIN.length - 1)] * 60_000)
       const at = new Date(Date.now() + delay)
       await db
         .from('scheduled_pins')

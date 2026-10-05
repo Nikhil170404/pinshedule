@@ -64,3 +64,42 @@ export async function safeFetchText(url: string, opts: { maxBytes?: number; acce
   }
   throw new Error('Too many redirects')
 }
+
+const IMAGE_TYPES = /^image\/(jpeg|jpg|png|webp|gif|avif)$/i
+
+/**
+ * Fetch an image from the public internet: SSRF-checked on every redirect hop, time-capped, and refused (not
+ * truncated) when it is too large or is not a plain raster image. SVG is rejected on purpose.
+ */
+export async function safeFetchImage(url: string, opts: { maxBytes?: number } = {}): Promise<{ bytes: Buffer; type: string }> {
+  const maxBytes = opts.maxBytes ?? 10_000_000
+  let current = (await assertPublicUrl(url)).href
+  for (let hop = 0; hop < 4; hop++) {
+    const res = await fetch(current, {
+      redirect: 'manual',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GoPinKaroBot/1.0; +https://gopinkaro.com)', Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+      current = (await assertPublicUrl(new URL(res.headers.get('location')!, current).href)).href
+      continue
+    }
+    if (!res.ok) throw new Error(`The site responded with HTTP ${res.status}`)
+    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim()
+    if (!IMAGE_TYPES.test(type)) throw new Error('That address is not a JPG, PNG, WEBP or GIF image')
+    if (Number(res.headers.get('content-length') ?? 0) > maxBytes) throw new Error('That image is too large')
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('The image could not be read')
+    const chunks: Uint8Array[] = []
+    let total = 0
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > maxBytes) { await reader.cancel(); throw new Error('That image is too large') }
+      chunks.push(value)
+    }
+    return { bytes: Buffer.concat(chunks), type }
+  }
+  throw new Error('Too many redirects')
+}

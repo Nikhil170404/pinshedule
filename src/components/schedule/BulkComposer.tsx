@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { BoardSelect } from '@/components/pins/BoardSelect'
+import { TimingNote } from '@/components/schedule/TimingNote'
 import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
@@ -123,7 +124,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
                 hint="Steady daily pinning beats big bursts. 1 to 5 a day is typical; we warn you above 15.">
                 {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}
               </Select>
-              <p className="self-end pb-2 text-sm text-muted">Starts after your last scheduled pin, in the evening and afternoon hours Pinterest is typically busiest ({summary?.timezone}).</p>
+              <p className="self-end pb-2 text-sm text-muted"><TimingNote perDay={Number(perDay)} /></p>
             </div>
           )}
           {!canAuto && summary && <div className="mt-3"><UpgradeNote>Best-time spacing is included in paid plans.</UpgradeNote></div>}

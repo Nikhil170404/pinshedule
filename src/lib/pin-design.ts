@@ -270,3 +270,29 @@ export function loadPhoto(file: File): Promise<HTMLImageElement> {
     img.src = url
   })
 }
+
+// ─── Automatic design ────────────────────────────────────────────────────────
+
+/** "Best pasta recipes | My Blog" -> "Best pasta recipes": drops a trailing site name and keeps the headline short. */
+export function tidyHeadline(title: string, max = 90): string {
+  const parts = title.split(/\s+[|\u2013\u2014\u00b7]\s+|\s+-\s+/)
+  const first = (parts.length > 1 && parts[0].trim().length >= 12 ? parts[0] : title).trim()
+  if (first.length <= max) return first
+  const cut = first.slice(0, max - 1)
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 20)).trim()}\u2026`
+}
+
+export type AutoLayout = 'card' | 'split' | 'mixed'
+
+/** The layout for the i-th pin of a batch: a fixed one, or alternating so a feed does not look repetitive. */
+export const layoutFor = (i: number, mode: AutoLayout): TemplateId => (mode === 'mixed' ? (i % 2 === 0 ? 'card' : 'split') : mode)
+
+/** Draw a finished pin from a photo and a headline without showing anything on screen. */
+export async function designPinFile(input: Omit<DesignInput, 'photo'> & { photo: HTMLImageElement }): Promise<File> {
+  const canvas = document.createElement('canvas')
+  renderPin(canvas, input)
+  return canvasToFile(canvas, true)
+}
+
+/** Load a photo that has been fetched as a Blob (so the canvas stays untainted). */
+export const photoFromBlob = (blob: Blob) => loadPhoto(new File([blob], 'photo', { type: blob.type || 'image/jpeg' }))

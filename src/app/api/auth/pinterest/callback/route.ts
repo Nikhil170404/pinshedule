@@ -105,79 +105,64 @@ export async function GET(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
-    // 3. Does this Pinterest account already belong to a workspace? One Pinterest account lives in exactly one.
-    const { data: existing } = await serviceClient
-      .from('pinterest_connections')
-      .select('id, user_id, is_primary')
-      .eq('pinterest_user_id', pinterestId)
-      .maybeSingle()
+    // Connection rows are matched per login: the same Pinterest account can be a secondary account in another
+    // person's workspace (an agency managing a client) without that changing who can sign in where.
+    const saveConnection = async (userId: string) => {
+      const { data: mine } = await serviceClient.from('pinterest_connections').select('id').eq('user_id', userId).eq('pinterest_user_id', pinterestId).maybeSingle()
+      if (mine) {
+        await serviceClient.from('pinterest_connections').update(tokenFields).eq('id', mine.id)
+        return { id: mine.id as string, created: false }
+      }
+      const { count } = await serviceClient.from('pinterest_connections').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+      const { data: created, error } = await serviceClient.from('pinterest_connections')
+        .insert({ ...tokenFields, user_id: userId, pinterest_user_id: pinterestId, is_primary: (count ?? 0) === 0 }).select('id').single()
+      if (error || !created) throw new Error('Could not save the Pinterest account')
+      return { id: created.id as string, created: true }
+    }
 
     // ── Adding (or renewing) an account in the workspace you are signed in to ──
     if (adding) {
       const { data: { user } } = await anonClient.auth.getUser()
       if (!user) return NextResponse.redirect(`${appUrl}/login?redirect=${encodeURIComponent('/dashboard/accounts')}`)
-      if (existing && existing.user_id !== user.id) return fail('already_connected')
 
-      if (existing) {
-        await serviceClient.from('pinterest_connections').update(tokenFields).eq('id', existing.id)
-        return NextResponse.redirect(`${appUrl}/dashboard/accounts?connected=${existing.id}`)
+      const { data: here } = await serviceClient.from('pinterest_connections').select('id').eq('user_id', user.id).eq('pinterest_user_id', pinterestId).maybeSingle()
+      if (!here) {
+        const { data: profile } = await serviceClient.from('user_profiles').select('plan, plan_expires_at').eq('id', user.id).maybeSingle()
+        const allowed = PLANS[effectivePlan(profile?.plan, profile?.plan_expires_at)].accounts
+        const { count } = await serviceClient.from('pinterest_connections').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+        if ((count ?? 0) >= allowed) return fail('account_limit')
       }
-      const { data: profile } = await serviceClient.from('user_profiles').select('plan, plan_expires_at').eq('id', user.id).maybeSingle()
-      const allowed = PLANS[effectivePlan(profile?.plan, profile?.plan_expires_at)].accounts
-      const { count } = await serviceClient.from('pinterest_connections').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
-      if ((count ?? 0) >= allowed) return fail('account_limit')
-
-      const { data: created, error: insertError } = await serviceClient.from('pinterest_connections')
-        .insert({ ...tokenFields, user_id: user.id, pinterest_user_id: pinterestId, is_primary: (count ?? 0) === 0 })
-        .select('id').single()
-      if (insertError || !created) throw new Error('Could not save the Pinterest account')
-      return NextResponse.redirect(`${appUrl}/dashboard/accounts?connected=${created.id}`)
+      const saved = await saveConnection(user.id)
+      return NextResponse.redirect(`${appUrl}/dashboard/accounts?connected=${saved.id}`)
     }
 
     // ── Signing in ──
-    // An account that is already connected opens the workspace that owns it, whichever account it is.
-    let loginEmail = `p_${pinterestId}@pin.pinshedule.internal`
-    if (existing) {
-      const { data: owner } = await serviceClient.auth.admin.getUserById(existing.user_id)
-      if (owner?.user?.email) loginEmail = owner.user.email
-    } else {
-      // New here: create the Supabase user (idempotent, "already exists" is fine on re-login).
-      await serviceClient.auth.admin.createUser({
-        email: loginEmail,
-        email_confirm: true,
-        user_metadata: { pinterest_id: pinterestId, pinterest_username: pinterestUsername, pinterest_avatar: pinterestAvatar },
-      })
-    }
+    // Who you are is decided only by the Pinterest account that signs in: it maps to its own login, created on first use.
+    const loginEmail = `p_${pinterestId}@pin.pinshedule.internal`
+    await serviceClient.auth.admin.createUser({
+      email: loginEmail,
+      email_confirm: true,
+      user_metadata: { pinterest_id: pinterestId, pinterest_username: pinterestUsername, pinterest_avatar: pinterestAvatar },
+    }) // "already exists" is expected on re-login and ignored
 
-    // 4. Generate a single-use magic-link token to establish the session
+    // Generate a single-use magic-link token to establish the session
     const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({ type: 'magiclink', email: loginEmail })
     if (linkError || !linkData?.properties?.action_link) throw new Error('Failed to generate auth link')
     const userId: string = linkData.user.id
 
-    // 5. Keep the profile details of the signed-in account fresh; a secondary account must not overwrite the workspace's
-    if (!existing || existing.is_primary) {
-      await serviceClient.auth.admin.updateUserById(userId, {
-        user_metadata: { pinterest_id: pinterestId, pinterest_username: pinterestUsername, pinterest_avatar: pinterestAvatar },
-      })
-    }
+    await serviceClient.auth.admin.updateUserById(userId, {
+      user_metadata: { pinterest_id: pinterestId, pinterest_username: pinterestUsername, pinterest_avatar: pinterestAvatar },
+    })
 
-    // 6. Exchange the magic-link token for a live session (writes cookies onto `response`)
+    // Exchange the magic-link token for a live session (writes cookies onto `response`)
     const actionUrl = new URL(linkData.properties.action_link)
     const tokenHash = actionUrl.searchParams.get('token')!
     const { error: otpError } = await anonClient.auth.verifyOtp({ token_hash: tokenHash, type: 'email' })
     if (otpError) throw new Error('OTP verification failed')
 
-    // 7. Profile row: insert on first login, ignore on re-login to preserve plan/settings
+    // Profile row: insert on first login, ignore on re-login to preserve plan/settings
     await serviceClient.from('user_profiles').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })
-
-    // 8. Store the connection with fresh encrypted tokens
-    if (existing) {
-      await serviceClient.from('pinterest_connections').update(tokenFields).eq('id', existing.id)
-    } else {
-      const { count } = await serviceClient.from('pinterest_connections').select('id', { count: 'exact', head: true }).eq('user_id', userId)
-      await serviceClient.from('pinterest_connections')
-        .insert({ ...tokenFields, user_id: userId, pinterest_user_id: pinterestId, is_primary: (count ?? 0) === 0 })
-    }
+    await saveConnection(userId)
 
     return response
   } catch (err) {

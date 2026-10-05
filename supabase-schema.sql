@@ -76,13 +76,17 @@ alter table public.pinterest_connections add column if not exists updated_at tim
 
 -- ───────────── multiple Pinterest accounts per login ─────────────
 -- A login is a workspace that can own many connections (plan limit: shared/plans.ts `accounts`).
--- A Pinterest account belongs to exactly one login, so signing in with any of them opens that workspace.
+-- Signing in is decided only by the Pinterest account that created the login (see the OAuth callback), never by
+-- a connection added later: an agency adding a client's account must not let that client into the agency's workspace.
+-- The same Pinterest account may therefore appear in more than one login, but only once within each.
 alter table public.pinterest_connections add column if not exists label text;
 alter table public.pinterest_connections add column if not exists avatar_url text;
 alter table public.pinterest_connections add column if not exists is_primary boolean not null default false;
 alter table public.pinterest_connections add column if not exists analytics_synced_at timestamptz;
 alter table public.pinterest_connections drop constraint if exists pinterest_connections_user_id_key;
-create unique index if not exists pinterest_connections_pinterest_user_idx on public.pinterest_connections (pinterest_user_id);
+drop index if exists public.pinterest_connections_pinterest_user_idx; -- an earlier draft made this global
+create unique index if not exists pinterest_connections_user_pinterest_idx on public.pinterest_connections (user_id, pinterest_user_id);
+create index if not exists pinterest_connections_pinterest_user_idx on public.pinterest_connections (pinterest_user_id);
 create index if not exists pinterest_connections_user_idx on public.pinterest_connections (user_id, created_at);
 -- Logins created before this change have exactly one connection: it becomes the primary one.
 update public.pinterest_connections set is_primary = true
@@ -421,3 +425,23 @@ create policy "Users can upload own pin videos" on storage.objects
   for insert with check (bucket_id = 'pin-videos' and auth.uid()::text = (storage.foldername(name))[1]);
 create policy "Users can delete own pin videos" on storage.objects
   for delete using (bucket_id = 'pin-videos' and auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ───────────────────────── personalised best times ─────────────────────────
+-- The latest analytics snapshot of every published pin of one account, with when it went out.
+create or replace function public.timing_samples(p_connection uuid, p_limit int default 1500)
+returns table (published_at timestamptz, impressions integer, saves integer, clicks integer, outbound_clicks integer)
+language sql stable security definer set search_path = public as $$
+  select p.published_at, coalesce(s.impressions, 0), coalesce(s.saves, 0), coalesce(s.clicks, 0), coalesce(s.outbound_clicks, 0)
+    from (
+      select distinct on (pin_id) pin_id, impressions, saves, clicks, outbound_clicks
+        from analytics_snapshots
+       where connection_id = p_connection and pin_id is not null
+       order by pin_id, snapshot_date desc
+    ) s
+    join scheduled_pins p on p.id = s.pin_id
+   where p.status = 'published' and p.published_at is not null
+   order by p.published_at desc
+   limit p_limit;
+$$;
+revoke execute on function public.timing_samples(uuid, int) from public, anon, authenticated;
+

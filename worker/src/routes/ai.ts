@@ -9,6 +9,7 @@ import { PinterestError } from '../lib/pinterest'
 import { NotConnectedError } from '../lib/tokens'
 import { loadBoards } from './boards'
 import { errMsg, log } from '../lib/log'
+import { generateBackground, IMAGE_STYLES, type ImageStyle } from '../lib/ai-image'
 
 export const ai = new Hono<AppEnv>()
 ai.use('*', limit('default'))
@@ -71,5 +72,29 @@ ai.post('/suggest-board', async (c) => {
     if (e instanceof NotConnectedError || e instanceof PinterestError) return c.json({ suggestions: [] })
     log.warn('suggest-board failed', { error: errMsg(e) })
     return c.json({ suggestions: [] })
+  }
+})
+
+/** An AI background for the pin designer. Metered separately from writing so costs stay predictable. */
+ai.post('/image', limit('heavy'), async (c) => {
+  const userId = c.get('userId')
+  const parsed = z.object({ topic: z.string().trim().min(3).max(200), style: z.enum(Object.keys(IMAGE_STYLES) as [ImageStyle, ...ImageStyle[]]).default('photo') })
+    .safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: 'Describe the picture in a few words (at least 3 characters).' }, 400)
+  if (!aiEnabled()) return c.json({ error: 'AI images are not available right now.' }, 503)
+
+  const plan = PLANS[(await getProfile(userId)).plan]
+  if (!(await consumeUsage(userId, 'ai_images', plan.ai_images))) {
+    return c.json({ error: `You have used all ${plan.ai_images} AI images on the ${plan.name} plan this month.`, upgrade_required: plan.id !== 'growth' }, 403)
+  }
+  await invalidateProfile(userId)
+  try {
+    return c.json({ image: await generateBackground(parsed.data.topic, parsed.data.style) })
+  } catch (e) {
+    await refundUsage(userId, 'ai_images').catch(() => {})
+    await invalidateProfile(userId)
+    const policy = /content_policy|safety|moderation/i.test(errMsg(e))
+    log.error('ai image failed', { error: errMsg(e) })
+    return c.json({ error: policy ? 'That picture could not be created. Try a different description.' : 'The image could not be created. Please try again.' }, policy ? 422 : 502)
   }
 })

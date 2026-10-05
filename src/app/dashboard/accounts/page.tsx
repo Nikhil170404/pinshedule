@@ -16,11 +16,11 @@ import { api, errorText } from '@/lib/api'
 import { accountName, refreshAccounts, useAccounts, type AccountInfo } from '@/lib/accounts'
 import { refreshSummary } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
+import { PLANS } from '@/types'
 
 const ADD = '/api/auth/pinterest?add=1'
 
 const ERRORS: Record<string, string> = {
-  already_connected: 'That Pinterest account is already connected to a different GoPinKaro login.',
   access_denied: 'Pinterest access was not granted. Try again and accept the permissions.',
   invalid_state: 'That sign-in session expired. Please try again.',
   auth_failed: 'We could not connect that account. Please try again.',
@@ -130,7 +130,9 @@ function AccountsView() {
           {!canAdd && (
             <p className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-muted">
               Your {data?.plan_name} plan includes {limit} Pinterest account{limit === 1 ? '' : 's'}.{' '}
-              <Link href="/dashboard/upgrade" className="font-medium text-brand hover:underline">Upgrade to connect more</Link>.
+              {limit >= PLANS.growth.accounts
+                ? 'That is the most any plan allows. Remove an account to connect a different one.'
+                : <><Link href="/dashboard/upgrade" className="font-medium text-brand hover:underline">Upgrade to connect more</Link>.</>}
             </p>
           )}
           {canAdd && (
