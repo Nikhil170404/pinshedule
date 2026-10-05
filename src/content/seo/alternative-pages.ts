@@ -474,7 +474,7 @@ export const alternativePages: SeoPage[] = [
         ['Tokens', 'Stored encrypted, never shown in the browser', 'Vague about how access is stored'],
       ]),
       h2('history', 'Why the sign-in method matters: Board Booster'),
-      p('Board Booster, a popular scheduler, shut down in June 2018 after four years. It asked users for their Pinterest username and password rather than using Pinterest\'s own authorisation, operated outside the official API, and used automation behaviour Pinterest called spammy. Pinterest then named Tailwind as an approved alternative. The lesson is simple: if a tool logs in as you, your account is at risk when it is shut down.'),
+      p('Board Booster, a popular scheduler, shut down in June 2018 after four years. It asked users for their Pinterest username and password rather than using Pinterest\'s own authorization, operated outside the official API, and used automation behavior Pinterest called spammy. Pinterest then named Tailwind as an approved alternative. The lesson is simple: if a tool logs in as you, your account is at risk when it is shut down.'),
       h2('spam', 'What Pinterest treats as spam'),
       p('Publishing on a schedule is not prohibited; Pinterest maintains an API so tools can do it. What gets accounts into trouble is bulk, inauthentic activity: mass-saving, automated following, scripted engagement, and repeating the same or similar pins. Commonly repeated guidance is to keep to roughly 5 to 15 new pins a day and to space identical images several days apart across boards. These numbers are community guidance, not a published Pinterest limit.'),
       h2('how-we-do', 'How GoPinKaro measures up'),

@@ -66,7 +66,7 @@ npm test --prefix worker                 # unit tests, no services needed
 npm run test:integration --prefix worker # real Postgres + PostgREST in Docker, fake Pinterest and Redis
 ```
 
-The integration suite covers multi-account publishing, video upload and processing, carousels, account isolation, analytics, personalised timing and the schema.
+The integration suite covers multi-account publishing, video upload and processing, carousels, account isolation, analytics, personalized timing and the schema.
 
 ## Local development
 

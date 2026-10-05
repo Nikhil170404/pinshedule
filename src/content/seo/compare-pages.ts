@@ -69,7 +69,7 @@ export const comparePages: SeoPage[] = [
       ),
       h2('pricing', 'GoPinKaro plans'),
       plansTable(),
-      callout('Facts about other tools are summarised from their public descriptions and press as of October 2026 and may change. Check each product\'s own site for current features and prices.', 'About this comparison'),
+      callout('Facts about other tools are summarized from their public descriptions and press as of October 2026 and may change. Check each product\'s own site for current features and prices.', 'About this comparison'),
     ],
     faqs: [
       { q: 'What is the best Pinterest tool?', a: 'It depends on the job. For scheduling and automation, consider GoPinKaro, Tailwind or Pinterest\'s own scheduler. For design, Canva. For keyword research, Pinterest Trends, PinClicks or Pin Inspector.' },

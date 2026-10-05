@@ -119,7 +119,7 @@ export function AssistantChat({ onClose, className, showTitle = true }: { onClos
             <ArrowUp size={18} />
           </button>
         </div>
-        <p className="mt-1.5 px-1 text-[11px] text-stone-400">Each message uses one AI action from your monthly allowance. Changes need your confirmation.</p>
+        <p className="mt-1.5 px-1 text-[11px] text-stone-500">Each message uses one AI action from your monthly allowance. Changes need your confirmation.</p>
       </form>
     </div>
   )

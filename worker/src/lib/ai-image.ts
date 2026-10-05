@@ -3,7 +3,7 @@ import { openai } from './ai'
 
 export const IMAGE_STYLES = {
   photo: 'a natural, softly lit photograph',
-  illustration: 'a clean flat illustration with a limited, harmonious colour palette',
+  illustration: 'a clean flat illustration with a limited, harmonious color palette',
   minimal: 'a minimalist composition with generous empty space',
 } as const
 export type ImageStyle = keyof typeof IMAGE_STYLES
@@ -16,7 +16,7 @@ export function imagePrompt(topic: string, style: ImageStyle): string {
   const subject = topic.replace(/[<>{}\[\]`"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200)
   return `A vertical Pinterest pin background in the style of ${IMAGE_STYLES[style]}. Subject: ${subject}. ` +
     'Compose it with calm space near the top or bottom where a headline can be placed later. ' +
-    'No text, letters, numbers, logos, watermarks or recognisable real people.'
+    'No text, letters, numbers, logos, watermarks or recognizable real people.'
 }
 
 /** One 2:3 JPEG as a data URL. Throws a plain Error on failure so the caller can refund the quota. */

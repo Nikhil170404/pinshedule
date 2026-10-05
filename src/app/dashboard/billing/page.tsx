@@ -23,7 +23,7 @@ export default function BillingPage() {
     try {
       await api('/billing/cancel', { method: 'POST', body: {} })
       await refreshSummary()
-      toast.success('Subscription cancelled. Your plan stays active until the period ends.')
+      toast.success('Subscription canceled. Your plan stays active until the period ends.')
     } catch (e) { toast.error(errorText(e)) }
     setBusy(false)
   }

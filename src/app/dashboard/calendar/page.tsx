@@ -52,7 +52,7 @@ export default function CalendarPage() {
               <Button variant="outline" size="sm" aria-label="Next month" onClick={() => setMonth((m) => addMonths(m, 1))}><ChevronRight size={16} /></Button>
             </div>
           </div>
-          <div className="grid grid-cols-7 text-center text-[11px] font-medium uppercase tracking-wide text-stone-400">
+          <div className="grid grid-cols-7 text-center text-[11px] font-medium uppercase tracking-wide text-stone-500">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="py-1">{d}</div>)}
           </div>
           {loading ? <Skeleton className="mt-1 h-72" /> : (

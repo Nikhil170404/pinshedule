@@ -149,7 +149,8 @@ export function SeoArticle({ page }: { page: SeoPage }) {
       ? { '@type': 'Article', headline: page.h1, description: page.description, datePublished: published, dateModified: page.updated, mainEntityOfPage: url, image: `${siteUrl()}${site.ogImage.url}`, author: publisher, publisher }
       : { '@type': 'WebPage', name: page.h1, description: page.description, url, datePublished: published, dateModified: page.updated, isPartOf: { '@type': 'WebSite', name: site.name, url: siteUrl() } },
   ]
-  if (page.kind !== 'guide') {
+  // Software markup belongs on the product pages (and the home page), not on every comparison or guide.
+  if (page.kind === 'product') {
     graph.push({
       '@type': 'SoftwareApplication',
       name: 'GoPinKaro',
@@ -171,7 +172,7 @@ export function SeoArticle({ page }: { page: SeoPage }) {
       <nav aria-label="Breadcrumb" className="text-sm text-muted"><Link href="/" className="hover:text-ink">Home</Link> <span aria-hidden>/</span> {hub && page.kind !== 'product' && <><Link href={`/${hub.path}`} className="hover:text-ink">{hub.label}</Link> <span aria-hidden>/</span> </>}<span className="text-ink">{page.label}</span></nav>
       <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">{page.h1}</h1>
       <p className="mt-5 text-lg leading-8 text-stone-700">{inline(page.intro)}</p>
-      <p className="mt-3 text-sm text-muted">Facts reviewed {fmtDate(page.updated)}</p>
+      <p className="mt-3 text-sm text-muted">Facts reviewed <time dateTime={page.updated}>{fmtDate(page.updated)}</time></p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link href={ctaHref(page)} className={buttonStyles('primary', 'lg')}>Start free with Pinterest</Link>
         <Link href="/pricing" className={buttonStyles('outline', 'lg')}>See pricing</Link>

@@ -3,7 +3,7 @@
 /**
  * Hours (local time) ranked by typical Pinterest engagement; first N are used for N pins/day.
  * A fixed, general-purpose ranking: it is not learned from an individual account's own audience, so
- * user-facing copy must describe it as "typically busy hours" and not as personalised timing.
+ * user-facing copy must describe it as "typically busy hours" and not as personalized timing.
  */
 export const GENERAL_HOURS = [20, 14, 21, 9, 12, 16, 18, 11, 7, 22] as const
 
