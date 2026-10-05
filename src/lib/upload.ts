@@ -20,3 +20,9 @@ export async function uploadImage(file: File): Promise<string> {
   if (error) throw new Error(`Upload failed: ${error.message}`)
   return supabase.storage.from('pin-images').getPublicUrl(path).data.publicUrl
 }
+
+/** True only for images in this app's own pin-images bucket (used to accept ?image= from the designer). */
+export function isOwnImage(url: string): boolean {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  return !!base && url.startsWith(`${base.replace(/\/$/, '')}/storage/v1/object/public/pin-images/`)
+}

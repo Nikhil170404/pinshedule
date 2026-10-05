@@ -199,7 +199,7 @@ const schedulePinsArgs = z.object({
   start_at: isoDate.optional(),
 })
 
-interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile'] }
+interface SchedulePayload { rows: PreparedRow[]; planId: Plan; profile: Prepared['profile']; warnings?: string[] }
 
 const writeTools: Record<string, WriteTool> = {
   schedule_pins: {
@@ -229,12 +229,12 @@ const writeTools: Record<string, WriteTool> = {
       const boards = [...new Set(prepared.rows.map((r) => r.board_name))].join(', ')
       return {
         summary: `Schedule ${prepared.rows.length} pin${prepared.rows.length > 1 ? 's' : ''} to ${boards}, from ${fmt(sorted[0].scheduled_at, c.tz)} to ${fmt(sorted[sorted.length - 1].scheduled_at, c.tz)}`,
-        details: sorted.slice(0, 6).map((r) => `${fmt(r.scheduled_at, c.tz)}: ${clip(r.title || 'Untitled pin', 55)}`).concat(sorted.length > 6 ? [`and ${sorted.length - 6} more`] : []),
-        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile } satisfies SchedulePayload,
+        details: sorted.slice(0, 6).map((r) => `${fmt(r.scheduled_at, c.tz)}: ${clip(r.title || 'Untitled pin', 55)}`).concat(sorted.length > 6 ? [`and ${sorted.length - 6} more`] : []).concat(prepared.warnings.map((w) => `Heads up: ${w}`)),
+        payload: { rows: prepared.rows, planId: prepared.profile.plan, profile: prepared.profile, warnings: prepared.warnings } satisfies SchedulePayload,
       }
     },
     commit: async (c, payload: SchedulePayload) => {
-      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile })
+      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile, warnings: payload.warnings ?? [] })
       return `Scheduled ${r.created} pin${r.created > 1 ? 's' : ''}, from ${fmt(r.first_at, c.tz)} to ${fmt(r.last_at, c.tz)}.`
     },
   },

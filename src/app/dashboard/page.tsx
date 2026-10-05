@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, CalendarDays, CheckCircle2, Clock, Globe, Layers, PlusSquare, XCircle } from 'lucide-react'
+import { ArrowRight, CalendarDays, CheckCircle2, Clock, Globe, Layers, Palette, PlusSquare, XCircle } from 'lucide-react'
 import { buttonStyles } from '@/components/ui/button-styles'
 import { Card, EmptyState, Meter, Skeleton } from '@/components/ui/Card'
 import { PinRow } from '@/components/pins/PinRow'
+import { GetStarted } from '@/components/layout/GetStarted'
 import { usePinCounts, usePins, useSummary } from '@/lib/hooks'
 import { PLANS } from '@/types'
 
@@ -34,6 +35,8 @@ export default function OverviewPage() {
         <Link href="/dashboard/schedule" className={buttonStyles('primary')}><PlusSquare size={16} aria-hidden /> New pin</Link>
       </div>
 
+      <GetStarted />
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={Clock} label="Scheduled" value={counts ? counts.pending + counts.processing : null} tone="text-sky-600" href="/dashboard/pins" />
         <Stat icon={CheckCircle2} label="Published" value={counts?.published ?? null} tone="text-emerald-600" href="/dashboard/pins" />
@@ -58,7 +61,7 @@ export default function OverviewPage() {
             {upcoming.loading ? <div className="space-y-3 p-4"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
               : upcoming.pins.length === 0 ? (
                 <EmptyState icon={CalendarDays} title="Your queue is empty" description="Add a few pins and they publish on their own."
-                  action={<div className="flex flex-wrap justify-center gap-2"><Link href="/dashboard/schedule" className={buttonStyles('primary', 'sm')}>New pin</Link><Link href="/dashboard/import" className={buttonStyles('outline', 'sm')}>Import from website</Link></div>} />
+                  action={<div className="flex flex-wrap justify-center gap-2"><Link href="/dashboard/design" className={buttonStyles('primary', 'sm')}>Design a pin</Link><Link href="/dashboard/schedule" className={buttonStyles('outline', 'sm')}>Upload a pin</Link><Link href="/dashboard/import" className={buttonStyles('outline', 'sm')}>Import from website</Link></div>} />
               ) : <div className="divide-y divide-line">{upcoming.pins.map((p) => <PinRow key={p.id} pin={p} />)}</div>}
           </Card>
         </section>
@@ -73,8 +76,9 @@ export default function OverviewPage() {
         </section>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
+          { href: '/dashboard/design', icon: Palette, title: 'Design a pin', text: 'Pick a template, type a headline, done.' },
           { href: '/dashboard/import', icon: Globe, title: 'Import from a website', text: 'Turn a blog post or product page into pins.' },
           { href: '/dashboard/bulk', icon: Layers, title: 'Bulk schedule', text: 'Upload images or a CSV and spread them over days.' },
           { href: '/dashboard/calendar', icon: CalendarDays, title: 'See the calendar', text: 'Your month at a glance.' },

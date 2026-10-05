@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { PIN_LIMITS, PLANS, type PlanDetails } from '@shared/plans'
 import { generateSlots, isValidTimeZone } from '@shared/schedule'
+import { paceWarnings, REPEAT_IMAGE_DAYS } from '@shared/pace'
 import { db } from './clients'
 import { getProfile, invalidateProfile, type Profile } from './plan'
 import { dequeue, enqueue } from './queue'
@@ -56,7 +57,7 @@ export interface PreparedRow {
   id: string; image_url: string; title: string; description: string; alt_text: string; board_id: string
   board_name: string; destination_url: string; scheduled_at: string; batch_id: string
 }
-export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile }
+export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Profile; warnings: string[] }
 
 /** Validate plan gates, resolve times and build the rows. No writes, so it is safe for dry runs. */
 export async function prepareSchedule(userId: string, body: ScheduleBody): Promise<Prepared> {
@@ -88,7 +89,23 @@ export async function prepareSchedule(userId: string, body: ScheduleBody): Promi
       board_id: p.board_id, board_name: p.board_name, destination_url: p.destination_url || '', scheduled_at: at.toISOString(), batch_id: batchId,
     }
   })
-  return { rows, plan, profile }
+  return { rows, plan, profile, warnings: await pacing(userId, rows, profile.timezone) }
+}
+
+/** Compare the new rows with pins already near them in time. Best effort: a failed lookup means no warnings. */
+async function pacing(userId: string, rows: PreparedRow[], timezone: string): Promise<string[]> {
+  try {
+    const times = rows.map((r) => new Date(r.scheduled_at).getTime())
+    const pad = (REPEAT_IMAGE_DAYS + 1) * 86_400_000
+    const { data } = await db.from('scheduled_pins').select('scheduled_at, image_url').eq('user_id', userId)
+      .in('status', ['pending', 'processing', 'published'])
+      .gte('scheduled_at', new Date(Math.min(...times) - pad).toISOString()).lte('scheduled_at', new Date(Math.max(...times) + pad).toISOString())
+      .limit(3000)
+    return paceWarnings(rows, (data ?? []) as { scheduled_at: string; image_url: string }[], isValidTimeZone(timezone) ? timezone : 'UTC')
+  } catch (e) {
+    log.warn('pace check failed', { error: errMsg(e) })
+    return []
+  }
 }
 
 /** Store vectors for similarity warnings. Best effort and off the request path. */
@@ -104,7 +121,7 @@ async function indexPins(userId: string, rows: { id: string; title: string; desc
   }
 }
 
-export async function commitSchedule(userId: string, { rows, plan, profile }: Prepared) {
+export async function commitSchedule(userId: string, { rows, plan, profile, warnings }: Prepared) {
   const { data, error } = await db.rpc('schedule_pins', { p_user: userId, p_rows: rows, p_limit: plan.pins_per_month })
   if (error) {
     const m = error.message.match(/quota_exceeded:(\d+):(\d+)/)
@@ -119,7 +136,7 @@ export async function commitSchedule(userId: string, { rows, plan, profile }: Pr
   await invalidateProfile(userId)
   void indexPins(userId, rows)
   const times = rows.map((r) => r.scheduled_at).sort()
-  return { created: created.length, ids: created.map((r) => r.id), first_at: times[0], last_at: times[times.length - 1] }
+  return { created: created.length, ids: created.map((r) => r.id), first_at: times[0], last_at: times[times.length - 1], warnings }
 }
 
 export async function schedulePins(userId: string, body: ScheduleBody) {

@@ -1,7 +1,16 @@
+import { PLANS } from '@shared/plans'
 import { FACTS, CHECKED, SRC } from './facts'
 import { callout, h2, h3, p, plansTable, table, ul, type SeoPage } from './types'
 
 const { free, starter } = FACTS
+
+/** BlogToPin's published tiers (blogtopin.com/pricing, checked October 2026). */
+const BLOGTOPIN = [
+  { name: 'Starter', price: 25, yearly: 299, pins: 1000 },
+  { name: 'Agency', price: 50, yearly: 599, pins: 10000 },
+  { name: 'Enterprise', price: 125, yearly: 1499, pins: 30000 },
+]
+const perPin = (price: number, pins: number) => `$${(price / pins).toFixed(price / pins < 0.01 ? 4 : 3)}`
 
 export const comparePages: SeoPage[] = [
   // ───────────────────────────────────────────────── /best-pinterest-tools
@@ -19,7 +28,7 @@ export const comparePages: SeoPage[] = [
       p('Start from the job, not the brand. If your bottleneck is getting pins published on a steady schedule, you need a scheduler. If it is making attractive images, you need a design tool. If you are unsure what to pin about, you need keyword research. Many tools overlap, so start with the free tier of the one that matches your biggest bottleneck.'),
       table(['Job', 'Tools to look at'], [
         ['Scheduling and automation', 'GoPinKaro, Tailwind, Pinterest built-in scheduler, BlogToPin, Metricool'],
-        ['Designing pins', 'Canva, Adobe Express'],
+        ['Designing pins', 'GoPinKaro pin designer, Canva, Adobe Express'],
         ['Keyword research', 'Pinterest Trends, PinClicks, Pin Inspector, GoPinKaro keyword tool'],
         ['Free options', "Pinterest's scheduler, Pinterest Trends, GoPinKaro Free, Canva Free"],
       ]),
@@ -35,6 +44,8 @@ export const comparePages: SeoPage[] = [
       h3('Metricool'),
       p('A multi-network social planner with a free tier that can schedule Pinterest pins and show basic analytics. Useful if Pinterest is one channel among several.'),
       h2('design', 'Designing pins'),
+      h3('GoPinKaro pin designer'),
+      p(`A simple template designer inside GoPinKaro: ${FACTS.designer.templates} layouts, ${FACTS.designer.palettes} color sets, an optional photo, and a ${FACTS.designer.width} x ${FACTS.designer.height} image you can download or schedule in one click. It is quick for text-led pins; it is not a full design studio.`),
       h3('Canva'),
       p('The most widely used design tool for pins, with vertical templates and batch features. It does not replace a scheduler, but it pairs well with one: design in Canva, export images, then bulk upload them to GoPinKaro.'),
       h2('research', 'Keyword research'),
@@ -53,7 +64,7 @@ export const comparePages: SeoPage[] = [
       ul(
         'You need to manage several Pinterest accounts from one login.',
         'You also publish to Instagram, Facebook or other networks from the same tool.',
-        'You want a built-in pin design studio.',
+        `You want pin images generated for you automatically. The pin designer is template-based and you write the text.`,
         'You need deep competitor and keyword volume research.',
       ),
       h2('pricing', 'GoPinKaro plans'),
@@ -92,7 +103,7 @@ export const comparePages: SeoPage[] = [
         ['Pinterest accounts', 'One per login', 'Depends on plan tier'],
         ['Bulk scheduling', `Images or CSV, up to ${FACTS.bulkMax} per batch (paid)`, 'Bulk creation and scheduling tools'],
         ['Website to pins', 'Single page, plus whole sitemap on Pro and above', 'Check their current feature list'],
-        ['Pin design', 'None. Use Canva or similar', 'Includes design and AI design features'],
+        ['Pin design', `Template designer: ${FACTS.designer.templates} layouts, ${FACTS.designer.palettes} color sets, your own photo. Use Canva for custom artwork`, 'Includes design and AI design features'],
         ['AI writing', `${free.ai} generations a month free, more on paid plans`, 'AI copy features, check how usage is counted on your plan'],
         ['Chat assistant that operates the app', 'Yes, with confirmation before changes', 'No equivalent that we know of'],
         ['Free plan', `Yes, ${free.pins} pins a month`, 'Check their current free plan'],
@@ -112,7 +123,7 @@ export const comparePages: SeoPage[] = [
       ul(
         'It publishes only to Pinterest.',
         'Each login connects a single Pinterest account.',
-        'It has no pin design studio.',
+        `Its pin designer is template-based (${FACTS.designer.templates} layouts), not a full design studio like Canva.`,
         'It is newer than long-standing tools, so it has less history and fewer third-party tutorials.',
       ),
       h2('switching', 'Switching without losing your queue'),
@@ -123,10 +134,131 @@ export const comparePages: SeoPage[] = [
     faqs: [
       { q: 'What is the best Tailwind alternative?', a: 'It depends on what you want to change. For a Pinterest-only scheduler with bulk scheduling, website import and a free plan, GoPinKaro is one option. If you want multi-network scheduling, look at tools that cover several networks.' },
       { q: 'Is GoPinKaro cheaper than Tailwind?', a: `GoPinKaro's plans start at $${starter.price} a month and include a free plan. We do not publish Tailwind's prices because they change; compare against the current plan on tailwindapp.com for the features you need.` },
-      { q: 'Does GoPinKaro have a design tool like Tailwind?', a: 'No. GoPinKaro does not design images. Create pins in Canva or another design tool and upload them with the bulk scheduler.' },
+      { q: 'Does GoPinKaro have a design tool like Tailwind?', a: `Partly. GoPinKaro has a template-based pin designer (${FACTS.designer.templates} layouts, ${FACTS.designer.palettes} color sets, optional photo) that saves a ${FACTS.designer.width} x ${FACTS.designer.height} image, but it is not a full design studio and has no AI image generation. For custom artwork, design in Canva and upload it.` },
       { q: 'Can I manage multiple Pinterest accounts?', a: 'Each GoPinKaro login connects one Pinterest account. Use separate logins for separate accounts.' },
       { q: 'Does GoPinKaro use the official Pinterest API?', a: 'Yes. You connect with Pinterest sign-in and approve the permissions, and pins are published through the official API.' },
     ],
     related: ['best-pinterest-tools', 'pinterest-scheduler', 'pinterest-bulk-scheduler', 'free-pinterest-scheduler'],
+  },
+
+  // ───────────────────────────────────────────────── /pinterest-scheduler-pricing
+  {
+    path: 'pinterest-scheduler-pricing',
+    kind: 'comparison',
+    label: 'Pinterest scheduler pricing',
+    title: 'Pinterest scheduler pricing compared (2026)',
+    description: "What Pinterest schedulers really cost in 2026: Tailwind, BlogToPin, Later, Buffer, Publer and more, with entry prices, per-pin cost and the credit and per-account charges that change the bill.",
+    h1: 'Pinterest scheduler pricing compared: what you really pay in 2026',
+    intro: `Pinterest's own scheduler is free. Pinterest-focused paid tools mostly cost between about $18 and $30 a month, general social media tools run from a few dollars per channel to $99 a month, and the number on the pricing page is rarely the whole story: credit pools, per-account pricing and annual billing all change it. GoPinKaro is free for ${free.pins} pins a month and paid plans start at $${starter.price}.`,
+    updated: CHECKED,
+    blocks: [
+      h2('table', 'Entry prices side by side'),
+      table(['Tool', 'Entry price (USD)', 'Free option', 'What to know'], [
+        ["Pinterest's built-in scheduler", 'Free', 'Yes', 'One pin at a time, up to 30 days ahead, up to 10 scheduled at once.'],
+        ['GoPinKaro', `From $${starter.price} a month ($${starter.yearly} a year)`, `Yes, ${free.pins} pins a month`, 'Pinterest only. Plans are priced by pins a month, with no credits to track.'],
+        ['Tailwind', 'From $17.99 a month billed annually, or $29.99 billed monthly', 'Yes, limited', 'The scheduling and creation plan includes 300 credits a month. Extra credits cost $10 per 100. Priced per Pinterest account; SEO and Engagement are separate add-ons.'],
+        ['BlogToPin', `From $${BLOGTOPIN[0].price} a month ($${BLOGTOPIN[0].yearly} a year)`, 'Check their site', 'Creates pins from your website automatically. First tier allows 1,000 pins a month; unlimited Pinterest accounts.'],
+        ['PinBoostr', 'About $19.99 a month (as reported)', 'Free plan reported', 'Creates and schedules pins. Price comes from third-party roundups.'],
+        ['Later', 'About $25 a month', 'Limited free tier', 'Multi-network and Instagram-first.'],
+        ['Buffer', 'About $5 to $6 per channel a month', 'Yes', 'Pinterest counts as one channel. Simple and multi-network.'],
+        ['Publer', 'From about $12 a month', 'Yes', 'Bulk upload and CSV import across several networks.'],
+        ['Planoly', 'About $13 to $16 a month', 'Free mobile tier reported', 'Visual planner across several networks.'],
+        ['Metricool', 'About $20 to $22 a month', 'Yes, 20 posts a month', 'Analytics-led, multi-network.'],
+        ['SocialPilot', 'About $30 a month', '14-day trial', 'Agency-oriented, with bulk and CSV scheduling.'],
+        ['Hootsuite', 'About $99 a month', 'Trial only', 'Enterprise suite with approval workflows.'],
+        ['Social Champ', 'About $2 to $4 per account a month on annual billing', 'Limited', 'The cheapest multi-network option in the roundups.'],
+      ], 'Tailwind and BlogToPin prices are from their own pricing pages; the rest are as listed in third-party roundups. Checked October 2026, in US dollars. Vendors change prices and billing periods often, so confirm on the vendor\'s page before you buy.'),
+      h2('per-pin', 'What a pin costs'),
+      p('Where a plan states how many pins it includes, you can work out the price per pin. Tailwind sells credits rather than pins, so it cannot be compared this way.'),
+      table(['Plan', 'Price a month', 'Pins a month', 'Per pin'], [
+        ...(['starter', 'pro', 'growth'] as const).map((id) => [`GoPinKaro ${PLANS[id].name}`, `$${PLANS[id].price_monthly_usd}`, PLANS[id].pins_per_month.toLocaleString('en-US'), perPin(PLANS[id].price_monthly_usd, PLANS[id].pins_per_month)]),
+        ...BLOGTOPIN.map((t) => [`BlogToPin ${t.name}`, `$${t.price}`, t.pins.toLocaleString('en-US'), perPin(t.price, t.pins)]),
+      ], 'Monthly prices, not annual. BlogToPin figures are from its pricing page; its daily limits are 35, 350 and 1,000 pins by tier.'),
+      p(`GoPinKaro Starter costs less in total ($${starter.price} against $${BLOGTOPIN[0].price}) but slightly more per pin than BlogToPin's first tier. GoPinKaro Pro and Business are cheaper per pin than BlogToPin's first tier, while BlogToPin's Agency and Enterprise tiers are cheaper per pin than any GoPinKaro plan and come with unlimited Pinterest accounts. Both are caps, not targets: many Pinterest guides recommend staying around 5 to 15 pins a day whatever a tool allows, and GoPinKaro warns you above ${FACTS.dailySoftMax} a day.`),
+      h2('real-price', 'What changes the real price'),
+      ul(
+        '**Credit pools.** Tailwind\'s plans include a monthly credit allowance used for its AI and creation features, and extra credits are sold separately at $10 per 100. Heavy AI use can cost more than the plan price suggests.',
+        '**Per account or per channel.** Tailwind is priced per Pinterest account, Buffer per channel and Social Champ per account. If you run several accounts, multiply.',
+        '**Annual versus monthly.** Tailwind\'s scheduling plan is $17.99 a month billed annually but $29.99 billed monthly, a 40% difference for the same product.',
+        '**Features behind higher tiers.** Bulk upload, best-time scheduling and sitemap import are on paid tiers in most tools, GoPinKaro included.',
+        '**Volume limits.** Check whether the cap is in pins, posts or credits, and whether it is per day or per month.',
+      ),
+      h2('which', 'Which pricing model suits you'),
+      ul(
+        'You post a few pins a week: use Pinterest\'s free scheduler, or the GoPinKaro Free plan if you want to schedule further ahead or import pages.',
+        'You run one Pinterest account and want predictable bills: a flat pins-per-month plan is the easiest to budget.',
+        'You manage many Pinterest accounts: look at tools that price by volume rather than per account, such as BlogToPin.',
+        'Pinterest is one channel of several: a multi-network tool such as Buffer, Publer or Metricool may cost less overall.',
+      ),
+      h2('our-plans', 'GoPinKaro plans'),
+      plansTable(),
+      h2('method', 'How this page was checked'),
+      p('Tailwind and BlogToPin figures were read from their pricing pages on 6 October 2026. The other prices come from comparison articles listed below, and where two sources disagreed (for example Buffer at $5 or $6, Planoly at $13 or $16) we show the range. Some tools were left out of the table because the sources conflicted too much to state a price. Pricing changes often; this page is reviewed on the date shown above.'),
+    ],
+    faqs: [
+      { q: 'What is the cheapest way to schedule Pinterest pins?', a: `Pinterest's built-in scheduler is free but limited to one pin at a time, up to 30 days ahead, with 10 pins scheduled at once. Beyond that, GoPinKaro's free plan allows ${free.pins} pins a month, and some multi-network tools such as Social Champ or Buffer start at a few dollars per account or channel.` },
+      { q: 'How much does Tailwind cost?', a: "On Tailwind's pricing page the Pin Scheduling and Creation plan is $17.99 a month billed annually or $29.99 billed monthly, with 300 credits a month. Pinterest SEO and Pinterest Engagement are $11.99 a month annual or $14.99 monthly each, and a bundle of all three is $29.98 annual or $41.97 monthly. Extra credits are $10 per 100, and plans are per Pinterest account." },
+      { q: 'How much does BlogToPin cost?', a: `BlogToPin lists three plans: $${BLOGTOPIN[0].price} a month (1,000 pins), $${BLOGTOPIN[1].price} a month (10,000 pins) and $${BLOGTOPIN[2].price} a month (30,000 pins), with unlimited Pinterest accounts. Yearly billing is $${BLOGTOPIN[0].yearly}, $${BLOGTOPIN[1].yearly} and $${BLOGTOPIN[2].yearly}.` },
+      { q: 'Is a Pinterest scheduler worth paying for?', a: 'It depends on volume. If you publish a few pins a week, Pinterest\'s free scheduler may be enough. A paid tool earns its price when you schedule dozens of pins, want bulk upload, or want pins to follow new content automatically.' },
+      { q: 'Why do prices differ between websites?', a: 'Vendors change prices and billing periods, roundup articles lag behind, and many quote annual billing as a monthly figure. Always confirm on the vendor\'s own page.' },
+    ],
+    related: ['tailwind-alternative', 'blogtopin-alternative', 'free-pinterest-scheduler', 'best-pinterest-tools'],
+    sources: [SRC.tailwindPricing, SRC.blogtopinPricing, SRC.schedulerRoundup, SRC.pinboostrRoundup, SRC.gainRoundup, SRC.nativeLimits],
+  },
+
+  // ───────────────────────────────────────────────── /blogtopin-alternative
+  {
+    path: 'blogtopin-alternative',
+    kind: 'comparison',
+    label: 'BlogToPin alternative',
+    title: 'BlogToPin alternative for Pinterest scheduling',
+    description: 'GoPinKaro compared with BlogToPin: price, pin volume, accounts, daily limits and how each creates pins, with where BlogToPin is the better fit.',
+    h1: 'A BlogToPin alternative for Pinterest scheduling',
+    intro: `BlogToPin scans your website and generates pins automatically. GoPinKaro is a Pinterest scheduler where you stay in the loop: it drafts titles and descriptions, lets you design from templates or use your own images, and schedules after you review. It has a free plan (${free.pins} pins a month) and paid plans from $${starter.price} a month, against BlogToPin's $${BLOGTOPIN[0].price}.`,
+    updated: CHECKED,
+    blocks: [
+      h2('summary', 'The short version'),
+      ul(
+        '**Choose GoPinKaro** if you want to review each pin, pay less for a smaller volume, start on a free plan, or use a chat assistant to run the schedule.',
+        '**Choose BlogToPin** if you want pins generated for you from your site with as little involvement as possible, need unlimited Pinterest accounts, or publish at very high volume.',
+      ),
+      h2('differences', 'Side by side'),
+      table(['', 'GoPinKaro', 'BlogToPin'], [
+        ['How pins are made', `You review drafted text; images come from your pages, your uploads or the template designer (${FACTS.designer.templates} layouts)`, 'Generated automatically from your website, with a template library'],
+        ['Pinterest accounts', 'One per login', 'Unlimited on every plan'],
+        ['Pins a month', `${starter.pins} at $${starter.price}, ${FACTS.pro.pins} at $${FACTS.pro.price}, ${FACTS.business.pins} at $${FACTS.business.price}`, `1,000 at $${BLOGTOPIN[0].price}, 10,000 at $${BLOGTOPIN[1].price}, 30,000 at $${BLOGTOPIN[2].price}`],
+        ['Daily pace', `You choose; you are warned above ${FACTS.dailySoftMax} a day`, 'Plan limits of 35, 350 and 1,000 pins a day'],
+        ['Free plan', `Yes, ${free.pins} pins a month`, 'None on the pricing page; check for a trial'],
+        ['AI text', `${free.ai} generations a month free, more on paid plans`, 'AI credits per plan (200, 400, 500) with unlimited regenerations stated'],
+        ['Chat assistant', 'Yes, with confirmation before changes', 'Not listed on the pricing page'],
+        ['Starting price', `$${starter.price} a month, $${starter.yearly} a year`, `$${BLOGTOPIN[0].price} a month, $${BLOGTOPIN[0].yearly} a year`],
+      ], "BlogToPin details are from its pricing page, checked October 2026. Confirm current features and prices on blogtopin.com."),
+      h2('why-switch', 'Why people compare them'),
+      p(`Usual reasons are price, wanting to see every pin before it publishes, and wanting a free plan to test with. BlogToPin's daily limits are ceilings rather than targets: many Pinterest guides recommend staying around 5 to 15 pins a day whatever a tool allows, so check the pace you will really run before paying for volume you will not use.`),
+      h2('strengths', 'Where GoPinKaro is strong'),
+      ul(
+        '**Review first.** You approve titles, descriptions and images before anything is scheduled.',
+        '**Lower entry price and a free plan.** Start free, then pay from $' + starter.price + ' a month.',
+        '**Pacing check.** After you schedule, it flags crowded days and repeated images.',
+        '**Assistant.** Ask for a week of pins, a retry or a report in plain language; it asks before changing anything.',
+      ),
+      h2('limits-us', 'Where GoPinKaro is limited'),
+      ul(
+        'It does not generate pin images automatically. The designer fills templates with text you write.',
+        'Each login connects one Pinterest account.',
+        'It tops out at 6,000 pins a month on the Business plan.',
+        'It is newer, so it has a shorter track record.',
+      ),
+      h2('plans', 'GoPinKaro plans'),
+      plansTable(),
+    ],
+    faqs: [
+      { q: 'Is GoPinKaro a BlogToPin alternative?', a: 'Yes, with a different approach. BlogToPin generates pins automatically from your site; GoPinKaro drafts text and schedules pins you review, and offers a template designer for images.' },
+      { q: 'Is GoPinKaro cheaper than BlogToPin?', a: `The entry price is lower: $${starter.price} a month for ${starter.pins} pins against $${BLOGTOPIN[0].price} for 1,000, though per pin BlogToPin's first tier is slightly cheaper. At high volume BlogToPin is clearly cheaper per pin, for example $${BLOGTOPIN[1].price} for 10,000 pins.` },
+      { q: 'Can GoPinKaro create pin images automatically?', a: `Not automatically. The pin designer has ${FACTS.designer.templates} templates and ${FACTS.designer.palettes} color sets; you write the headline and can add your own photo. Website import uses the images already on your pages.` },
+      { q: 'Does GoPinKaro support several Pinterest accounts?', a: 'Each login connects one Pinterest account. BlogToPin lists unlimited accounts on every plan.' },
+    ],
+    related: ['pinterest-scheduler-pricing', 'tailwind-alternative', 'website-to-pinterest-pins', 'best-pinterest-tools'],
+    sources: [SRC.blogtopinPricing, SRC.automationGuide],
   },
 ]

@@ -14,7 +14,7 @@ import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { SimilarNotice } from '@/components/pins/SimilarNotice'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { uploadImage, validateImage } from '@/lib/upload'
+import { isOwnImage, uploadImage, validateImage } from '@/lib/upload'
 import { PIN_LIMITS, PLANS } from '@/types'
 import { cn, toLocalInput } from '@/lib/utils'
 
@@ -24,11 +24,14 @@ function NewPin() {
   const { summary } = useSummary()
   const canAuto = summary ? PLANS[summary.plan].smart_scheduler : false
 
+  // A pin made in the designer arrives as an already-uploaded image (?image=), accepted only from our own bucket.
+  const designed = params.get('image')
+  const [remote, setRemote] = useState(designed && isOwnImage(designed) ? designed : '')
   const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState('')
+  const [preview, setPreview] = useState(remote)
   const [title, setTitle] = useState(params.get('title') ?? '')
   const [description, setDescription] = useState(params.get('description') ?? '')
-  const [altText, setAltText] = useState('')
+  const [altText, setAltText] = useState(params.get('alt') ?? '')
   const [link, setLink] = useState('')
   const [board, setBoard] = useState({ id: '', name: '' })
   const [mode, setMode] = useState<'best' | 'custom'>('custom')
@@ -43,27 +46,29 @@ function NewPin() {
     const problem = validateImage(f)
     if (problem) return toast.error(problem)
     setFile(f)
+    setRemote('')
     setPreview(URL.createObjectURL(f))
   }, [])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1 })
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!file) return toast.error('Add an image first.')
+    if (!file && !remote) return toast.error('Add an image first.')
     if (!board.id) return toast.error('Choose a board.')
     if (effectiveMode === 'custom' && !when) return toast.error('Pick a date and time.')
     if (link && !/^https?:\/\//i.test(link)) return toast.error('The destination link must start with https://')
 
     setBusy(true)
     try {
-      const image_url = await uploadImage(file)
+      const image_url = file ? await uploadImage(file) : remote
       const pin = {
         image_url, title, description, alt_text: altText, board_id: board.id, board_name: board.name,
         destination_url: link || null,
         ...(effectiveMode === 'custom' ? { scheduled_at: new Date(when).toISOString() } : {}),
       }
-      await api('/pins/schedule', { body: { pins: [pin], ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
+      const res = await api<{ warnings?: string[] }>('/pins/schedule', { body: { pins: [pin], ...(effectiveMode === 'best' ? { auto: { per_day: 2 } } : {}) } })
       toast.success('Pin scheduled.')
+      for (const w of res.warnings ?? []) toast.warning(w, { duration: 12000 })
       void refreshSummary()
       router.push('/dashboard/pins')
     } catch (err) {
@@ -82,7 +87,7 @@ function NewPin() {
             <div className="relative w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview} alt="Selected pin" className="max-h-72 rounded-lg border border-line object-contain" />
-              <button type="button" onClick={() => { setFile(null); setPreview('') }} aria-label="Remove image"
+              <button type="button" onClick={() => { setFile(null); setRemote(''); setPreview('') }} aria-label="Remove image"
                 className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-stone-900/70 text-white hover:bg-stone-900">
                 <X size={15} />
               </button>
@@ -132,7 +137,7 @@ function NewPin() {
             {effectiveMode === 'custom' ? (
               <Input aria-label="Publish date and time" type="datetime-local" value={when} min={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} className="sm:max-w-xs" />
             ) : (
-              <p className="text-sm text-muted">GoPinKaro picks the next high-engagement slot after your last scheduled pin, in {summary?.timezone ?? 'your'} time.</p>
+              <p className="text-sm text-muted">GoPinKaro picks the next evening or afternoon slot (hours Pinterest is typically busy) after your last scheduled pin, in {summary?.timezone ?? 'your'} time.</p>
             )}
             {!canAuto && summary && <div className="mt-3"><UpgradeNote>Best-time scheduling is included in paid plans.</UpgradeNote></div>}
           </div>

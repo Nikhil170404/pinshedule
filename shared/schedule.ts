@@ -1,6 +1,10 @@
 // Timezone-aware "best time" slot generation. Pure functions, no I/O.
 
-/** Hours (local time) ranked by typical Pinterest engagement; first N are used for N pins/day. */
+/**
+ * Hours (local time) ranked by typical Pinterest engagement; first N are used for N pins/day.
+ * A fixed, general-purpose ranking: it is not learned from an individual account's own audience, so
+ * user-facing copy must describe it as "typically busy hours" and not as personalised timing.
+ */
 const PREFERRED_HOURS = [20, 14, 21, 9, 12, 16, 18, 11, 7, 22]
 
 export function hoursForPerDay(perDay: number): number[] {
