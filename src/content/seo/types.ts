@@ -22,6 +22,10 @@ export interface SeoPage {
   intro: string
   /** ISO date of the last review of the facts on the page. */
   updated: string
+  /** ISO date the page first went live (defaults to `updated`). */
+  published?: string
+  /** Where the page's sign-up buttons send people after Pinterest sign-in, with the button text. */
+  cta?: { label: string; redirect: string }
   blocks: Block[]
   faqs: { q: string; a: string }[]
   related: string[]

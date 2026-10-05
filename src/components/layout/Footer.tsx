@@ -5,13 +5,17 @@ import { site } from '@/lib/site'
 
 const product = ['pinterest-scheduler', 'pinterest-bulk-scheduler', 'pinterest-automation-tool', 'website-to-pinterest-pins', 'pinterest-keyword-tool', 'free-pinterest-scheduler']
 
+const MAX = 8
+
 export function Footer() {
   const byPath = (path: string) => [...groups.product, ...groups.compare, ...groups.useCases, ...groups.guides].find((p) => p.path === path)
+  const link = (p: { path: string; label: string }) => ({ href: `/${p.path}`, label: p.label })
+  const hub = (path: string, label: string) => ({ href: `/${path}`, label })
   const cols = [
     { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
-    { title: 'Compare', links: groups.compare.map((p) => ({ href: `/${p.path}`, label: p.label })) },
-    { title: 'Use cases', links: groups.useCases.map((p) => ({ href: `/${p.path}`, label: p.label.replace('Pinterest scheduler for ', '') })) },
-    { title: 'Guides', links: groups.guides.map((p) => ({ href: `/${p.path}`, label: p.label })) },
+    { title: 'Alternatives', links: [...groups.compare.slice(0, MAX).map(link), hub('alternatives', 'All alternatives')] },
+    { title: 'Use cases', links: [...groups.useCases.slice(0, MAX).map((p) => ({ href: `/${p.path}`, label: p.label.replace('Pinterest scheduler for ', '') })), hub('use-cases', 'All use cases')] },
+    { title: 'Guides', links: [...groups.guides.slice(0, MAX).map(link), hub('guides', 'All guides')] },
   ]
   return (
     <footer className="mt-auto border-t border-line bg-white">

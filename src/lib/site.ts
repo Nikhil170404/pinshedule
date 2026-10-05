@@ -5,6 +5,8 @@ export const site = {
   url: (process.env.NEXT_PUBLIC_APP_URL ?? 'https://gopinkaro.com').replace(/\/$/, ''),
   title: 'GoPinKaro: Pinterest scheduler for bulk pins',
   description: 'Schedule Pinterest pins in bulk, turn your website into pins, and publish at the best times. Free plan included.',
+  /** When the core pages (home, features, pricing, legal) last changed. Content pages carry their own dates. */
+  updated: '2026-10-06',
   ogImage: { url: '/og.png', width: 1200, height: 630, alt: 'GoPinKaro, the Pinterest scheduler for bulk pins' },
 }
 

@@ -3,14 +3,26 @@ import { ChevronDown } from 'lucide-react'
 import { PLANS, type Plan } from '@shared/plans'
 import { buttonStyles } from '@/components/ui/button-styles'
 import { JsonLd } from './JsonLd'
-import { allPages, pageUrl, siteUrl } from '@/content/seo'
+import { allPages, hubForKind, pageUrl, siteUrl } from '@/content/seo'
+import { site } from '@/lib/site'
 import type { Block, SeoPage } from '@/content/seo/types'
 
-/** Supports **bold** only; everything else is plain text, so authored copy can never inject markup. */
+/**
+ * Supports **bold** and [text](/internal-path) or [text](https://external) links. Nothing else, so authored copy can never
+ * inject markup. Internal links are how the content pages point at each other; a test checks that every one resolves.
+ */
+const TOKEN = /(\*\*[^*]+\*\*|\[[^\]]+\]\((?:\/[^)\s]*|https:\/\/[^)\s]+)\))/g
+const LINK = /^\[([^\]]+)\]\((\/[^)\s]*|https:\/\/[^)\s]+)\)$/
 function inline(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong> : part
-  )
+  return text.split(TOKEN).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong>
+    const m = part.match(LINK)
+    if (!m) return part
+    const cls = 'font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:text-brand-dark'
+    return m[2].startsWith('/')
+      ? <Link key={i} href={m[2]} className={cls}>{m[1]}</Link>
+      : <a key={i} href={m[2]} target="_blank" rel="noopener noreferrer" className={cls}>{m[1]}</a>
+  })
 }
 
 const ORDER: Plan[] = ['free_trial', 'starter', 'pro', 'growth']
@@ -85,19 +97,57 @@ function BlockView({ b }: { b: Block }) {
 
 const fmtDate = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
 
+const ctaHref = (page: SeoPage) => `/login?redirect=${encodeURIComponent(page.cta?.redirect ?? '/dashboard')}`
+
+const CTA_TEXT: Record<SeoPage['kind'], string> = {
+  product: 'Connect your Pinterest account and schedule your first pins in a few minutes. The Free plan needs no card.',
+  comparison: 'The quickest way to compare is to try it. Connect your Pinterest account and schedule a few pins on the Free plan, no card needed.',
+  'use-case': 'Connect your Pinterest account and set up your first batch today. The Free plan needs no card.',
+  guide: 'Put this into practice: connect your Pinterest account and schedule your first pins on the Free plan, no card needed.',
+}
+
+/** A sign-up card placed part-way down the article, where interest is highest. */
+function InlineCta({ page }: { page: SeoPage }) {
+  return (
+    <aside className="my-10 rounded-2xl border border-line bg-white p-6 sm:p-7" aria-label="Try GoPinKaro">
+      <p className="text-lg font-semibold tracking-tight text-ink">{page.cta?.label ?? 'Try GoPinKaro free'}</p>
+      <p className="mt-1.5 text-[15px] leading-7 text-stone-600">{CTA_TEXT[page.kind]}</p>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <Link href={ctaHref(page)} className={buttonStyles('primary', 'md')}>Start free with Pinterest</Link>
+        <Link href="/pricing" className={buttonStyles('outline', 'md')}>See pricing</Link>
+      </div>
+    </aside>
+  )
+}
+
+/** Pages worth a click next: more of the same kind, plus a spread across the site, so no page is a dead end. */
+function moreToExplore(page: SeoPage, related: SeoPage[]): SeoPage[] {
+  const seen = new Set([page.path, ...related.map((r) => r.path)])
+  const of = (kind: SeoPage['kind'], n: number) => allPages.filter((p) => p.kind === kind && !seen.has(p.path)).slice(0, n)
+  const picks = page.kind === 'comparison' ? [...of('comparison', 6)]
+    : page.kind === 'guide' ? [...of('guide', 4), ...of('comparison', 2)]
+    : page.kind === 'use-case' ? [...of('use-case', 2), ...of('guide', 2), ...of('comparison', 2)]
+    : [...of('comparison', 3), ...of('guide', 3)]
+  return picks.filter((p, i) => picks.findIndex((q) => q.path === p.path) === i)
+}
+
 export function SeoArticle({ page }: { page: SeoPage }) {
   const url = pageUrl(page.path)
   const toc = page.blocks.filter((b): b is Extract<Block, { type: 'h2' }> => b.type === 'h2')
+  // The sign-up card goes just before the third section heading, or near the end of a short page.
+  const headings = page.blocks.map((b, i) => (b.type === 'h2' ? i : -1)).filter((i) => i >= 0)
+  const ctaAt = headings[2] ?? Math.max(1, page.blocks.length - 1)
   const related = page.related.map((r) => allPages.find((x) => x.path === r)).filter((x): x is SeoPage => !!x)
 
+  const hub = hubForKind(page.kind)
+  const crumbs = [{ name: 'Home', item: siteUrl() }, ...(hub && page.kind !== 'product' ? [{ name: hub.label, item: pageUrl(hub.path) }] : []), { name: page.label, item: url }]
+  const published = page.published ?? page.updated
+  const publisher = { '@type': 'Organization', name: site.name, url: siteUrl(), logo: { '@type': 'ImageObject', url: `${siteUrl()}/icon-512.png` } }
   const graph: Record<string, unknown>[] = [
-    {
-      '@type': 'BreadcrumbList',
-      itemListElement: [{ name: 'Home', item: siteUrl() }, { name: page.label, item: url }].map((b, i) => ({ '@type': 'ListItem', position: i + 1, name: b.name, item: b.item })),
-    },
+    { '@type': 'BreadcrumbList', itemListElement: crumbs.map((b, i) => ({ '@type': 'ListItem', position: i + 1, name: b.name, item: b.item })) },
     page.kind === 'guide'
-      ? { '@type': 'Article', headline: page.h1, description: page.description, dateModified: page.updated, datePublished: page.updated, mainEntityOfPage: url, author: { '@type': 'Organization', name: 'GoPinKaro' }, publisher: { '@type': 'Organization', name: 'GoPinKaro' } }
-      : { '@type': 'WebPage', name: page.h1, description: page.description, url, dateModified: page.updated },
+      ? { '@type': 'Article', headline: page.h1, description: page.description, datePublished: published, dateModified: page.updated, mainEntityOfPage: url, image: `${siteUrl()}${site.ogImage.url}`, author: publisher, publisher }
+      : { '@type': 'WebPage', name: page.h1, description: page.description, url, datePublished: published, dateModified: page.updated, isPartOf: { '@type': 'WebSite', name: site.name, url: siteUrl() } },
   ]
   if (page.kind !== 'guide') {
     graph.push({
@@ -118,12 +168,12 @@ export function SeoArticle({ page }: { page: SeoPage }) {
   return (
     <article className="mx-auto w-full max-w-3xl px-4 pb-6 pt-10 sm:px-6 sm:pt-14">
       <JsonLd data={{ '@context': 'https://schema.org', '@graph': graph }} />
-      <nav aria-label="Breadcrumb" className="text-sm text-muted"><Link href="/" className="hover:text-ink">Home</Link> <span aria-hidden>/</span> <span className="text-ink">{page.label}</span></nav>
+      <nav aria-label="Breadcrumb" className="text-sm text-muted"><Link href="/" className="hover:text-ink">Home</Link> <span aria-hidden>/</span> {hub && page.kind !== 'product' && <><Link href={`/${hub.path}`} className="hover:text-ink">{hub.label}</Link> <span aria-hidden>/</span> </>}<span className="text-ink">{page.label}</span></nav>
       <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">{page.h1}</h1>
       <p className="mt-5 text-lg leading-8 text-stone-700">{inline(page.intro)}</p>
       <p className="mt-3 text-sm text-muted">Facts reviewed {fmtDate(page.updated)}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Link href="/login" className={buttonStyles('primary', 'lg')}>Start free with Pinterest</Link>
+        <Link href={ctaHref(page)} className={buttonStyles('primary', 'lg')}>Start free with Pinterest</Link>
         <Link href="/pricing" className={buttonStyles('outline', 'lg')}>See pricing</Link>
       </div>
 
@@ -134,7 +184,12 @@ export function SeoArticle({ page }: { page: SeoPage }) {
         </nav>
       )}
 
-      {page.blocks.map((b, i) => <BlockView key={i} b={b} />)}
+      {page.blocks.map((b, i) => (
+        <div key={i} className="contents">
+          {i === ctaAt && <InlineCta page={page} />}
+          <BlockView b={b} />
+        </div>
+      ))}
 
       {page.faqs.length > 0 && (
         <section aria-labelledby="faq">
@@ -170,6 +225,18 @@ export function SeoArticle({ page }: { page: SeoPage }) {
           </ul>
         </section>
       )}
+      {(() => {
+        const more = moreToExplore(page, related)
+        return more.length > 0 && (
+          <section aria-labelledby="more" className="mt-10">
+            <h2 id="more" className="text-lg font-semibold text-ink">More to explore</h2>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {more.map((m) => <li key={m.path}><Link href={`/${m.path}`} className="inline-block rounded-full border border-line bg-white px-3.5 py-1.5 text-sm text-stone-700 transition-colors hover:border-stone-400 hover:text-ink">{m.label}</Link></li>)}
+              {hub && <li><Link href={`/${hub.path}`} className="inline-block rounded-full bg-ink px-3.5 py-1.5 text-sm font-medium text-white hover:bg-stone-800">All {hub.label.toLowerCase()}</Link></li>}
+            </ul>
+          </section>
+        )
+      })()}
     </article>
   )
 }
