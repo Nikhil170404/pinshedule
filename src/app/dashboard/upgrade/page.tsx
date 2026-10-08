@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/Card'
 import { CycleToggle, PlanCards } from '@/components/pricing/PlanCards'
 import { api, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { isPaidPlan, type BillingCycle } from '@/types'
+import { isPaidPlan, YEARLY_BILLING, type BillingCycle } from '@/types'
 
 declare global {
   interface Window { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void; on: (e: string, cb: (r: unknown) => void) => void } }
@@ -18,7 +18,7 @@ declare global {
 export default function UpgradePage() {
   const router = useRouter()
   const { summary } = useSummary()
-  const [cycle, setCycle] = useState<BillingCycle>('yearly')
+  const [cycle, setCycle] = useState<BillingCycle>(YEARLY_BILLING ? 'yearly' : 'monthly')
   const [loading, setLoading] = useState<string | null>(null)
 
   async function checkout(plan: string) {
@@ -53,7 +53,7 @@ export default function UpgradePage() {
   return (
     <div>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      <PageHeader title="Choose a plan" description="Cancel any time. You keep your plan until the end of the period you paid for." actions={<CycleToggle cycle={cycle} onChange={setCycle} />} />
+      <PageHeader title="Choose a plan" description="Cancel any time. You keep your plan until the end of the period you paid for." actions={YEARLY_BILLING ? <CycleToggle cycle={cycle} onChange={setCycle} /> : undefined} />
       <PlanCards cycle={cycle} current={summary?.plan}
         renderCta={(p, isCurrent) => p.id === 'free_trial' ? (
           <Button variant="outline" className="w-full" disabled>{isCurrent ? 'Current plan' : 'Free forever'}</Button>

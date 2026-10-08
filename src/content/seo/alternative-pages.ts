@@ -1,4 +1,5 @@
-import { FACTS, CHECKED, SRC } from './facts'
+import { FACTS, CHECKED, SRC, perYear, priceCell } from './facts'
+import { YEARLY_BILLING } from '@shared/plans'
 import { callout, h2, h3, p, plansTable, table, ul, type SeoPage } from './types'
 
 const { free, starter } = FACTS
@@ -26,7 +27,7 @@ export const alternativePages: SeoPage[] = [
       h2('numbers', 'The numbers side by side'),
       table(['', 'GoPinKaro', 'PinBoostr'], [
         ['Free plan', `${free.pins} pins a month, ${free.ai} AI writing generations`, '5 pins a month, 5 AI images, 5 AI-written pins; no keyword research'],
-        ['Entry paid plan', `Starter $${starter.price} a month ($${starter.yearly} a year): ${starter.pins} pins`, 'Starter $19.99 a month ($199 a year): 15 pins a day, 150 AI pin images'],
+        ['Entry paid plan', `Starter $${starter.price} a month${perYear(starter.yearly)}: ${starter.pins} pins`, 'Starter $19.99 a month ($199 a year): 15 pins a day, 150 AI pin images'],
         ['Next plan', `Pro $${FACTS.pro.price} a month: ${FACTS.pro.pins} pins`, 'Growth $39.99 a month ($399 a year): 30 pins a day, 350 AI pin images'],
         ['Pinterest accounts', acct, '1 on Starter, up to 2 on Growth'],
         ['Keyword research', 'Pinterest Trends growth data (not search volume)', '35 queries a month on Starter, 100 on Growth'],
@@ -175,7 +176,7 @@ export const alternativePages: SeoPage[] = [
       p('All plans support Pinterest alongside Instagram, Facebook, Threads, TikTok, LinkedIn, YouTube and Snapchat. Starter includes 5 AI credits a month and 3 months of analytics; Growth adds multi-profile best times, trend forecasting and collaboration tools; Scale adds custom analytics and competitive benchmarking.'),
       h2('volume', 'Pins per dollar for a Pinterest-first account'),
       table(['', 'Later Starter', `GoPinKaro Starter`, `GoPinKaro Pro`], [
-        ['Price a month', '$18.75 (billed yearly)', `$${starter.price} ($${(starter.yearly / 12).toFixed(2)} billed yearly)`, `$${FACTS.pro.price} ($${(FACTS.pro.yearly / 12).toFixed(2)} billed yearly)`],
+        ['Price a month', '$18.75 (billed yearly)', priceCell(starter.price, starter.yearly), priceCell(FACTS.pro.price, FACTS.pro.yearly)],
         ['Pinterest pins a month', '30 per profile', `${starter.pins}`, `${FACTS.pro.pins}`],
         ['Pinterest accounts', 'Within 8 profiles', `${FACTS.accounts.starter}`, `${FACTS.accounts.pro}`],
         ['Bulk and CSV', 'Check Later for current options', `Up to ${FACTS.bulkMax} per batch`, `Up to ${FACTS.bulkMax} per batch`],
@@ -411,18 +412,18 @@ export const alternativePages: SeoPage[] = [
         ['Planoly (mobile)', 'Free mobile plan', '10 uploads a month'],
       ], 'Limits from each vendor\'s own pages and the sources below, October 2026.'),
       h2('paid', 'Paid plans, cheapest first'),
-      table(['Tool and plan', 'Price a month', 'What the price covers'], [
-        ['Publer Professional', 'About $4 to $5 per account', 'Unlimited scheduling per account (roundups)'],
-        ['Buffer Essentials', '$5 per channel ($60 a year)', 'Unlimited scheduled posts per channel'],
-        [`GoPinKaro Starter`, `$${(starter.yearly / 12).toFixed(2)} billed yearly ($${starter.price} monthly)`, `${starter.pins} pins a month across ${FACTS.accounts.starter} accounts`],
-        ['Planoly Starter', '$14 (annual saves up to 15%)', '1 social set, 1 user'],
-        [`GoPinKaro Pro`, `$${(FACTS.pro.yearly / 12).toFixed(2)} billed yearly ($${FACTS.pro.price} monthly)`, `${FACTS.pro.pins} pins a month across ${FACTS.accounts.pro} accounts`],
-        ['PinBoostr Starter', '$16.58 billed yearly ($19.99 monthly)', '15 pins a day, 1 Pinterest account'],
-        ['Tailwind (scheduling and creation)', '$17.99 billed yearly ($29.99 monthly)', '300 credits a month, per Pinterest account'],
-        ['Later Starter', '$18.75 billed yearly', '30 posts per profile, 1 social set'],
-        ['BlogToPin Starter', '$24.92 billed yearly ($25 monthly)', '1,000 pins a month, unlimited accounts'],
-        ['Hootsuite Standard', '$99 billed yearly', 'Up to 10 social accounts'],
-      ], 'Ordered by the lowest price each vendor lists (usually billed yearly). Per-account tools (Publer, Buffer) are shown per account. GoPinKaro plans cap pins per month, shared across accounts. Sources below; confirm before buying.'),
+      table(['Tool and plan', 'Price a month', 'What the price covers'], ([
+        [4.5, ['Publer Professional', 'About $4 to $5 per account', 'Unlimited scheduling per account (roundups)']],
+        [5, ['Buffer Essentials', '$5 per channel ($60 a year)', 'Unlimited scheduled posts per channel']],
+        [YEARLY_BILLING ? starter.yearly / 12 : starter.price, ['GoPinKaro Starter', priceCell(starter.price, starter.yearly), `${starter.pins} pins a month across ${FACTS.accounts.starter} accounts`]],
+        [14, ['Planoly Starter', '$14 (annual saves up to 15%)', '1 social set, 1 user']],
+        [YEARLY_BILLING ? FACTS.pro.yearly / 12 : FACTS.pro.price, ['GoPinKaro Pro', priceCell(FACTS.pro.price, FACTS.pro.yearly), `${FACTS.pro.pins} pins a month across ${FACTS.accounts.pro} accounts`]],
+        [16.58, ['PinBoostr Starter', '$16.58 billed yearly ($19.99 monthly)', '15 pins a day, 1 Pinterest account']],
+        [17.99, ['Tailwind (scheduling and creation)', '$17.99 billed yearly ($29.99 monthly)', '300 credits a month, per Pinterest account']],
+        [18.75, ['Later Starter', '$18.75 billed yearly', '30 posts per profile, 1 social set']],
+        [24.92, ['BlogToPin Starter', '$24.92 billed yearly ($25 monthly)', '1,000 pins a month, unlimited accounts']],
+        [99, ['Hootsuite Standard', '$99 billed yearly', 'Up to 10 social accounts']],
+      ] as [number, string[]][]).sort((x, y) => x[0] - y[0]).map(([, row]) => row), `Ordered by the lowest price each vendor lists${YEARLY_BILLING ? '' : ' (usually billed yearly; GoPinKaro bills monthly)'}. Per-account tools (Publer, Buffer) are shown per account. GoPinKaro plans cap pins per month, shared across accounts. Sources below; confirm before buying.`),
       h2('scenarios', 'What it costs for common setups'),
       table(['Setup', 'Cheapest', 'Then'], [
         ['1 account, about 20 pins a month', 'Free: GoPinKaro Free or Pinterest\'s scheduler', 'Metricool Free, Buffer Free'],

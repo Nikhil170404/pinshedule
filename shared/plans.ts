@@ -4,6 +4,13 @@
 export type Plan = 'free_trial' | 'starter' | 'pro' | 'growth'
 export type BillingCycle = 'monthly' | 'yearly'
 
+/**
+ * Yearly billing needs its own Razorpay plans (RAZORPAY_PLAN_STARTER_YEARLY, _PRO_YEARLY, _GROWTH_YEARLY).
+ * Until those exist this stays false: the site shows monthly prices only and the API refuses yearly checkout.
+ * Create the yearly plans in Razorpay, set the three variables on the worker, then flip this to true.
+ */
+export const YEARLY_BILLING = false
+
 export interface PlanDetails {
   id: Plan
   name: string

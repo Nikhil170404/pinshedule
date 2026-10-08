@@ -1,4 +1,4 @@
-import { FACTS, CHECKED, SRC } from './facts'
+import { FACTS, CHECKED, SRC, perYear } from './facts'
 import { callout, h2, h3, p, plansTable, steps, table, ul, type SeoPage } from './types'
 
 const { free, starter } = FACTS
@@ -197,7 +197,7 @@ export const productPages: SeoPage[] = [
         'You want a second opinion on titles and descriptions from the AI writer.',
       ),
       h2('when-to-pay', 'When a paid plan makes sense'),
-      p(`Move up when ${free.pins} pins a month is not enough, when you want bulk and CSV scheduling, best-time slots, or sitemap import. Starter is $${starter.price} a month ($${starter.yearly} a year) for ${starter.pins} pins a month.`),
+      p(`Move up when ${free.pins} pins a month is not enough, when you want bulk and CSV scheduling, best-time slots, or sitemap import. Starter is $${starter.price} a month${perYear(starter.yearly)} for ${starter.pins} pins a month.`),
       plansTable(),
       h2('other-free', 'Other free tools worth knowing'),
       ul(

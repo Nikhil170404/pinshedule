@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
-import { PLANS, type Plan } from '@shared/plans'
+import { PLANS, YEARLY_BILLING, type Plan } from '@shared/plans'
 import { buttonStyles } from '@/components/ui/button-styles'
 import { JsonLd } from './JsonLd'
 import { allPages, hubForKind, pageUrl, siteUrl } from '@/content/seo'
@@ -30,7 +30,7 @@ const ORDER: Plan[] = ['free_trial', 'starter', 'pro', 'growth']
 function PlansTable() {
   const rows: [string, (p: (typeof PLANS)[Plan]) => string][] = [
     ['Price per month', (p) => (p.price_monthly_usd === 0 ? 'Free' : `$${p.price_monthly_usd}`)],
-    ['Price per year', (p) => (p.price_yearly_usd === 0 ? 'Free' : `$${p.price_yearly_usd}`)],
+    ...(YEARLY_BILLING ? [['Price per year', (p: (typeof PLANS)[Plan]) => (p.price_yearly_usd === 0 ? 'Free' : `$${p.price_yearly_usd}`)] as [string, (p: (typeof PLANS)[Plan]) => string]] : []),
     ['Pins per month', (p) => p.pins_per_month.toLocaleString('en-US')],
     ['Pinterest accounts', (p) => p.accounts.toLocaleString('en-US')],
     ['Website page imports', (p) => p.website_imports.toLocaleString('en-US')],

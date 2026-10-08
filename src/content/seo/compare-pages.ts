@@ -1,5 +1,5 @@
 import { PLANS } from '@shared/plans'
-import { FACTS, CHECKED, SRC } from './facts'
+import { FACTS, CHECKED, SRC, perYear } from './facts'
 import { callout, h2, h3, p, plansTable, table, ul, type SeoPage } from './types'
 
 const { free, starter } = FACTS
@@ -107,7 +107,7 @@ export const comparePages: SeoPage[] = [
         ['AI writing', `${free.ai} generations a month free, more on paid plans`, 'AI copy features, check how usage is counted on your plan'],
         ['Chat assistant that operates the app', 'Yes, with confirmation before changes', 'No equivalent that we know of'],
         ['Free plan', `Yes, ${free.pins} pins a month`, 'Check their current free plan'],
-        ['Pricing', `From $${starter.price} a month, $${starter.yearly} a year`, "See Tailwind's own pricing page"],
+        ['Pricing', `From $${starter.price} a month${perYear(starter.yearly).replace(' (', ', ').replace(')', '')}`, "See Tailwind's own pricing page"],
       ], 'Comparison reflects public information as of October 2026. Confirm current Tailwind features and prices on tailwindapp.com.'),
       h2('why-switch', 'Why people look for an alternative'),
       p('Common reasons are cost, paying for networks they do not use, wanting a simpler tool, or wanting to bulk schedule a large content library without a lot of setup. If none of those apply, there is little reason to switch.'),
@@ -156,7 +156,7 @@ export const comparePages: SeoPage[] = [
       h2('table', 'Entry prices side by side'),
       table(['Tool', 'Entry price (USD)', 'Free option', 'What to know'], [
         ["Pinterest's built-in scheduler", 'Free', 'Yes', 'One pin at a time, up to 30 days ahead, up to 10 scheduled at once.'],
-        ['GoPinKaro', `From $${starter.price} a month ($${starter.yearly} a year)`, `Yes, ${free.pins} pins a month`, 'Pinterest only. Plans are priced by pins a month, with no credits to track.'],
+        ['GoPinKaro', `From $${starter.price} a month${perYear(starter.yearly)}`, `Yes, ${free.pins} pins a month`, 'Pinterest only. Plans are priced by pins a month, with no credits to track.'],
         ['Tailwind', 'From $17.99 a month billed annually, or $29.99 billed monthly', 'Yes, limited', 'The scheduling and creation plan includes 300 credits a month. Extra credits cost $10 per 100. Priced per Pinterest account; SEO and Engagement are separate add-ons.'],
         ['BlogToPin', `From $${BLOGTOPIN[0].price} a month ($${BLOGTOPIN[0].yearly} a year)`, 'Check their site', 'Creates pins from your website automatically. First tier allows 1,000 pins a month; unlimited Pinterest accounts.'],
         ['PinBoostr', 'From $19.99 a month ($199 a year)', 'Yes, 5 pins a month', 'Creates and schedules pins with AI images. 15 pins a day on Starter, 30 on Growth ($39.99).'],
@@ -232,7 +232,7 @@ export const comparePages: SeoPage[] = [
         ['Free plan', `Yes, ${free.pins} pins a month`, 'None on the pricing page; check for a trial'],
         ['AI text', `${free.ai} generations a month free, more on paid plans`, 'AI credits per plan (200, 400, 500) with unlimited regenerations stated'],
         ['Chat assistant', 'Yes, with confirmation before changes', 'Not listed on the pricing page'],
-        ['Starting price', `$${starter.price} a month, $${starter.yearly} a year`, `$${BLOGTOPIN[0].price} a month, $${BLOGTOPIN[0].yearly} a year`],
+        ['Starting price', `$${starter.price} a month${perYear(starter.yearly).replace(' (', ', ').replace(')', '')}`, `$${BLOGTOPIN[0].price} a month, $${BLOGTOPIN[0].yearly} a year`],
       ], "BlogToPin details are from its pricing page, checked October 2026. Confirm current features and prices on blogtopin.com."),
       h2('why-switch', 'Why people compare them'),
       p(`Usual reasons are price, wanting to see every pin before it publishes, and wanting a free plan to test with. BlogToPin's daily limits are ceilings rather than targets: many Pinterest guides recommend staying around 5 to 15 pins a day whatever a tool allows, so check the pace you will really run before paying for volume you will not use.`),

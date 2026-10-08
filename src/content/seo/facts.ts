@@ -1,4 +1,4 @@
-import { PLANS } from '@shared/plans'
+import { PLANS, YEARLY_BILLING } from '@shared/plans'
 import { DAILY_PIN_SOFT_MAX } from '@shared/pace'
 import { MIN_PINS } from '@shared/best-times'
 import { PALETTES, PIN_H, PIN_W, TEMPLATES } from '@/lib/pin-design'
@@ -35,6 +35,11 @@ export const FACTS = {
   personalTimingPins: MIN_PINS,
   videoMaxMb: 50,
 }
+
+/** GoPinKaro's own yearly prices appear in copy only once yearly billing exists (see YEARLY_BILLING in shared/plans.ts). */
+export const perYear = (usd: number) => (YEARLY_BILLING ? ` ($${usd} a year)` : '')
+/** "$9" while billing is monthly only; "$9 ($7.50 billed yearly)" once yearly exists. */
+export const priceCell = (monthly: number, yearly: number) => (YEARLY_BILLING ? `$${monthly} ($${(yearly / 12).toFixed(2)} billed yearly)` : `$${monthly}`)
 
 export const CHECKED = '2026-10-06'
 
