@@ -1,4 +1,4 @@
-import { PLANS } from '@shared/plans'
+import { PLANS, YEARLY_BILLING } from '@shared/plans'
 import { allPages, pageUrl, siteUrl } from '@/content/seo'
 
 export const dynamic = 'force-static'
@@ -6,7 +6,7 @@ export const dynamic = 'force-static'
 /** A plain-text summary for AI answer engines. Facts come from the same data as the product. */
 export function GET() {
   const plans = Object.values(PLANS)
-    .map((p) => `- ${p.name}: ${p.price_monthly_usd === 0 ? 'free' : `$${p.price_monthly_usd}/month or $${p.price_yearly_usd}/year`}, ${p.pins_per_month.toLocaleString('en-US')} pins per month`)
+    .map((p) => `- ${p.name}: ${p.price_monthly_usd === 0 ? 'free' : YEARLY_BILLING ? `$${p.price_monthly_usd}/month or $${p.price_yearly_usd}/year` : `$${p.price_monthly_usd}/month`}, ${p.pins_per_month.toLocaleString('en-US')} pins per month`)
     .join('\n')
   const pages = allPages.map((p) => `- [${p.label}](${pageUrl(p.path)}): ${p.description}`).join('\n')
   const body = `# GoPinKaro

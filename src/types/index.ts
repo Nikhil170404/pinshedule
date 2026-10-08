@@ -1,4 +1,4 @@
-export { PLANS, PAID_PLANS, PIN_LIMITS, isPaidPlan, monthlyEquivalent } from '@shared/plans'
+export { PLANS, PAID_PLANS, PIN_LIMITS, YEARLY_BILLING, isPaidPlan, monthlyEquivalent } from '@shared/plans'
 export type { Plan, PlanDetails, BillingCycle } from '@shared/plans'
 
 export type PinStatus = 'pending' | 'processing' | 'published' | 'failed'

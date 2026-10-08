@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { allPages, hubs, pageByPath } from '../../src/content/seo'
+import { YEARLY_BILLING } from '../../shared/plans'
 import type { Block } from '../../src/content/seo/types'
 
 // Search quality gates for the content pages: broken links, duplicate or badly sized titles and descriptions,
@@ -86,5 +87,14 @@ test('copy uses American English (the first market is the US)', () => {
   for (const p of allPages) {
     const hit = pageText(p).match(british)
     assert.ok(!hit, `${p.path}: British spelling "${hit?.[0]}"`)
+  }
+})
+
+test('while yearly billing is off, no page advertises GoPinKaro yearly prices', { skip: YEARLY_BILLING }, () => {
+  // Our own yearly prices ($90, $190, $390 a year) and the "2 months free" offer must not appear until the Razorpay yearly plans exist.
+  const yearly = /\$(90|190|390)\s*(?:a|per) year|\byearly plans?\b(?! .{0,40}(?:Tailwind|BlogToPin))|two months free|2 months free|\$7\.50 billed yearly|\$15\.83 billed yearly|\$32\.50 billed yearly/i
+  for (const p of allPages) {
+    const hit = pageText(p).match(yearly)
+    assert.ok(!hit, `${p.path}: mentions GoPinKaro yearly billing ("${hit?.[0]}")`)
   }
 })

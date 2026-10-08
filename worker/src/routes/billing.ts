@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import Razorpay from 'razorpay'
 import { z } from 'zod'
-import { isPaidPlan, type BillingCycle, type Plan } from '@shared/plans'
+import { isPaidPlan, YEARLY_BILLING, type BillingCycle, type Plan } from '@shared/plans'
 import { env } from '../env'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, redis } from '../lib/clients'
@@ -33,6 +33,7 @@ billing.post('/checkout', async (c) => {
   const parsed = z.object({ plan: z.string().refine(isPaidPlan), cycle: z.enum(['monthly', 'yearly']) }).safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: 'Invalid plan' }, 400)
   const { plan, cycle } = parsed.data
+  if (cycle === 'yearly' && !YEARLY_BILLING) return c.json({ error: 'Yearly billing is not available yet. Choose monthly.' }, 400)
   const rzpPlanId = planIdFor(plan, cycle)
   if (!rzpPlanId) return c.json({ error: 'This plan is not available for purchase yet.' }, 503)
 

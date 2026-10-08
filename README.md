@@ -57,7 +57,7 @@ Import the repo, set the variables in `.env.example` (`NEXT_PUBLIC_API_URL` = th
 Redirect URI: `https://<vercel-domain>/api/auth/pinterest/callback`. Scopes: `user_accounts:read, boards:read, boards:write, pins:read, pins:write`. Use `PINTEREST_API_BASE=https://api-sandbox.pinterest.com/v5` until Standard access is active.
 
 ### 5. Razorpay
-Create six subscription plans (USD) matching `shared/plans.ts` (Starter 9/90, Pro 19/190, Business 39/390 monthly/yearly) and put their ids in the `RAZORPAY_PLAN_*` variables. Webhook URL: `https://<railway-domain>/webhooks/razorpay` with events `subscription.activated, charged, cancelled, completed, halted, pending, resumed`.
+Create three monthly subscription plans in Razorpay (USD, period monthly, interval 1): Starter $9, Pro $19 and Business $39 (amounts 900, 1900 and 3900 cents), and put their ids in `RAZORPAY_PLAN_STARTER_MONTHLY`, `RAZORPAY_PLAN_PRO_MONTHLY` and `RAZORPAY_PLAN_GROWTH_MONTHLY` (Business is `growth` in the code). Yearly billing is off (`YEARLY_BILLING` in `shared/plans.ts`); to turn it on, create the yearly plans (Starter 90, Pro 190, Business 390), set the three `RAZORPAY_PLAN_*_YEARLY` variables, then set the flag to `true`. Webhook URL: `https://<railway-domain>/webhooks/razorpay` with events `subscription.activated, charged, cancelled, completed, halted, pending, resumed`.
 
 ## Tests
 
