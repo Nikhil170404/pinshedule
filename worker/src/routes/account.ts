@@ -26,6 +26,41 @@ account.patch('/settings', async (c) => {
   return c.json({ ok: true })
 })
 
+const PROFILE_COLUMNS = 'display_name, username, pronouns, bio, links'
+
+/** Trims, and turns an empty string into null so a cleared field is stored as "not set". */
+const optionalText = (max: number) => z.string().trim().max(max, `Keep it under ${max} characters`).transform((v) => v || null)
+
+function isHttpUrl(v: string) {
+  try { return ['http:', 'https:'].includes(new URL(v).protocol) } catch { return false }
+}
+
+const profileSchema =z.object({
+  display_name: optionalText(50),
+  username: z.string().trim().toLowerCase()
+    .regex(/^(|[a-z0-9._]{3,30})$/, 'Username must be 3 to 30 characters: letters, numbers, periods and underscores')
+    .transform((v) => v || null),
+  pronouns: optionalText(30),
+  bio: optionalText(160),
+  links: z.array(z.string().trim().max(200, 'Links can be up to 200 characters').refine(isHttpUrl, 'Links must be full web addresses, like https://example.com'))
+    .max(3, 'You can add up to 3 links'),
+}).partial()
+
+account.get('/profile', async (c) => {
+  const { data, error } = await db.from('user_profiles').select(PROFILE_COLUMNS).eq('id', c.get('userId')).maybeSingle()
+  if (error) return c.json({ error: 'Could not load your profile' }, 500)
+  return c.json({ display_name: data?.display_name ?? null, username: data?.username ?? null, pronouns: data?.pronouns ?? null, bio: data?.bio ?? null, links: data?.links ?? [] })
+})
+
+account.patch('/profile', async (c) => {
+  const parsed = profileSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid profile' }, 400)
+  const { error } = await db.from('user_profiles').update(parsed.data).eq('id', c.get('userId'))
+  if (error?.code === '23505') return c.json({ error: 'That username is taken. Try another.' }, 409)
+  if (error) return c.json({ error: 'Could not save your profile' }, 500)
+  return c.json({ ok: true })
+})
+
 /** Pull fresh analytics for the active account now (rate limited to once per 10 minutes per account). */
 account.post('/analytics/sync', async (c) => {
   const connectionId = connectionOf(c).id

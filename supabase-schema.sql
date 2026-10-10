@@ -25,6 +25,14 @@ alter table public.user_profiles add column if not exists razorpay_payment_id te
 alter table public.user_profiles add column if not exists razorpay_order_id text;
 alter table public.user_profiles add column if not exists trial_ends_at timestamptz;
 
+-- Public-facing profile details. Written only through the worker (PATCH /v1/account/profile), which validates them.
+alter table public.user_profiles add column if not exists display_name text;
+alter table public.user_profiles add column if not exists username text;
+alter table public.user_profiles add column if not exists pronouns text;
+alter table public.user_profiles add column if not exists bio text;
+alter table public.user_profiles add column if not exists links text[] not null default '{}';
+create unique index if not exists user_profiles_username_idx on public.user_profiles (lower(username)) where username is not null;
+
 alter table public.user_profiles drop constraint if exists user_profiles_plan_check;
 alter table public.user_profiles add constraint user_profiles_plan_check
   check (plan in ('free_trial', 'starter', 'pro', 'growth'));
