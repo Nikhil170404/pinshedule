@@ -39,6 +39,8 @@ export function Footer() {
             <Link href="/privacy" className="hover:text-ink">Privacy policy</Link>
             <Link href="/terms" className="hover:text-ink">Terms of service</Link>
             <a href="mailto:support@pinshedule.com" className="hover:text-ink">support@pinshedule.com</a>
+            {/* Plain anchor with no rel="nofollow": a followed link to our sister product. */}
+            <a href="https://www.replykaro.com" title="ReplyKaro: Instagram comment-to-DM automation" className="hover:text-ink">ReplyKaro, Instagram comment-to-DM automation</a>
           </nav>
           <p>&copy; {new Date().getFullYear()} {site.name}. {site.name} is an independent product and is not affiliated with or endorsed by Pinterest. Pinterest is a trademark of Pinterest, Inc.</p>
         </div>
