@@ -28,6 +28,7 @@ export function Explore() {
         </ul>
         <p className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
           {hubs.map((h) => <Link key={h.path} href={`/${h.path}`} className="inline-flex items-center gap-1 font-medium text-brand hover:underline">All {h.label.toLowerCase()} <ArrowRight size={13} aria-hidden /></Link>)}
+          <Link href="/tools" className="inline-flex items-center gap-1 font-medium text-brand hover:underline">Free Pinterest tools <ArrowRight size={13} aria-hidden /></Link>
         </p>
       </div>
     </section>

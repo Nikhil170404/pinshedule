@@ -6,13 +6,14 @@ import { Footer } from '@/components/layout/Footer'
 
 export const metadata: Metadata = pageMeta({
   title: 'Free Pinterest tools',
-  description: 'Free Pinterest tools: pin size checker and title and description checker. No sign-up, and nothing is uploaded.',
+  description: 'Free Pinterest tools: pin size checker, title and description checker and posting frequency calculator. No sign-up, and nothing is uploaded.',
   path: '/tools',
 })
 
 const tools = [
   { href: '/tools/pin-size-checker', name: 'Pin size checker', blurb: 'Check ratio, resolution and file size against Pinterest rules.' },
   { href: '/tools/pin-text-checker', name: 'Title and description checker', blurb: 'Count characters and check where your keyword sits.' },
+  { href: '/tools/pin-schedule-calculator', name: 'Posting frequency calculator', blurb: 'Turn a batch of pins into a sensible daily pace.' },
 ]
 
 export default function ToolsPage() {
