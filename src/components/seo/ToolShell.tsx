@@ -4,6 +4,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { buttonStyles } from '@/components/ui/button-styles'
 import { JsonLd } from './JsonLd'
+import { FACTS } from '@/content/seo/facts'
 import { site } from '@/lib/site'
 
 export type ToolFaq = { q: string; a: string }
@@ -66,7 +67,7 @@ export function ToolShell({ name, path, h1, intro, faq, sources, children }: {
 
         <aside className="mt-12 rounded-2xl border border-line bg-white p-6 text-center">
           <h2 className="text-lg font-semibold text-ink">Schedule these pins in bulk</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-stone-600">{site.name} publishes up to 200 pins at a time at the right time of day. The free plan needs no card.</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-stone-600">{site.name} schedules up to {FACTS.bulkMax} pins at a time on paid plans. The free plan includes {FACTS.free.pins} pins a month and needs no card.</p>
           <Link href="/login" className={`${buttonStyles('primary', 'lg')} mt-4`}>Start free</Link>
         </aside>
       </main>

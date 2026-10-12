@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { FACTS } from '@/content/seo/facts'
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 
-const MAX_MB = 20
 type Verdict = { level: 'good' | 'ok' | 'bad'; text: string }
 type Result = { name: string; w: number; h: number; mb: number; ratio: string; checks: Verdict[] }
 
@@ -12,15 +12,13 @@ const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
 function judge(w: number, h: number, mb: number): Verdict[] {
   const r = w / h
   const out: Verdict[] = []
-  if (Math.abs(r - 2 / 3) < 0.01) out.push({ level: 'good', text: 'Perfect 2:3 ratio, the shape Pinterest recommends for standard pins.' })
-  else if (r < 2 / 3 && r >= 1 / 2.1) out.push({ level: 'ok', text: 'Taller than 2:3. It works, but very tall pins can be cropped in the feed. 2:3 is safest.' })
-  else if (r < 1 / 2.1) out.push({ level: 'bad', text: 'Too tall (narrower than 1:2.1). Pinterest may cut it off. Trim it toward 2:3.' })
-  else if (r <= 1) out.push({ level: 'ok', text: 'Slightly wider than 2:3. It shows, but takes less room in the feed than a 2:3 pin.' })
-  else out.push({ level: 'bad', text: 'Landscape image. It shows small in a feed of tall pins. Use a vertical 2:3 version.' })
-  if (w >= 1000 && Math.abs(r - 2 / 3) < 0.05) out.push({ level: 'good', text: 'Resolution is 1000 px wide or more, which is sharp enough.' })
-  else if (w >= 600) out.push({ level: 'ok', text: 'Usable, but 1000 x 1500 px looks sharper on large screens.' })
-  else out.push({ level: 'bad', text: 'Under 600 px wide, so it will look blurry. Use a larger image.' })
-  out.push(mb <= MAX_MB ? { level: 'good', text: `File size ${mb.toFixed(2)} MB is under the ${MAX_MB} MB limit.` } : { level: 'bad', text: `File size ${mb.toFixed(1)} MB is over ${MAX_MB} MB. Compress it.` })
+  if (Math.abs(r - 2 / 3) < 0.01) out.push({ level: 'good', text: 'A 2:3 ratio, the vertical shape Pinterest guides recommend for standard pins.' })
+  else if (r < 1) out.push({ level: 'ok', text: 'Vertical, but not 2:3. Pins outside 2:3 can be cropped or take less room in the feed. 1000 x 1500 px is the safest size.' })
+  else if (r === 1) out.push({ level: 'ok', text: 'Square. Pinterest accepts it, but a tall 2:3 pin takes more room in the feed.' })
+  else out.push({ level: 'bad', text: 'Landscape. It shows small among tall pins. A vertical 2:3 version usually gets more room.' })
+  if (w >= 1000) out.push({ level: 'good', text: 'At least 1000 px wide, the width commonly recommended.' })
+  else out.push({ level: 'ok', text: `${w} px wide. Guides recommend 1000 px or more, so a larger source image will look sharper.` })
+  out.push(mb <= FACTS.imageMaxMb ? { level: 'good', text: `File size ${mb.toFixed(2)} MB is under GoPinKaro's ${FACTS.imageMaxMb} MB upload limit.` } : { level: 'bad', text: `File size ${mb.toFixed(1)} MB is over GoPinKaro's ${FACTS.imageMaxMb} MB upload limit. Compress it.` })
   return out
 }
 

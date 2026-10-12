@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FACTS } from '@/content/seo/facts'
 
+const DESC_MAX = 500 // Pinterest pin builder limit per the sourced guide; GoPinKaro itself accepts more.
 const TITLE_SHOWN = 40
 const DESC_SHOWN = 60
 
@@ -23,12 +24,12 @@ export function PinTextChecker() {
     if (title.length > TITLE_SHOWN) tips.push({ ok: false, text: `Only the first ${TITLE_SHOWN} or so characters of a title usually show in the feed. Put the key words first.` })
   }
   if (desc) {
-    tips.push({ ok: desc.length <= FACTS.descriptionMax, text: `Description is ${desc.length} of ${FACTS.descriptionMax} characters.` })
+    tips.push({ ok: desc.length <= DESC_MAX, text: `Description is ${desc.length} of ${DESC_MAX} characters.` })
     tips.push({ ok: desc.length >= 100, text: desc.length >= 100 ? 'Good length for context.' : 'Short. A sentence or two describing the pin helps Pinterest understand it.' })
   }
   if (k) {
     if (title) tips.push({ ok: has(title), text: has(title) ? 'Keyword is in the title.' : 'Keyword is missing from the title.' })
-    if (desc) tips.push({ ok: has(desc.slice(0, DESC_SHOWN * 2)), text: has(desc.slice(0, DESC_SHOWN * 2)) ? 'Keyword appears early in the description.' : 'Move the keyword into the first sentence of the description.' })
+    if (desc) tips.push({ ok: has(desc.slice(0, DESC_SHOWN)), text: has(desc.slice(0, DESC_SHOWN)) ? 'Keyword appears in the first 60 characters, the part visible in the feed.' : 'Only roughly the first 50 to 60 characters show in the feed, so move the keyword up front.' })
   }
   const field = 'mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none'
   return (
@@ -43,9 +44,9 @@ export function PinTextChecker() {
         <Bar n={title.length} max={FACTS.titleMax} />
       </div>
       <div>
-        <label htmlFor="d" className="flex justify-between text-sm font-medium text-ink">Pin description <span className="font-normal text-muted">{desc.length}/{FACTS.descriptionMax}</span></label>
+        <label htmlFor="d" className="flex justify-between text-sm font-medium text-ink">Pin description <span className="font-normal text-muted">{desc.length}/{DESC_MAX}</span></label>
         <textarea id="d" rows={5} value={desc} onChange={(e) => setDesc(e.target.value)} className={field} />
-        <Bar n={desc.length} max={FACTS.descriptionMax} />
+        <Bar n={desc.length} max={DESC_MAX} />
       </div>
       {tips.length > 0 && (
         <ul className="space-y-2 rounded-xl border border-line bg-white p-4" aria-live="polite">

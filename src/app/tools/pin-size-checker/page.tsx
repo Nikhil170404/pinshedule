@@ -13,8 +13,8 @@ export const metadata: Metadata = pageMeta({
 const faq = [
   { q: 'What is the best Pinterest pin size?', a: 'Pinterest recommends vertical pins in a 2:3 ratio. 1000 x 1500 pixels is the usual choice.' },
   { q: 'Can I use a square or horizontal image?', a: 'Yes, Pinterest accepts them, but tall 2:3 pins take more room in the feed and usually get more attention. Landscape images look small.' },
-  { q: 'What happens if my pin is too tall?', a: 'Pins much taller than about 1:2.1 can be cropped or truncated in the feed, so keep important text and the subject toward the top and middle.' },
-  { q: 'Is my image uploaded anywhere?', a: 'No. The check runs in your browser, and the image never leaves your device.' },
+  { q: 'What happens if my pin is too tall?', a: 'Pins outside the common 2:3 ratio can be cropped or take less room in the feed, so keep the subject and any text well inside the image.' },
+  { q: 'Is my image uploaded anywhere?', a: 'No. The check runs in your browser, and the image never leaves your device. The file size limit shown is GoPinKaro\'s own upload limit.' },
 ]
 
 export default function Page() {
