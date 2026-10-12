@@ -12,7 +12,7 @@ export function Footer() {
   const link = (p: { path: string; label: string }) => ({ href: `/${p.path}`, label: p.label })
   const hub = (path: string, label: string) => ({ href: `/${path}`, label })
   const cols = [
-    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
+    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, { href: '/tools', label: 'Free tools' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
     { title: 'Alternatives', links: [...groups.compare.slice(0, MAX).map(link), hub('alternatives', 'All alternatives')] },
     { title: 'Use cases', links: [...groups.useCases.slice(0, MAX).map((p) => ({ href: `/${p.path}`, label: p.label.replace('Pinterest scheduler for ', '') })), hub('use-cases', 'All use cases')] },
     { title: 'Guides', links: [...groups.guides.slice(0, MAX).map(link), hub('guides', 'All guides')] },

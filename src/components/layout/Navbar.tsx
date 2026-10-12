@@ -11,6 +11,7 @@ const links = [
   { href: '/pricing', label: 'Pricing' },
   { href: '/alternatives', label: 'Alternatives' },
   { href: '/guides', label: 'Guides' },
+  { href: '/tools', label: 'Free tools' },
 ]
 
 export function Navbar() {

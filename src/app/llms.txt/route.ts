@@ -18,6 +18,10 @@ Website: ${siteUrl()}
 ## Plans
 ${plans}
 
+## Free tools
+- [Pinterest pin size checker](${siteUrl()}/tools/pin-size-checker): checks ratio, resolution and file size of pin images in the browser
+- [Pinterest title and description checker](${siteUrl()}/tools/pin-text-checker): character counts and keyword placement
+
 ## Pages
 ${pages}
 `
