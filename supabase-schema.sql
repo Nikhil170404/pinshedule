@@ -445,3 +445,94 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.timing_samples(uuid, int) from public, anon, authenticated;
 
+
+-- ───────────────────────── admin console ─────────────────────────
+-- Admins are rows in admin_users. The table has RLS on and NO policies and no grants, so only the worker
+-- (service role) can read or change it: nobody can make themselves an admin from the browser.
+-- Make the first admin once, in this SQL editor:
+--   insert into public.admin_users (user_id) select id from auth.users where email = 'you@example.com';
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.admin_users enable row level security;
+revoke all on public.admin_users from anon, authenticated;
+
+-- Every admin look at a user (and every search) is recorded. admin_id has no foreign key so history survives deletions.
+create table if not exists public.admin_audit_log (
+  id bigint generated always as identity primary key,
+  admin_id uuid not null,
+  action text not null,
+  target_user uuid,
+  detail jsonb,
+  ip text,
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_audit_log_created_idx on public.admin_audit_log (created_at desc);
+create index if not exists admin_audit_log_target_idx on public.admin_audit_log (target_user, created_at desc);
+alter table public.admin_audit_log enable row level security;
+revoke all on public.admin_audit_log from anon, authenticated;
+
+-- Indexes so the admin screens stay fast with millions of users.
+create index if not exists user_profiles_created_idx on public.user_profiles (created_at desc, id desc);
+create index if not exists user_profiles_paid_started_idx on public.user_profiles (plan_started_at) where plan <> 'free_trial';
+create index if not exists scheduled_pins_scheduled_idx on public.scheduled_pins (scheduled_at);
+create index if not exists scheduled_pins_failed_idx on public.scheduled_pins (scheduled_at desc) where status = 'failed';
+
+-- One round trip for the overview. The worker caches the result for a few minutes.
+-- "Active" means signed in within the window (auth.users.last_sign_in_at), not "did something in the app".
+create or replace function public.admin_overview()
+returns jsonb language sql stable security definer set search_path = public, auth as $$
+  select jsonb_build_object(
+    'users', (select jsonb_build_object(
+        'total', count(*),
+        'new_24h', count(*) filter (where created_at > now() - interval '1 day'),
+        'new_7d', count(*) filter (where created_at > now() - interval '7 days'),
+        'new_30d', count(*) filter (where created_at > now() - interval '30 days'),
+        'active_24h', count(*) filter (where last_sign_in_at > now() - interval '1 day'),
+        'active_7d', count(*) filter (where last_sign_in_at > now() - interval '7 days'),
+        'active_30d', count(*) filter (where last_sign_in_at > now() - interval '30 days')
+      ) from auth.users),
+    'plans', (select coalesce(jsonb_agg(jsonb_build_object('plan', plan, 'status', plan_status, 'cycle', cycle, 'n', n)), '[]'::jsonb)
+                from (select plan, plan_status, coalesce(billing_cycle, 'monthly') as cycle, count(*) as n
+                        from user_profiles group by 1, 2, 3) s),
+    'signups', (select coalesce(jsonb_agg(jsonb_build_object('day', to_char(d, 'YYYY-MM-DD'), 'value', n) order by d), '[]'::jsonb)
+                  from (select g.d, count(p.id) as n
+                          from generate_series((current_date - 29)::timestamp, current_date::timestamp, interval '1 day') g(d)
+                          left join user_profiles p on p.created_at >= g.d and p.created_at < g.d + interval '1 day'
+                         group by g.d) s),
+    'paid_by_start_month', (select coalesce(jsonb_agg(jsonb_build_object('month', m, 'value', n) order by m), '[]'::jsonb)
+                              from (select to_char(date_trunc('month', plan_started_at), 'YYYY-MM') as m, count(*) as n
+                                      from user_profiles
+                                     where plan <> 'free_trial' and plan_started_at >= date_trunc('month', now()) - interval '5 months'
+                                     group by 1) s),
+    'pins', (select jsonb_build_object(
+        'published', count(*) filter (where status = 'published'),
+        'failed', count(*) filter (where status = 'failed'),
+        'pending', count(*) filter (where status = 'pending'),
+        'processing', count(*) filter (where status = 'processing')
+      ) from scheduled_pins where scheduled_at >= now() - interval '30 days'),
+    'connections', (select jsonb_build_object('total', count(*), 'needs_reconnect', count(*) filter (where status = 'needs_reconnect'))
+                      from pinterest_connections)
+  );
+$$;
+
+-- Keyset-paged user list (newest first). p_q matches an exact user id or an email prefix. Cursor = last row's created_at + id.
+create or replace function public.admin_list_users(p_q text, p_plan text, p_before_at timestamptz, p_before_id uuid, p_limit integer)
+returns table (id uuid, email text, created_at timestamptz, last_sign_in_at timestamptz, provider text,
+               plan text, plan_status text, billing_cycle text, plan_expires_at timestamptz)
+language sql stable security definer set search_path = public, auth as $$
+  select p.id, u.email::text, p.created_at, u.last_sign_in_at, u.raw_app_meta_data->>'provider',
+         p.plan, p.plan_status, p.billing_cycle, p.plan_expires_at
+    from user_profiles p join auth.users u on u.id = p.id
+   where (p_plan is null or p.plan = p_plan)
+     and (p_q is null
+          or p.id::text = p_q
+          or u.email ilike replace(replace(replace(p_q, '\', '\\'), '%', '\%'), '_', '\_') || '%')
+     and (p_before_at is null or (p.created_at, p.id) < (p_before_at, p_before_id))
+   order by p.created_at desc, p.id desc
+   limit least(greatest(coalesce(p_limit, 25), 1), 100);
+$$;
+
+revoke execute on function public.admin_overview() from public, anon, authenticated;
+revoke execute on function public.admin_list_users(text, text, timestamptz, uuid, integer) from public, anon, authenticated;
