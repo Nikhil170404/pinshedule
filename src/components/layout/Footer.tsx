@@ -12,7 +12,7 @@ export function Footer() {
   const link = (p: { path: string; label: string }) => ({ href: `/${p.path}`, label: p.label })
   const hub = (path: string, label: string) => ({ href: `/${path}`, label })
   const cols = [
-    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
+    { title: 'Product', links: [{ href: '/features', label: 'Features' }, { href: '/pricing', label: 'Pricing' }, { href: '/tools', label: 'Free tools' }, ...product.map((p) => ({ href: `/${p}`, label: byPath(p)?.label ?? p }))] },
     { title: 'Alternatives', links: [...groups.compare.slice(0, MAX).map(link), hub('alternatives', 'All alternatives')] },
     { title: 'Use cases', links: [...groups.useCases.slice(0, MAX).map((p) => ({ href: `/${p.path}`, label: p.label.replace('Pinterest scheduler for ', '') })), hub('use-cases', 'All use cases')] },
     { title: 'Guides', links: [...groups.guides.slice(0, MAX).map(link), hub('guides', 'All guides')] },
@@ -39,6 +39,8 @@ export function Footer() {
             <Link href="/privacy" className="hover:text-ink">Privacy policy</Link>
             <Link href="/terms" className="hover:text-ink">Terms of service</Link>
             <a href="mailto:support@pinshedule.com" className="hover:text-ink">support@pinshedule.com</a>
+            {/* Plain anchor with no rel="nofollow": a followed link to our sister product. */}
+            <a href="https://www.replykaro.com" title="ReplyKaro: Instagram comment-to-DM automation" className="hover:text-ink">ReplyKaro, Instagram comment-to-DM automation</a>
           </nav>
           <p>&copy; {new Date().getFullYear()} {site.name}. {site.name} is an independent product and is not affiliated with or endorsed by Pinterest. Pinterest is a trademark of Pinterest, Inc.</p>
         </div>

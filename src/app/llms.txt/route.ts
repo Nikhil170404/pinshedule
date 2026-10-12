@@ -18,6 +18,11 @@ Website: ${siteUrl()}
 ## Plans
 ${plans}
 
+## Free tools
+- [Pinterest pin size checker](${siteUrl()}/tools/pin-size-checker): checks ratio, resolution and file size of pin images in the browser
+- [Pinterest title and description checker](${siteUrl()}/tools/pin-text-checker): character counts and keyword placement
+- [Pinterest posting frequency calculator](${siteUrl()}/tools/pin-schedule-calculator): turns a batch of pins and a number of days into a daily pace
+
 ## Pages
 ${pages}
 `

@@ -24,7 +24,7 @@ export async function updateSession(request: NextRequest) {
   const signedIn = !!data?.claims?.sub
   const { pathname } = request.nextUrl
 
-  if (!signedIn && pathname.startsWith('/dashboard')) {
+  if (!signedIn && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.search = ''

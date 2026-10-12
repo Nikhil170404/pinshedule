@@ -19,6 +19,7 @@ import { accounts } from './routes/accounts'
 import { proxy } from './routes/proxy'
 import { billing, razorpayWebhook } from './routes/billing'
 import { assistant } from './routes/assistant'
+import { admin, requireAdmin } from './routes/admin'
 
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
@@ -41,6 +42,13 @@ app.get('/health', async (c) => {
 })
 
 app.route('/webhooks/razorpay', razorpayWebhook as unknown as Hono<AppEnv>)
+
+// Admin console: own auth chain (no per-account middleware), registered before v1 so it answers first.
+const adminApi = new Hono<AppEnv>()
+adminApi.use('*', requireUser)
+adminApi.use('*', requireAdmin)
+adminApi.route('/', admin)
+app.route('/v1/admin', adminApi)
 
 const v1 = new Hono<AppEnv>()
 v1.use('*', requireUser)
