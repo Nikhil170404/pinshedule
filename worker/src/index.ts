@@ -22,6 +22,7 @@ import { assistant } from './routes/assistant'
 import { admin, requireAdmin } from './routes/admin'
 import { autopilot } from './routes/autopilot'
 import { notifications } from './routes/notifications'
+import { analytics } from './routes/analytics'
 
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
@@ -67,6 +68,7 @@ v1.route('/billing', billing)
 v1.route('/assistant', assistant)
 v1.route('/autopilot', autopilot)
 v1.route('/notifications', notifications)
+v1.route('/analytics', analytics)
 app.route('/v1', v1)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))

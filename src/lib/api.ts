@@ -50,7 +50,7 @@ export async function apiBlob(path: string): Promise<Blob> {
   if (!session) throw new ApiError('Please sign in again.', 401)
   let res: Response
   try {
-    res = await fetch(`${BASE}/v1${path}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+    res = await fetch(`${BASE}/v1${path}`, { headers: { Authorization: `Bearer ${session.access_token}`, ...(activeAccount.get() ? { 'X-Account-Id': activeAccount.get() as string } : {}) } })
   } catch {
     throw new ApiError('Cannot reach the server. Check your connection and try again.', 0)
   }

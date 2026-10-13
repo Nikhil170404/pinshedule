@@ -3,11 +3,11 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, RefreshCw } from 'lucide-react'
+import { BarChart3, Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui/Card'
-import { api, errorText } from '@/lib/api'
+import { api, apiBlob, errorText } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 import { useScope, useSummary } from '@/lib/hooks'
 import { SafeImage } from '@/components/ui/SafeImage'
@@ -18,6 +18,31 @@ const TrendChart = dynamic(() => import('@/components/charts/TrendChart'), { ssr
 
 interface Day { day: string; impressions: number; saves: number; pin_clicks: number; outbound_clicks: number; engagements: number }
 interface TopPin { pin_id: string; impressions: number; saves: number; clicks: number; outbound_clicks: number; title: string | null; image_url: string | null }
+
+interface Grp { key: string; label: string; pins: number; impressions: number; saves: number; outbound_clicks: number; engagement_rate: number }
+interface Breakdown { pins_counted: number; boards: Grp[]; destinations: Grp[]; hours: { hour: number; pins: number; avg_impressions: number }[]; timezone: string; notes: { source: string; calculated: string; hours: string } }
+
+function GroupTable({ title, rows }: { title: string; rows: Grp[] }) {
+  return (
+    <div>
+      <h2 className="mb-2 text-sm font-semibold text-ink">{title}</h2>
+      <Card className="overflow-hidden">
+        {rows.length === 0 ? <p className="px-4 py-6 text-center text-sm text-muted">Not enough tracked pins yet.</p> : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-line bg-stone-50 text-xs text-muted"><tr><th className="px-4 py-2 text-left font-medium">Name</th><th className="px-2 py-2 text-right font-medium">Pins</th><th className="px-2 py-2 text-right font-medium">Views</th><th className="hidden px-2 py-2 text-right font-medium sm:table-cell">Clicks</th><th className="px-4 py-2 text-right font-medium" title="Calculated: (saves + pin clicks) / impressions">Eng. rate*</th></tr></thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((g) => (
+                <tr key={g.key}><td className="max-w-[14rem] truncate px-4 py-2 font-medium text-ink">{g.label}</td><td className="px-2 py-2 text-right tabular-nums">{g.pins}</td><td className="px-2 py-2 text-right tabular-nums">{formatNumber(g.impressions)}</td><td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{formatNumber(g.outbound_clicks)}</td><td className="px-4 py-2 text-right tabular-nums">{(g.engagement_rate * 100).toFixed(1)}%</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? ' am' : ' pm'}`
 
 const METRICS = [
   { key: 'impressions', label: 'Impressions' },
@@ -35,6 +60,7 @@ export default function AnalyticsPage() {
   const [days, setDays] = useState<Day[] | null>(null)
   const [top, setTop] = useState<TopPin[]>([])
   const [syncing, setSyncing] = useState(false)
+  const [breakdown, setBreakdown] = useState<Breakdown | null>(null)
 
   const accountId = scope.id
   const ready = scope.ready
@@ -58,6 +84,7 @@ export default function AnalyticsPage() {
       ranked.forEach((r) => { r.title = meta.get(r.pin_id)?.title ?? null; r.image_url = meta.get(r.pin_id)?.image_url ?? null })
     }
     setTop(ranked)
+    api<Breakdown>(`/analytics/breakdown?days=${range}`).then(setBreakdown).catch(() => setBreakdown(null))
   }, [range, maxDays, accountId, ready])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount and when the range changes
@@ -79,13 +106,30 @@ export default function AnalyticsPage() {
     setSyncing(false)
   }
 
+  async function download(type: 'daily' | 'pins') {
+    try {
+      const blob = await apiBlob(`/analytics/export?type=${type}&days=${range}`)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `gopinkaro-${type}-${range}d.csv`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (e) { toast.error(errorText(e)) }
+  }
+
   const ranges = [7, 30, 90].filter((r) => r <= Math.max(maxDays, 7))
   const empty = days !== null && days.length === 0
 
   return (
     <div>
       <PageHeader title="Analytics" description="Performance of your Pinterest account. Pinterest reports data with a delay of one to two days."
-        actions={<Button variant="outline" onClick={sync} loading={syncing}>{!syncing && <RefreshCw size={15} aria-hidden />} Refresh</Button>} />
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => download('daily')}><Download size={15} aria-hidden /> Daily CSV</Button>
+            <Button variant="outline" onClick={() => download('pins')}><Download size={15} aria-hidden /> Pins CSV</Button>
+            <Button variant="outline" onClick={sync} loading={syncing}>{!syncing && <RefreshCw size={15} aria-hidden />} Refresh</Button>
+          </div>
+        } />
 
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="inline-flex rounded-lg bg-stone-100 p-1">
@@ -132,6 +176,23 @@ export default function AnalyticsPage() {
               </div>
             )}
           </Card>
+
+          {breakdown && breakdown.pins_counted > 0 && (
+            <div className="mt-6 space-y-6">
+              <GroupTable title="Best-performing boards" rows={breakdown.boards} />
+              <GroupTable title="Best-performing destination pages" rows={breakdown.destinations} />
+              <div>
+                <h2 className="mb-2 text-sm font-semibold text-ink">Posting hours that went with more views</h2>
+                <Card className="p-4 text-sm">
+                  {breakdown.hours.length === 0 ? <p className="text-muted">Needs at least 3 published pins in the same hour to compare.</p> : (
+                    <ul className="space-y-1">{breakdown.hours.map((h) => <li key={h.hour} className="flex justify-between"><span className="font-medium text-ink">{hourLabel(h.hour)}</span><span className="tabular-nums text-muted">{formatNumber(h.avg_impressions)} avg views, {h.pins} pins</span></li>)}</ul>
+                  )}
+                  <p className="mt-3 text-xs text-muted">Hours are in {breakdown.timezone}. {breakdown.notes.hours}</p>
+                </Card>
+              </div>
+              <p className="text-xs text-muted">{breakdown.notes.source} * {breakdown.notes.calculated}</p>
+            </div>
+          )}
         </>
       )}
     </div>
