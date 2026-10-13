@@ -37,7 +37,7 @@ export function GetStarted() {
     <Card className="p-4 sm:p-5">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Get started</h2>
+          <h2 className="text-sm font-semibold text-ink">Get started <Link href="/dashboard/help" className="ml-1 text-xs font-normal text-brand hover:underline">Show me how</Link></h2>
           <p className="mt-0.5 text-xs text-muted">{steps.filter((s) => s.done).length} of {steps.length} done</p>
         </div>
         <button type="button" onClick={dismiss} aria-label="Hide this checklist" className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-ink"><X size={16} /></button>
