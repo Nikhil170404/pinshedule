@@ -75,6 +75,26 @@ export async function captionOptions(topic: string): Promise<{ title: string; de
   return out.options.map((o) => ({ title: o.title.slice(0, 100), description: o.description.slice(0, 800) }))
 }
 
+export interface Concept { angle: string; headline: string; title: string; description: string; alt_text: string; number: string }
+
+/**
+ * One call returns a whole batch of concepts, each forced onto a different angle so the batch is not the same pitch
+ * reworded. The page text is fenced as data. Not cached: asking again should give fresh concepts.
+ */
+export async function variationConcepts(input: PageInput & { text: string }, angles: { key: string; instruction: string }[]): Promise<Concept[]> {
+  const n = angles.length
+  const plan = angles.map((a, i) => `${i + 1}. [${a.key}] ${a.instruction}`).join('\n')
+  const out = await structured<{ concepts: Omit<Concept, 'angle'>[] }>('concepts',
+    `You create Pinterest pin concepts for one web page. Write exactly ${n} concepts, one per numbered angle, in the same order. Each concept must pitch the page differently, with different wording, not a reworded copy of another. Only claim what the page supports: never invent statistics, prices, results, awards or testimonials. Fields: headline (the words printed on the image, 3 to 9 words, under 60 characters), title (the pin title, main search keyword first, under 100 characters), description (2 or 3 natural sentences using words people search for, ending in a call to action that differs from the other concepts, then 3 or 4 hashtags; maximum 480 characters), alt_text (one factual sentence, under 180 characters, describing what the pin image likely shows), number (digits only if the headline is a list with a number the page supports, else an empty string).`,
+    `Angles:\n${plan}\n${fence('page_title', input.title, 200)}\n${fence('page_description', input.description, 500)}\n${fence('page_text', input.text, 2500)}`,
+    obj({ concepts: { type: 'array', minItems: n, maxItems: n, items: obj({ headline: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, alt_text: { type: 'string' }, number: { type: 'string' } }) } }),
+    Math.min(4000, 220 * n + 200))
+  return out.concepts.slice(0, n).map((c, i) => ({
+    angle: angles[i].key, headline: c.headline.slice(0, 90), title: c.title.slice(0, 100),
+    description: c.description.slice(0, 800), alt_text: c.alt_text.slice(0, 500), number: c.number.replace(/\D/g, '').slice(0, 3),
+  }))
+}
+
 // ─── Vectors ────────────────────────────────────────────────────────────────
 /** Embed texts, using Redis to skip anything we have already embedded (embeddings are deterministic). */
 export async function embed(texts: string[]): Promise<number[][]> {

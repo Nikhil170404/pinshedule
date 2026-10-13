@@ -27,6 +27,8 @@ export interface DraftRow {
   title: string
   description: string
   link: string
+  /** Alt text for the image, sent to Pinterest with the pin. */
+  altText?: string
   boardId?: string
   scheduledAt?: string
 }
@@ -77,7 +79,7 @@ export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: Rea
         const b = r.boardId ? { id: r.boardId } : board
         return {
           image_url: urls[i], title: r.title, description: r.description, board_id: b.id, board_name: b.id === board.id ? board.name : '',
-          destination_url: r.link || null,
+          destination_url: r.link || null, ...(r.altText ? { alt_text: r.altText } : {}),
           ...(r.scheduledAt ? { scheduled_at: new Date(r.scheduledAt).toISOString() }
             : mode === 'interval' ? { scheduled_at: new Date(startMs + i * stepMs).toISOString() } : {}),
         }
