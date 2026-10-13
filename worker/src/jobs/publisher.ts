@@ -5,6 +5,7 @@ import { NotConnectedError, withPinterest } from '../lib/tokens'
 import { soleConnectionId } from '../lib/accounts'
 import { ensureVideo, MediaPendingError, MediaRejectedError } from '../lib/media'
 import { errMsg, log } from '../lib/log'
+import { dayKey, notify } from '../lib/notify'
 
 const MAX_ATTEMPTS = 4
 // A video can legitimately take a while to process on Pinterest's side: allow many short waits instead of a few long ones.
@@ -76,6 +77,13 @@ async function publishOne(pin: PinRow) {
       .update({ status: 'failed', processing_started_at: null, error_message: msg.slice(0, 500) })
       .eq('id', pin.id)
     log.warn('pin failed', { pin: pin.id, user: pin.user_id, error: msg })
+    // One notice per account per day, so a bad token that fails fifty pins sends one message, not fifty.
+    await notify(pin.user_id, {
+      kind: permanent ? 'reconnect' : 'pin_failed', connectionId: pin.connection_id, link: '/dashboard/pins?status=failed',
+      dedupeKey: `${permanent ? 'reconnect' : 'pin_failed'}:${pin.connection_id ?? pin.user_id}:${dayKey()}`,
+      title: permanent ? 'Reconnect your Pinterest account' : 'A pin could not be published',
+      body: permanent ? `Pins are waiting but cannot publish: ${msg}` : `A scheduled pin failed after retries: ${msg}. You can edit it and try again from the Pins page.`,
+    })
     return 'failed' as const
   }
 }

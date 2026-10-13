@@ -578,3 +578,25 @@ drop policy if exists "Users can read own drafts" on public.feed_drafts;
 create policy "Users can read own feeds" on public.rss_feeds for select using (auth.uid() = user_id);
 create policy "Users can read own drafts" on public.feed_drafts for select using (auth.uid() = user_id);
 revoke insert, update, delete on public.rss_feeds, public.feed_drafts from anon, authenticated;
+
+-- ───────────────────────── notifications ─────────────────────────
+-- In-app inbox. dedupe_key stops the same problem from notifying again (for example one failed-pin notice per account per day).
+create table if not exists public.notifications (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade,
+  kind text not null,
+  title text not null,
+  body text,
+  link text,
+  dedupe_key text,
+  read_at timestamptz,
+  emailed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists notifications_dedupe_idx on public.notifications (user_id, dedupe_key) where dedupe_key is not null;
+create index if not exists notifications_inbox_idx on public.notifications (user_id, created_at desc);
+alter table public.notifications enable row level security;
+drop policy if exists "Users can read own notifications" on public.notifications;
+create policy "Users can read own notifications" on public.notifications for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.notifications from anon, authenticated;

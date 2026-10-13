@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
 import {
   LayoutDashboard, CalendarDays, ListChecks, BarChart3, Wand2, Hash, Columns3, Settings, CreditCard,
-  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles, Palette, Users, Rss,
+  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles, Palette, Users, Rss, Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -48,11 +49,31 @@ const groups = [
 ]
 
 const account = [
+  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { href: '/dashboard/billing', label: 'Plan & billing', icon: CreditCard },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]
 
 const isActive = (pathname: string, href: string) => (href === '/dashboard' ? pathname === href : pathname.startsWith(href))
+
+/** Unread notification count, refreshed every minute and when the notifications page marks things read. */
+function useUnread() {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    let live = true
+    const load = () => api<{ unread: number }>('/notifications').then((r) => live && setN(r.unread)).catch(() => {})
+    void load()
+    const t = setInterval(load, 60_000)
+    window.addEventListener('gpk:notifications-read', load)
+    return () => { live = false; clearInterval(t); window.removeEventListener('gpk:notifications-read', load) }
+  }, [])
+  return n
+}
+
+function UnreadDot() {
+  const n = useUnread()
+  return n > 0 ? <span className="ml-auto rounded-full bg-brand px-1.5 text-[11px] font-semibold leading-5 text-white" aria-label={`${n} unread`}>{n > 99 ? '99+' : n}</span> : null
+}
 
 function NavLink({ href, label, icon: Icon, onNavigate }: { href: string; label: string; icon: React.ElementType; onNavigate?: () => void }) {
   const active = isActive(usePathname(), href)
@@ -68,6 +89,7 @@ function NavLink({ href, label, icon: Icon, onNavigate }: { href: string; label:
     >
       <Icon size={17} className={cn('shrink-0', active && 'text-brand')} aria-hidden />
       <span className="truncate">{label}</span>
+      {href === '/dashboard/notifications' && <UnreadDot />}
     </Link>
   )
 }

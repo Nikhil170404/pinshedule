@@ -3,6 +3,7 @@ import { safeFetchText } from './safe-fetch'
 import { extractImages, metaContent, pageTitle, parseSitemapUrls } from './html'
 import { findFeedLink, parseFeed, sniffSource, type FeedItem, type SourceKind } from './rss'
 import { errMsg, log } from './log'
+import { notify } from './notify'
 
 export interface Feed {
   id: string; user_id: string; connection_id: string; url: string
@@ -118,6 +119,9 @@ export async function pollFeed(feed: Feed): Promise<{ drafted: number; error?: s
     const failures = feed.failures + 1
     await db.from('rss_feeds').update({ last_checked_at: now, last_error: msg, failures, active: failures < MAX_FAILURES }).eq('id', feed.id)
     log.warn('feed poll failed', { feed: feed.id, failures, error: msg })
+    if (failures === MAX_FAILURES) {
+      await notify(feed.user_id, { kind: 'feed_paused', connectionId: feed.connection_id, link: '/dashboard/autopilot', dedupeKey: `feed_paused:${feed.id}:${now.slice(0, 10)}`, title: 'Autopilot paused a feed', body: `${feed.url} failed ${MAX_FAILURES} times in a row (${msg}). Fix the address and resume it on the Autopilot page.` })
+    }
     return { drafted: 0, error: msg }
   }
 }

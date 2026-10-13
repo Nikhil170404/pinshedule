@@ -34,6 +34,9 @@ export const env = {
     growth_monthly: opt('RAZORPAY_PLAN_GROWTH_MONTHLY'),
     growth_yearly: opt('RAZORPAY_PLAN_GROWTH_YEARLY'),
   } as Record<string, string>,
+  /** Optional. With a Resend key, notifications are also emailed (to users who left notifications on). */
+  resendKey: opt('RESEND_API_KEY'),
+  emailFrom: opt('EMAIL_FROM', 'GoPinKaro <notifications@gopinkaro.com>'),
   /** Set to "false" to run only the HTTP API (e.g. a second replica). */
   runJobs: opt('RUN_JOBS', 'true') !== 'false',
 }

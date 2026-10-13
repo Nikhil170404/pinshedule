@@ -3,6 +3,17 @@ import { env } from '../env'
 import { db, redis } from './clients'
 import { OAuthError, refreshAccessToken } from './pinterest'
 import { log } from './log'
+import { dayKey, notify } from './notify'
+
+async function notifyReconnect(connectionId: string, reason: string) {
+  const { data } = await db.from('pinterest_connections').select('user_id, pinterest_username').eq('id', connectionId).maybeSingle()
+  if (!data) return
+  await notify(data.user_id as string, {
+    kind: 'reconnect', connectionId, link: '/dashboard/accounts', dedupeKey: `reconnect:${connectionId}:${dayKey()}`,
+    title: 'Reconnect your Pinterest account',
+    body: `${data.pinterest_username ? `@${data.pinterest_username}` : 'A Pinterest account'} lost its connection, so scheduled pins cannot publish. Reconnect it to resume. (${reason})`,
+  })
+}
 
 export class NotConnectedError extends Error {}
 
@@ -46,6 +57,7 @@ export async function refreshConnection(connectionId: string): Promise<string> {
           .update({ status: 'needs_reconnect', last_error: e.message, updated_at: new Date().toISOString() })
           .eq('id', connectionId)
         log.warn('pinterest connection needs reconnect', { connection: connectionId, reason: e.message })
+        await notifyReconnect(connectionId, e.message)
         throw new NotConnectedError('Pinterest access expired. Reconnect your account.')
       }
       throw e
