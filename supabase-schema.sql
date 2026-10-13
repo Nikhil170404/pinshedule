@@ -600,3 +600,70 @@ alter table public.notifications enable row level security;
 drop policy if exists "Users can read own notifications" on public.notifications;
 create policy "Users can read own notifications" on public.notifications for select using (auth.uid() = user_id);
 revoke insert, update, delete on public.notifications from anon, authenticated;
+
+-- ───────────────────────── SmartLoop: recycling evergreen pins ─────────────────────────
+create table if not exists public.loops (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade not null,
+  name text not null,
+  active boolean not null default true,
+  paused_reason text,
+  interval_days integer not null default 30 check (interval_days between 14 and 365),
+  max_per_day integer not null default 2 check (max_per_day between 1 and 5),
+  window_start integer not null default 9 check (window_start between 0 and 22),
+  window_end integer not null default 21 check (window_end between 1 and 23),
+  require_approval boolean not null default true,
+  refresh_text boolean not null default true,
+  created_at timestamptz default now()
+);
+create index if not exists loops_active_idx on public.loops (connection_id) where active;
+
+create table if not exists public.loop_items (
+  id uuid default gen_random_uuid() primary key,
+  loop_id uuid references public.loops(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade not null,
+  source_pin_id uuid references public.scheduled_pins(id) on delete set null,
+  image_url text not null,
+  title text,
+  description text,
+  alt_text text,
+  destination_url text,
+  board_id text not null,
+  board_name text,
+  active boolean not null default true,
+  last_recycled_at timestamptz,
+  times_recycled integer not null default 0,
+  created_at timestamptz default now()
+);
+create unique index if not exists loop_items_source_idx on public.loop_items (loop_id, source_pin_id) where source_pin_id is not null;
+
+create table if not exists public.loop_runs (
+  id uuid default gen_random_uuid() primary key,
+  loop_id uuid references public.loops(id) on delete cascade not null,
+  item_id uuid references public.loop_items(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade not null,
+  status text not null check (status in ('review', 'scheduled', 'rejected', 'skipped')),
+  title text,
+  description text,
+  pin_id uuid references public.scheduled_pins(id) on delete set null,
+  scheduled_at timestamptz,
+  note text,
+  created_at timestamptz not null default now()
+);
+create index if not exists loop_runs_loop_idx on public.loop_runs (loop_id, created_at desc);
+alter table public.scheduled_pins add column if not exists loop_id uuid references public.loops(id) on delete set null;
+create index if not exists scheduled_pins_loop_idx on public.scheduled_pins (loop_id, scheduled_at desc) where loop_id is not null;
+
+alter table public.loops enable row level security;
+alter table public.loop_items enable row level security;
+alter table public.loop_runs enable row level security;
+drop policy if exists "Users can read own loops" on public.loops;
+drop policy if exists "Users can read own loop items" on public.loop_items;
+drop policy if exists "Users can read own loop runs" on public.loop_runs;
+create policy "Users can read own loops" on public.loops for select using (auth.uid() = user_id);
+create policy "Users can read own loop items" on public.loop_items for select using (auth.uid() = user_id);
+create policy "Users can read own loop runs" on public.loop_runs for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.loops, public.loop_items, public.loop_runs from anon, authenticated;

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import {
   LayoutDashboard, CalendarDays, ListChecks, BarChart3, Wand2, Hash, Columns3, Settings, CreditCard,
-  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles, Palette, Users, Rss, Bell, LifeBuoy, Shuffle,
+  LogOut, Globe, PlusSquare, Layers, MoreHorizontal, AlertTriangle, Sparkles, Palette, Users, Rss, Bell, LifeBuoy, Shuffle, Repeat,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -36,6 +36,7 @@ const groups = [
     items: [
       { href: '/dashboard/pins', label: 'Pins', icon: ListChecks },
       { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
+      { href: '/dashboard/smartloop', label: 'SmartLoop', icon: Repeat },
       { href: '/dashboard/boards', label: 'Boards', icon: Columns3 },
       { href: '/dashboard/accounts', label: 'Accounts', icon: Users },
     ],
