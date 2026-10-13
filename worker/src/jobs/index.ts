@@ -3,6 +3,7 @@ import { dispatchDue } from './publisher'
 import { reconcile } from './reconciler'
 import { refreshExpiring } from './refresher'
 import { syncAllAnalytics } from './analytics'
+import { pollDueFeeds } from '../lib/autopilot'
 import { errMsg, log } from '../lib/log'
 
 /** Self-rescheduling loop: next run starts only after the previous one finishes (no overlap). */
@@ -28,6 +29,7 @@ export function startJobs() {
     loop('dispatch', 3_000, dispatchDue),
     loop('reconcile', 30_000, reconcile, { lock: 25 }),
     loop('refresh-tokens', 10 * 60_000, refreshExpiring, { lock: 9 * 60 }),
+    loop('feeds', 5 * 60_000, pollDueFeeds, { lock: 4 * 60 }),
     loop('analytics', 6 * 3600_000, syncAllAnalytics, { lock: 5 * 3600 }),
   ]
   log.info('background jobs started')

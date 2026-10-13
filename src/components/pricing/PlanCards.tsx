@@ -11,6 +11,7 @@ export function planFeatures(p: PlanDetails): { text: string; on: boolean }[] {
     { text: `${p.website_imports.toLocaleString()} website page imports`, on: true },
     { text: `${p.ai_generations.toLocaleString()} AI writing generations`, on: true },
     { text: `${p.ai_images.toLocaleString()} AI background images`, on: true },
+    { text: p.rss_feeds > 0 ? `${p.rss_feeds} RSS feed${p.rss_feeds === 1 ? '' : 's'} auto-drafting pins` : 'RSS auto-drafting', on: p.rss_feeds > 0 },
     { text: 'Bulk scheduling and CSV import', on: p.bulk_upload },
     { text: 'Best-time auto scheduling', on: p.smart_scheduler },
     { text: 'Sitemap import', on: p.sitemap_import },

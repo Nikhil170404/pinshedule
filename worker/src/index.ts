@@ -20,6 +20,7 @@ import { proxy } from './routes/proxy'
 import { billing, razorpayWebhook } from './routes/billing'
 import { assistant } from './routes/assistant'
 import { admin, requireAdmin } from './routes/admin'
+import { autopilot } from './routes/autopilot'
 
 const app = new Hono<AppEnv>()
 const origins = new Set([env.appUrl, ...env.extraOrigins])
@@ -63,6 +64,7 @@ v1.route('/accounts', accounts)
 v1.route('/proxy', proxy)
 v1.route('/billing', billing)
 v1.route('/assistant', assistant)
+v1.route('/autopilot', autopilot)
 app.route('/v1', v1)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))

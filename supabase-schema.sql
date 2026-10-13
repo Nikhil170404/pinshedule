@@ -536,3 +536,45 @@ $$;
 
 revoke execute on function public.admin_overview() from public, anon, authenticated;
 revoke execute on function public.admin_list_users(text, text, timestamptz, uuid, integer) from public, anon, authenticated;
+
+
+-- ───────────────────────── Autopilot: RSS feeds and drafts ─────────────────────────
+-- A feed belongs to one Pinterest account. New posts become drafts that wait for the owner's approval.
+create table if not exists public.rss_feeds (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade not null,
+  url text not null,
+  board_id text,
+  board_name text,
+  active boolean not null default true,
+  last_checked_at timestamptz,
+  last_error text,
+  failures integer not null default 0,
+  created_at timestamptz default now(),
+  unique (connection_id, url)
+);
+create index if not exists rss_feeds_due_idx on public.rss_feeds (last_checked_at nulls first) where active;
+
+create table if not exists public.feed_drafts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  connection_id uuid references public.pinterest_connections(id) on delete cascade not null,
+  feed_id uuid references public.rss_feeds(id) on delete cascade not null,
+  item_url text not null,
+  title text,
+  description text,
+  image_url text,
+  status text not null default 'review' check (status in ('review', 'scheduled', 'rejected', 'duplicate')),
+  created_at timestamptz default now(),
+  unique (feed_id, item_url)
+);
+create index if not exists feed_drafts_review_idx on public.feed_drafts (connection_id, created_at desc) where status = 'review';
+
+alter table public.rss_feeds enable row level security;
+alter table public.feed_drafts enable row level security;
+drop policy if exists "Users can read own feeds" on public.rss_feeds;
+drop policy if exists "Users can read own drafts" on public.feed_drafts;
+create policy "Users can read own feeds" on public.rss_feeds for select using (auth.uid() = user_id);
+create policy "Users can read own drafts" on public.feed_drafts for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.rss_feeds, public.feed_drafts from anon, authenticated;

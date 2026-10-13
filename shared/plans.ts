@@ -25,6 +25,8 @@ export interface PlanDetails {
   accounts: number
   /** AI-generated pin backgrounds per month. */
   ai_images: number
+  /** RSS feeds that Autopilot watches for new posts to draft pins from. */
+  rss_feeds: number
   bulk_upload: boolean
   sitemap_import: boolean
   smart_scheduler: boolean
@@ -44,6 +46,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     ai_generations: 20,
     accounts: 1,
     ai_images: 0,
+    rss_feeds: 0,
     bulk_upload: false,
     sitemap_import: false,
     smart_scheduler: false,
@@ -61,6 +64,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     ai_generations: 500,
     accounts: 1,
     ai_images: 20,
+    rss_feeds: 1,
     bulk_upload: true,
     sitemap_import: false,
     smart_scheduler: true,
@@ -78,6 +82,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     ai_generations: 2000,
     accounts: 3,
     ai_images: 75,
+    rss_feeds: 5,
     bulk_upload: true,
     sitemap_import: true,
     smart_scheduler: true,
@@ -95,6 +100,7 @@ export const PLANS: Record<Plan, PlanDetails> = {
     ai_generations: 6000,
     accounts: 10,
     ai_images: 200,
+    rss_feeds: 25,
     bulk_upload: true,
     sitemap_import: true,
     smart_scheduler: true,
