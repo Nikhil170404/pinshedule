@@ -98,3 +98,12 @@ test('while yearly billing is off, no page advertises GoPinKaro yearly prices', 
     assert.ok(!hit, `${p.path}: mentions GoPinKaro yearly billing ("${hit?.[0]}")`)
   }
 })
+
+test('llms-full.txt text rendering keeps every page heading, answer and FAQ', async () => {
+  const { pageToText } = await import('../../src/content/seo/plain')
+  for (const p of allPages) {
+    const t = pageToText(p, `https://x/${p.path}`)
+    assert.ok(t.includes(p.h1) && t.includes(p.intro), p.path)
+    for (const f of p.faqs) assert.ok(t.includes(f.a), `${p.path} faq`)
+  }
+})

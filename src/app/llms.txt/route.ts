@@ -6,7 +6,7 @@ export const dynamic = 'force-static'
 /** A plain-text summary for AI answer engines. Facts come from the same data as the product. */
 export function GET() {
   const plans = Object.values(PLANS)
-    .map((p) => `- ${p.name}: ${p.price_monthly_usd === 0 ? 'free' : YEARLY_BILLING ? `$${p.price_monthly_usd}/month or $${p.price_yearly_usd}/year` : `$${p.price_monthly_usd}/month`}, ${p.pins_per_month.toLocaleString('en-US')} pins per month`)
+    .map((p) => `- ${p.name}: ${p.price_monthly_usd === 0 ? 'free' : YEARLY_BILLING ? `$${p.price_monthly_usd}/month or $${p.price_yearly_usd}/year` : `$${p.price_monthly_usd}/month`}, ${p.pins_per_month.toLocaleString('en-US')} pins per month, ${p.accounts} Pinterest account${p.accounts === 1 ? '' : 's'}, ${p.ai_generations.toLocaleString('en-US')} AI text generations, ${p.ai_images.toLocaleString('en-US')} AI background images and ${p.website_imports.toLocaleString('en-US')} website page imports per month`)
     .join('\n')
   const pages = allPages.map((p) => `- [${p.label}](${pageUrl(p.path)}): ${p.description}`).join('\n')
   const body = `# GoPinKaro
@@ -25,6 +25,9 @@ ${plans}
 
 ## Pages
 ${pages}
+
+## Full text
+All pages as one plain-text file: ${siteUrl()}/llms-full.txt
 `
   return new Response(body, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' } })
 }
