@@ -2,6 +2,28 @@ import { decodeEntities } from './html'
 
 export interface FeedItem { url: string; title: string; description: string; image: string | null }
 
+export type SourceKind = 'feed' | 'sitemap' | 'html'
+
+/** What a fetched document is: a feed, a sitemap, or an ordinary web page. */
+export function sniffSource(text: string): SourceKind {
+  const head = text.slice(0, 3000)
+  if (/<(urlset|sitemapindex)\b/i.test(head)) return 'sitemap'
+  if (/<(rss|feed|rdf:RDF)\b/i.test(head)) return 'feed'
+  return 'html'
+}
+
+/** The feed a web page advertises with <link rel="alternate" type="application/rss+xml">. */
+export function findFeedLink(html: string, base: string): string | null {
+  for (const tag of html.matchAll(/<link\b[^>]*>/gi)) {
+    const t = tag[0]
+    if (!/rel\s*=\s*["']alternate["']/i.test(t) || !/type\s*=\s*["']application\/(rss|atom)\+xml["']/i.test(t)) continue
+    const href = t.match(/href\s*=\s*["']([^"']+)["']/i)?.[1]
+    const abs = absolute(href, base)
+    if (abs) return abs
+  }
+  return null
+}
+
 const CDATA = /<!\[CDATA\[([\s\S]*?)\]\]>/g
 const unwrap = (s: string) => s.replace(CDATA, '$1')
 const stripTags = (s: string) => decodeEntities(unwrap(s).replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()

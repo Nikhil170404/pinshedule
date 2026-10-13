@@ -30,3 +30,19 @@ test('Atom: alternate link, summary and caps', () => {
   assert.equal(parseFeed(many, 'https://b.test/f', 50).length, 50)
   assert.deepEqual(parseFeed('<html>not a feed</html>', 'https://b.test'), [])
 })
+
+import { findFeedLink, sniffSource } from '../src/lib/rss'
+
+test('sniffSource tells feeds, sitemaps and pages apart', () => {
+  assert.equal(sniffSource('<?xml version="1.0"?><rss version="2.0"><channel/></rss>'), 'feed')
+  assert.equal(sniffSource('<feed xmlns="http://www.w3.org/2005/Atom"></feed>'), 'feed')
+  assert.equal(sniffSource('<?xml version="1.0"?><urlset xmlns="x"><url><loc>https://a.test/</loc></url></urlset>'), 'sitemap')
+  assert.equal(sniffSource('<sitemapindex xmlns="x"></sitemapindex>'), 'sitemap')
+  assert.equal(sniffSource('<!doctype html><html><head><title>x</title></head></html>'), 'html')
+})
+
+test('findFeedLink follows the feed a web page advertises', () => {
+  const html = `<head><link rel="stylesheet" href="/a.css"><link rel="alternate" type="application/rss+xml" title="Posts" href="/feed/"><link rel="alternate" type="application/rss+xml" title="Comments" href="/comments/feed/"></head>`
+  assert.equal(findFeedLink(html, 'https://blog.test/'), 'https://blog.test/feed/')
+  assert.equal(findFeedLink('<link rel="alternate" hreflang="fr" href="/fr">', 'https://blog.test/'), null)
+})

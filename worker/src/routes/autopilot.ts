@@ -3,9 +3,8 @@ import { z } from 'zod'
 import { PIN_LIMITS } from '@shared/plans'
 import { connectionOf, limit, type AppEnv } from '../lib/auth'
 import { db } from '../lib/clients'
-import { assertPublicUrl } from '../lib/safe-fetch'
 import { getProfile } from '../lib/plan'
-import { fetchFeed, pollFeed, type Feed } from '../lib/autopilot'
+import { fetchSource, pollFeed, type Feed } from '../lib/autopilot'
 import { ServiceError, schedulePins } from '../lib/pin-service'
 import { errMsg } from '../lib/log'
 
@@ -37,14 +36,14 @@ autopilot.post('/feeds', async (c) => {
   if ((count ?? 0) >= plan.rss_feeds) {
     return c.json({ error: plan.rss_feeds === 0 ? `RSS feeds are not included in the ${plan.name} plan.` : `The ${plan.name} plan includes ${plan.rss_feeds} RSS feed${plan.rss_feeds === 1 ? '' : 's'}.`, upgrade_required: plan.id !== 'growth' }, 403)
   }
+  let source: string
   try {
-    await assertPublicUrl(parsed.data.url)
-    await fetchFeed(parsed.data.url) // reject addresses that are not feeds before saving
+    source = (await fetchSource(parsed.data.url)).resolvedUrl // accepts a feed, a sitemap or a website address
   } catch (e) {
     return c.json({ error: errMsg(e) }, 422)
   }
   const { data, error } = await db.from('rss_feeds').insert({
-    user_id: userId, connection_id: connectionOf(c).id, url: parsed.data.url,
+    user_id: userId, connection_id: connectionOf(c).id, url: source,
     board_id: parsed.data.board_id || null, board_name: parsed.data.board_name || null,
   }).select(FEED_COLUMNS).single()
   if (error) return c.json({ error: error.code === '23505' ? 'This feed is already connected to this account.' : 'Could not save the feed.' }, error.code === '23505' ? 409 : 500)

@@ -103,7 +103,7 @@ export default function AutopilotPage() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Autopilot" description="Connect your blog's RSS feed. New posts become pin drafts here, and nothing is published until you approve it." />
+      <PageHeader title="Autopilot" description="Connect your blog's RSS feed or sitemap. New posts become pin drafts here, and nothing is published until you approve it." />
 
       {error ? <EmptyState icon={Rss} title="Could not load Autopilot" description={error} /> : !data ? <Skeleton className="h-40" /> : (
         <div className="space-y-6">
@@ -112,8 +112,8 @@ export default function AutopilotPage() {
           ) : (
             <Card className="p-4">
               <form onSubmit={addFeed} className="space-y-3">
-                <Input label="Feed address" placeholder="https://yourblog.com/feed" value={url} onChange={(e) => setUrl(e.target.value)} required
-                  hint={`${data.feed_count} of ${data.feed_limit} feed${data.feed_limit === 1 ? '' : 's'} used on the ${data.plan_name} plan. WordPress blogs usually have one at /feed.`} />
+                <Input label="Website, feed or sitemap address" placeholder="https://yourblog.com" value={url} onChange={(e) => setUrl(e.target.value)} required
+                  hint={`${data.feed_count} of ${data.feed_limit} feed${data.feed_limit === 1 ? '' : 's'} used on the ${data.plan_name} plan. Paste your site address and GoPinKaro finds its feed (WordPress sites have one at /feed). A sitemap works too: pages already in it are skipped, and pages added later become drafts.`} />
                 <BoardSelect label="Default board (optional)" value={board.id} onChange={(id, name) => setBoard({ id, name })} />
                 <Button type="submit" loading={busy} disabled={!url.trim()}>Connect feed</Button>
                 {blocked && <UpgradeNote>{blocked} <Link href="/dashboard/upgrade" className="font-medium underline">Upgrade</Link></UpgradeNote>}
