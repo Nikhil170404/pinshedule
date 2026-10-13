@@ -1,8 +1,10 @@
-import { effectivePlan, type Plan } from '@shared/plans'
+import { effectivePlan, PLANS, type Plan, type PlanDetails } from '@shared/plans'
 import { db, redis } from './clients'
 
 export interface Profile {
   plan: Plan
+  /** Limits for this login's plan. Enforce against this. */
+  limits: PlanDetails
   timezone: string
   expires_at: string | null
   subscription_id: string | null
@@ -26,6 +28,7 @@ export async function getProfile(userId: string): Promise<Profile> {
 
   const profile: Profile = {
     plan,
+    limits: PLANS[plan],
     timezone: data?.timezone || 'UTC',
     expires_at: data?.plan_expires_at ?? null,
     subscription_id: data?.razorpay_subscription_id ?? null,

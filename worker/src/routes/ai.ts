@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
 import { db } from '../lib/clients'
 import { aiEnabled, captionOptions, cosine, embed } from '../lib/ai'
@@ -20,7 +19,7 @@ ai.post('/caption', limit('heavy'), async (c) => {
   if (!parsed.success) return c.json({ error: 'Describe what the pin is about (at least 2 characters).' }, 400)
   if (!aiEnabled()) return c.json({ error: 'AI writing is not available right now.' }, 503)
 
-  const plan = PLANS[(await getProfile(userId)).plan]
+  const plan = (await getProfile(userId)).limits
   if (!(await consumeUsage(userId, 'ai', plan.ai_generations))) {
     return c.json({ error: `You have used all ${plan.ai_generations} AI generations on the ${plan.name} plan this month.`, upgrade_required: plan.id !== 'growth' }, 403)
   }
@@ -83,7 +82,7 @@ ai.post('/image', limit('heavy'), async (c) => {
   if (!parsed.success) return c.json({ error: 'Describe the picture in a few words (at least 3 characters).' }, 400)
   if (!aiEnabled()) return c.json({ error: 'AI images are not available right now.' }, 503)
 
-  const plan = PLANS[(await getProfile(userId)).plan]
+  const plan = (await getProfile(userId)).limits
   if (!(await consumeUsage(userId, 'ai_images', plan.ai_images))) {
     return c.json({ error: `You have used all ${plan.ai_images} AI images on the ${plan.name} plan this month.`, upgrade_required: plan.id !== 'growth' }, 403)
   }

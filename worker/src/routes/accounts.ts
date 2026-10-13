@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
 import { CONNECTION_COLUMNS, type Connection } from '../lib/accounts'
 import { db, redis } from '../lib/clients'
@@ -38,8 +37,8 @@ accounts.get('/', async (c) => {
       stats: { pending: Number(s?.pending ?? 0), failed: Number(s?.failed ?? 0), published_30d: Number(s?.published_30d ?? 0), last_published_at: s?.last_published_at ?? null, next_at: s?.next_at ?? null },
     }
   })
-  const max = PLANS[profile.plan].accounts
-  return c.json({ accounts: list, limit: max, count: list.length, can_add: list.length < max, plan_name: PLANS[profile.plan].name })
+  const max = profile.limits.accounts
+  return c.json({ accounts: list, limit: max, count: list.length, can_add: list.length < max, plan_name: profile.limits.name })
 })
 
 accounts.patch('/:id', async (c) => {

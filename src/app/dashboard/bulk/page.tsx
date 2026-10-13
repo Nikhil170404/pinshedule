@@ -11,7 +11,7 @@ import { UpgradeNote } from '@/components/pins/UpgradeNote'
 import { BulkComposer, type DraftRow } from '@/components/schedule/BulkComposer'
 import { useSummary } from '@/lib/hooks'
 import { validateImage } from '@/lib/upload'
-import { PLANS } from '@/types'
+import { planOf } from '@/types'
 import { cn } from '@/lib/utils'
 
 const TEMPLATE = 'image_url,title,description,link\nhttps://example.com/images/pin-1.jpg,"Small kitchen storage ideas","Smart ways to organize a small kitchen. Save for later.",https://example.com/blog/kitchen-storage\n'
@@ -20,7 +20,7 @@ const fileName = (f: File) => f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, '
 
 export default function BulkPage() {
   const { summary } = useSummary()
-  const allowed = summary ? PLANS[summary.plan].bulk_upload : true
+  const allowed = summary ? planOf(summary).bulk_upload : true
   const [rows, setRows] = useState<DraftRow[]>([])
 
   const onImages = useCallback((files: File[]) => {

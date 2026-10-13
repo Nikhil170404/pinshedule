@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PIN_LIMITS, PLANS, type Plan } from '@shared/plans'
+import { PIN_LIMITS, type Plan, type PlanDetails } from '@shared/plans'
 import { isValidTimeZone } from '@shared/schedule'
 import { db, redis } from './clients'
 import { captionOptions, cosine, embed, aiEnabled } from './ai'
@@ -27,7 +27,7 @@ export interface UiAction { type: 'navigate'; path: string; label: string }
 
 type Json = Record<string, unknown>
 /** `connection` is the Pinterest account the user has selected in the app: every tool acts on it only. */
-interface Ctx { userId: string; connection: Connection | null; tz: string; planId: Plan }
+interface Ctx { userId: string; connection: Connection | null; tz: string; planId: Plan; limits: PlanDetails }
 
 interface ReadTool { kind: 'read'; label: string; run: (ctx: Ctx, args: Json) => Promise<unknown> }
 interface WriteTool {
@@ -109,7 +109,7 @@ const readTools: Record<string, ReadTool> = {
   get_analytics: {
     kind: 'read', label: 'Reading your analytics',
     run: async (c, a) => {
-      const plan = PLANS[c.planId]
+      const plan = c.limits
       const days = Math.min(Math.max(1, Number(a.days) || 30), plan.analytics_days)
       const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
       const { data } = await db.from('account_analytics').select('day,impressions,saves,pin_clicks,outbound_clicks').eq('connection_id', account(c).id).gte('day', since).order('day')
@@ -242,7 +242,7 @@ const writeTools: Record<string, WriteTool> = {
       }
     },
     commit: async (c, payload: SchedulePayload) => {
-      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: PLANS[payload.planId], profile: payload.profile, warnings: payload.warnings ?? [], timing: payload.timing ?? null })
+      const r = await commitSchedule(c.userId, { rows: payload.rows, plan: payload.profile.limits, profile: payload.profile, warnings: payload.warnings ?? [], timing: payload.timing ?? null })
       return `Scheduled ${r.created} pin${r.created > 1 ? 's' : ''}, from ${fmt(r.first_at, c.tz)} to ${fmt(r.last_at, c.tz)}.`
     },
   },
@@ -437,7 +437,7 @@ export async function commitProposal(ctx: Ctx, tool: string, payload: unknown): 
 
 export async function toolContext(userId: string, connection: Connection | null): Promise<Ctx> {
   const profile = await getProfile(userId)
-  return { userId, connection, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan }
+  return { userId, connection, tz: isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC', planId: profile.plan, limits: profile.limits }
 }
 
 export const registeredToolNames = () => [...Object.keys(readTools), ...Object.keys(uiTools), ...Object.keys(writeTools)]

@@ -12,7 +12,7 @@ import { BulkComposer, type DraftRow } from '@/components/schedule/BulkComposer'
 import { api, apiBlob, errorText } from '@/lib/api'
 import { designPinFile, layoutFor, PALETTES, photoFromBlob, tidyHeadline, type AutoLayout } from '@/lib/pin-design'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { PLANS } from '@/types'
+import { planOf } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface Imported {
@@ -26,7 +26,7 @@ type PageState = Imported & { selected: Set<string>; title: string }
 
 export default function ImportPage() {
   const { summary } = useSummary()
-  const plan = summary ? PLANS[summary.plan] : null
+  const plan = summary ? planOf(summary) : null
   const [mode, setMode] = useState<'page' | 'sitemap'>('page')
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)

@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, mapLimit } from '../lib/clients'
 import { safeFetchText, assertPublicUrl } from '../lib/safe-fetch'
@@ -37,7 +36,7 @@ const urlSchema = z.string().trim().url().max(2048)
 
 /** One metered page import (used by the REST route and the assistant). */
 export async function importPageMetered(userId: string, url: string, connectionId: string | null = null) {
-  const plan = PLANS[(await getProfile(userId)).plan]
+  const plan = (await getProfile(userId)).limits
   if (!(await consumeUsage(userId, 'imports', plan.website_imports))) {
     throw new ServiceError(`You have used all ${plan.website_imports} website imports on the ${plan.name} plan this month.`, 403, { upgrade_required: plan.id !== 'growth' })
   }
@@ -69,7 +68,7 @@ importer.post('/bulk', async (c) => {
   const userId = c.get('userId')
   const parsed = z.object({ urls: z.array(urlSchema).min(1).max(25) }).safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: 'Provide 1 to 25 valid URLs.' }, 400)
-  const profilePlan = PLANS[(await getProfile(userId)).plan]
+  const profilePlan = (await getProfile(userId)).limits
   if (!profilePlan.bulk_upload) return c.json({ error: 'Bulk import is available on paid plans.', upgrade_required: true }, 403)
 
   const urls = [...new Set(parsed.data.urls)]
@@ -91,7 +90,7 @@ importer.post('/sitemap', async (c) => {
   const userId = c.get('userId')
   const parsed = z.object({ url: urlSchema }).safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: 'Enter a valid sitemap or website URL.' }, 400)
-  if (!PLANS[(await getProfile(userId)).plan].sitemap_import) return c.json({ error: 'Sitemap import is available on the Pro plan and above.', upgrade_required: true }, 403)
+  if (!(await getProfile(userId)).limits.sitemap_import) return c.json({ error: 'Sitemap import is available on the Pro plan and above.', upgrade_required: true }, 403)
 
   try {
     let start = parsed.data.url

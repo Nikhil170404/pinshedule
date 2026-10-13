@@ -15,7 +15,7 @@ import { refreshSummary, useSummary } from '@/lib/hooks'
 import { uploadImage } from '@/lib/upload'
 import { SafeImage } from '@/components/ui/SafeImage'
 import { mapLimit } from '@/lib/async'
-import { PIN_LIMITS, PLANS } from '@/types'
+import { PIN_LIMITS, planOf } from '@/types'
 import { toLocalInput } from '@/lib/utils'
 
 export interface DraftRow {
@@ -38,7 +38,7 @@ export interface DraftRow {
 export function BulkComposer({ rows, setRows }: { rows: DraftRow[]; setRows: React.Dispatch<React.SetStateAction<DraftRow[]>> }) {
   const router = useRouter()
   const { summary } = useSummary()
-  const plan = summary ? PLANS[summary.plan] : null
+  const plan = summary ? planOf(summary) : null
 
   const [board, setBoard] = useState({ id: '', name: '' })
   const [timing, setTiming] = useState<'best' | 'interval'>('interval')

@@ -93,14 +93,14 @@ test('assistant: write tools never execute from runTool, bad input is reported n
   assert.equal(badPage.kind, 'result')
 })
 
-test('account and AI image limits only ever grow with the plan', () => {
+test('account and AI image limits never shrink with the plan', () => {
   const order = ['free_trial', 'starter', 'pro', 'growth'] as const
   for (let i = 1; i < order.length; i++) {
-    assert.ok(PLANS[order[i]].accounts > PLANS[order[i - 1]].accounts, `${order[i]} accounts`)
+    assert.ok(PLANS[order[i]].accounts >= PLANS[order[i - 1]].accounts, `${order[i]} accounts`)
     assert.ok(PLANS[order[i]].ai_images > PLANS[order[i - 1]].ai_images, `${order[i]} ai_images`)
   }
   assert.equal(PLANS.free_trial.accounts, 1)
-  assert.equal(PLANS.growth.accounts, 100)
+  assert.deepEqual([PLANS.starter.accounts, PLANS.pro.accounts, PLANS.growth.accounts], [1, 3, 10])
 })
 
 test('effectivePlan: lapsed paid plans fall back to Free only after the grace period', () => {

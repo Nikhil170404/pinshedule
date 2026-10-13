@@ -246,8 +246,8 @@ export const comparePages: SeoPage[] = [
       h2('limits-us', 'Where GoPinKaro is limited'),
       ul(
         'It does not generate pin images automatically. The designer fills templates with text you write.',
-        `Business tops out at ${FACTS.accounts.business} Pinterest accounts and 6,000 pins a month; BlogToPin lists unlimited accounts.`,
-        'It tops out at 6,000 pins a month on the Business plan.',
+        `Business tops out at ${FACTS.accounts.business} Pinterest accounts and ${FACTS.business.pins} pins a month; BlogToPin lists unlimited accounts.`,
+        `It tops out at ${FACTS.business.pins} pins a month on the Business plan.`,
         'It is newer, so it has a shorter track record.',
       ),
       h2('plans', 'GoPinKaro plans'),

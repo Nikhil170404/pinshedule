@@ -1,3 +1,4 @@
+import { PLANS, type PlanDetails } from '@shared/plans'
 export { PLANS, PAID_PLANS, PIN_LIMITS, YEARLY_BILLING, isPaidPlan, monthlyEquivalent } from '@shared/plans'
 export type { Plan, PlanDetails, BillingCycle } from '@shared/plans'
 
@@ -40,6 +41,8 @@ export interface PinterestBoard {
 
 export interface Summary {
   plan: 'free_trial' | 'starter' | 'pro' | 'growth'
+  /** Limits for this login's plan. */
+  plan_limits?: PlanDetails
   plan_name: string
   plan_status: string
   expires_at: string | null
@@ -50,4 +53,9 @@ export interface Summary {
   pinterest: { id: string; username: string | null; label: string | null; status: 'active' | 'needs_reconnect' } | null
   /** Absent when talking to a worker that predates multi-account support. */
   accounts?: { count: number; limit: number }
+}
+
+/** Limits in force for the signed-in login. Falls back to the plan table for a worker that predates plan_limits. */
+export function planOf(summary: Pick<Summary, 'plan' | 'plan_limits'>): PlanDetails {
+  return summary.plan_limits ?? PLANS[summary.plan]
 }

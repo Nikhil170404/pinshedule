@@ -13,7 +13,7 @@ import { SimilarNotice } from '@/components/pins/SimilarNotice'
 import { api, ApiError, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { isOwnImage } from '@/lib/upload'
-import { PIN_LIMITS, PLANS } from '@/types'
+import { PIN_LIMITS, planOf } from '@/types'
 import { cn, toLocalInput } from '@/lib/utils'
 import { MediaField, type MediaFieldHandle } from '@/components/schedule/MediaField'
 import { TimingNote } from '@/components/schedule/TimingNote'
@@ -22,7 +22,7 @@ function NewPin() {
   const router = useRouter()
   const params = useSearchParams()
   const { summary } = useSummary()
-  const canAuto = summary ? PLANS[summary.plan].smart_scheduler : false
+  const canAuto = summary ? planOf(summary).smart_scheduler : false
 
   // A pin made in the designer arrives as an already-uploaded image (?image=), accepted only from our own bucket.
   const designed = params.get('image')

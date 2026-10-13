@@ -7,7 +7,7 @@ import { Card, EmptyState, Meter, Skeleton } from '@/components/ui/Card'
 import { PinRow } from '@/components/pins/PinRow'
 import { GetStarted } from '@/components/layout/GetStarted'
 import { usePinCounts, usePins, useSummary } from '@/lib/hooks'
-import { PLANS } from '@/types'
+import { planOf } from '@/types'
 
 function Stat({ icon: Icon, label, value, tone, href }: { icon: React.ElementType; label: string; value: number | null; tone: string; href: string }) {
   return (
@@ -23,7 +23,7 @@ export default function OverviewPage() {
   const counts = usePinCounts()
   const upcoming = usePins({ statuses: ['pending', 'processing'], ascending: true, pageSize: 5 })
   const recent = usePins({ statuses: ['published', 'failed'], ascending: false, pageSize: 5 })
-  const plan = summary ? PLANS[summary.plan] : null
+  const plan = summary ? planOf(summary) : null
 
   return (
     <div className="space-y-6">

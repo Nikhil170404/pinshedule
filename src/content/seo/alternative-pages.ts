@@ -385,7 +385,7 @@ export const alternativePages: SeoPage[] = [
     faqs: [
       { q: 'Does Metricool have a free plan for Pinterest?', a: 'Yes. Metricool\'s free plan includes 1 brand and 20 scheduled posts a month, and Pinterest is supported.' },
       { q: 'Is GoPinKaro a Metricool alternative?', a: 'For Pinterest publishing, yes. For multi-network analytics, competitor tracking and white-label reports, Metricool offers more.' },
-      { q: 'Which is better for agencies?', a: 'It depends on the job. Metricool\'s Advanced plan adds team management and approvals; GoPinKaro handles up to 100 Pinterest accounts with per-account queues but has no team seats today.' },
+      { q: 'Which is better for agencies?', a: 'It depends on the job. Metricool\'s Advanced plan adds team management and approvals; GoPinKaro handles up to 10 Pinterest accounts with per-account queues but has no team seats today.' },
     ],
     related: ['hootsuite-alternative-for-pinterest', 'use-cases/agencies', 'manage-multiple-pinterest-accounts', 'cheapest-pinterest-scheduler'],
     sources: [SRC.metricoolPricing, SRC.metricoolMulti],

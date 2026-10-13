@@ -26,12 +26,10 @@ export const useCasePages2: SeoPage[] = [
       ),
       h2('why', 'Why the pricing model matters for agencies'),
       table(['Accounts', 'Per-account tools (about $5 each)', 'GoPinKaro'], [
-        ['3', 'About $15 a month', `$${starter.price} a month (Starter)`],
-        ['10', 'About $50 a month', `$${FACTS.pro.price} a month (Pro)`],
-        ['25', 'About $125 a month', `$${FACTS.business.price} a month (Business)`],
-        ['100', 'About $500 a month', `$${FACTS.business.price} a month (Business)`],
-      ], 'Per-account figures use Buffer\'s $5 per channel as the reference. Plans cap pins per month, shared across accounts: Starter 300, Pro 1,500, Business 6,000, so check your total volume.'),
-      p('Pins are pooled, not per account: with Business, 6,000 pins a month across 100 accounts is about 60 each. A smaller roster gets a larger share per client.'),
+        [String(FACTS.accounts.pro), `About $${FACTS.accounts.pro * 5} a month`, `$${FACTS.pro.price} a month (Pro)`],
+        [String(FACTS.accounts.business), `About $${FACTS.accounts.business * 5} a month`, `$${FACTS.business.price} a month (Business)`],
+      ], `Per-account figures use Buffer's $5 per channel as the reference. Plans cap pins per month, shared across accounts: Starter ${starter.pins}, Pro ${FACTS.pro.pins}, Business ${FACTS.business.pins}, so check your total volume.`),
+      p(`Pins are pooled, not per account: with Business, ${FACTS.business.pins} pins a month across ${FACTS.accounts.business} accounts is about ${Math.round(Number(FACTS.business.pins.replace(/,/g, '')) / FACTS.accounts.business).toLocaleString('en-US')} each. A smaller roster gets a larger share per client.`),
       h2('safety', 'Keeping clients\' accounts safe'),
       ul(
         'Sign-in uses Pinterest\'s official OAuth, so you never handle client passwords.',

@@ -11,7 +11,7 @@ import { api, errorText } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
 import { useScope, useSummary } from '@/lib/hooks'
 import { SafeImage } from '@/components/ui/SafeImage'
-import { PLANS } from '@/types'
+import { planOf } from '@/types'
 import { cn, formatNumber } from '@/lib/utils'
 
 const TrendChart = dynamic(() => import('@/components/charts/TrendChart'), { ssr: false, loading: () => <Skeleton className="h-60" /> })
@@ -29,7 +29,7 @@ const METRICS = [
 export default function AnalyticsPage() {
   const { summary } = useSummary()
   const scope = useScope()
-  const maxDays = summary ? PLANS[summary.plan].analytics_days : 7
+  const maxDays = summary ? planOf(summary).analytics_days : 7
   const [range, setRange] = useState(30)
   const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('impressions')
   const [days, setDays] = useState<Day[] | null>(null)

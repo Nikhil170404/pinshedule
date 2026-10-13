@@ -290,9 +290,9 @@ export const productPages: SeoPage[] = [
       h2('limits', 'Limits'),
       table(['Plan', 'Page imports per month', 'Sitemap import'], [
         ['Free', String(free.imports), 'No'],
-        ['Starter', '100', 'No'],
-        ['Pro', '600', 'Yes'],
-        ['Business', '3,000', 'Yes'],
+        ['Starter', String(FACTS.starter.imports), 'No'],
+        ['Pro', String(FACTS.pro.imports), 'Yes'],
+        ['Business', String(FACTS.business.imports), 'Yes'],
       ]),
       p('GoPinKaro only reads public pages. Pages behind a login, private addresses and local network addresses are blocked.'),
     ],

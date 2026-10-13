@@ -1,10 +1,10 @@
-import { PLANS, type Plan } from '@shared/plans'
+import { type Plan, type PlanDetails } from '@shared/plans'
 import { db, redis } from './clients'
 import { connectionCount, type Connection } from './accounts'
 import { getProfile } from './plan'
 
 interface Base {
-  plan: Plan; plan_name: string; plan_status: string; expires_at: string | null; timezone: string
+  plan: Plan; plan_limits: PlanDetails; plan_name: string; plan_status: string; expires_at: string | null; timezone: string
   limits: { pins: number; ai: number; imports: number; ai_images: number }
   used: { pins: number; ai: number; imports: number; ai_images: number }
 }
@@ -16,7 +16,7 @@ interface Base {
 export async function buildSummary(userId: string, connection: Connection | null = null) {
   let base = await redis.get<Base>(`summary:${userId}`).catch(() => null)
   const profile = await getProfile(userId)
-  const plan = PLANS[profile.plan]
+  const plan = profile.limits
   if (!base) {
     const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))
     const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
@@ -29,7 +29,7 @@ export async function buildSummary(userId: string, connection: Connection | null
     ])
     const usage = Object.fromEntries((usageRes.data ?? []).map((u) => [u.kind, u.count as number]))
     base = {
-      plan: profile.plan, plan_name: plan.name, plan_status: profile.plan_status, expires_at: profile.expires_at, timezone: profile.timezone,
+      plan: profile.plan, plan_limits: plan, plan_name: plan.name, plan_status: profile.plan_status, expires_at: profile.expires_at, timezone: profile.timezone,
       limits: { pins: plan.pins_per_month, ai: plan.ai_generations, imports: plan.website_imports, ai_images: plan.ai_images },
       used: { pins: pinsRes.count ?? 0, ai: usage.ai ?? 0, imports: usage.imports ?? 0, ai_images: usage.ai_images ?? 0 },
     }

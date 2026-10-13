@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { PIN_LIMITS, PLANS, type PlanDetails } from '@shared/plans'
+import { PIN_LIMITS, type PlanDetails } from '@shared/plans'
 import { generateSlots, isValidTimeZone } from '@shared/schedule'
 import { paceWarnings, REPEAT_IMAGE_DAYS } from '@shared/pace'
 import { db } from './clients'
@@ -84,7 +84,7 @@ export interface Prepared { rows: PreparedRow[]; plan: PlanDetails; profile: Pro
 export async function prepareSchedule(userId: string, connectionId: string, body: ScheduleBody): Promise<Prepared> {
   const { pins, auto } = body
   const profile = await getProfile(userId)
-  const plan = PLANS[profile.plan]
+  const plan = profile.limits
   const maxBatch = plan.bulk_upload ? 200 : 10
   if (pins.length > maxBatch) throw new ServiceError(`Your ${plan.name} plan schedules up to ${maxBatch} pins at a time.`, 403, { upgrade_required: !plan.bulk_upload })
 
@@ -206,7 +206,7 @@ export async function retryPins(userId: string, ids: string[]) {
 
 export async function previewSlots(userId: string, connectionId: string, count: number, perDay: number) {
   const profile = await getProfile(userId)
-  if (!PLANS[profile.plan].smart_scheduler) throw new ServiceError('Best-time scheduling is available on paid plans.', 403, { upgrade_required: true })
+  if (!profile.limits.smart_scheduler) throw new ServiceError('Best-time scheduling is available on paid plans.', 403, { upgrade_required: true })
   const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
   const learned = await loadTiming(connectionId, tz)
   const slots = generateSlots({ after: await lastQueued(connectionId), count, perDay, timeZone: tz, ranked: learned.hours })

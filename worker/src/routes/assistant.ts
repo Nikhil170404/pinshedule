@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
-import { PLANS } from '@shared/plans'
 import { limit, type AppEnv } from '../lib/auth'
 import { AccountError } from '../lib/accounts'
 import { aiEnabled } from '../lib/ai'
@@ -29,7 +28,7 @@ assistant.post('/chat', limit('heavy'), async (c) => {
   if (!parsed.success || parsed.data.messages.at(-1)?.role !== 'user') return c.json({ error: 'Send a message first.' }, 400)
   if (!aiEnabled()) return c.json({ error: 'The assistant is not available right now.' }, 503)
 
-  const plan = PLANS[(await getProfile(userId)).plan]
+  const plan = (await getProfile(userId)).limits
   if (!(await consumeUsage(userId, 'ai', plan.ai_generations))) {
     return c.json({ error: `You have used all ${plan.ai_generations} AI actions on the ${plan.name} plan this month.`, upgrade_required: plan.id !== 'growth' }, 403)
   }

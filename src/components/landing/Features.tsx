@@ -1,7 +1,7 @@
 import { BarChart3, CalendarClock, Film, Globe, Layers, MessageSquare, Palette, RefreshCw, ShieldCheck, Users, Wand2 } from 'lucide-react'
 
 export const features = [
-  { icon: Users, title: 'Up to 100 accounts', text: 'Connect every Pinterest account you run and switch between them in the sidebar. Each keeps its own boards, queue, calendar and analytics, and one dashboard shows which ones need attention.' },
+  { icon: Users, title: 'Up to 10 accounts', text: 'Connect every Pinterest account you run and switch between them in the sidebar. Each keeps its own boards, queue, calendar and analytics, and one dashboard shows which ones need attention.' },
   { icon: Layers, title: 'Bulk scheduling', text: 'Drop in up to 200 images or a CSV, write once, and spread the pins across days with a fixed interval or best-time slots.' },
   { icon: Globe, title: 'Website to pins', text: 'Paste a post, product page or a whole sitemap. We find the images and draft titles and descriptions for you to review.' },
   { icon: CalendarClock, title: 'Best-time publishing', text: 'Pins go out in the evening and afternoon hours Pinterest is typically busiest in your timezone, with natural minute offsets. Once an account has enough published pins, its own results start to guide the hours.' },

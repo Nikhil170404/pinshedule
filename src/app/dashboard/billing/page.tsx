@@ -9,7 +9,7 @@ import { buttonStyles } from '@/components/ui/button-styles'
 import { Card, Meter, PageHeader, Skeleton } from '@/components/ui/Card'
 import { api, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { PLANS } from '@/types'
+import { planOf } from '@/types'
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
@@ -29,7 +29,7 @@ export default function BillingPage() {
   }
 
   if (!summary) return <div><PageHeader title="Plan and billing" /><Skeleton className="h-64" /></div>
-  const plan = PLANS[summary.plan]
+  const plan = planOf(summary)
   const paid = summary.plan !== 'free_trial'
 
   return (
