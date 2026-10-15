@@ -7,6 +7,8 @@ import { limit, type AppEnv } from '../lib/auth'
 import { db, redis } from '../lib/clients'
 import { errMsg, log } from '../lib/log'
 import { changeKind, noteOf, startAtFor, type RzpSub } from '../lib/billing-logic'
+import { billingDetailsSchema, getBillingDetails, getInvoice, saveBillingDetails } from '../lib/invoices'
+import { invoiceFilename, renderInvoicePdf, type DocKind } from '../lib/invoice-pdf'
 import {
   applyRefund, cancelSubscription, loadBilling, recordPayment, rzp, syncSubscription, userForSubscription,
   type BillingRow, type PaymentEntity, type RefundEntity,
@@ -145,11 +147,44 @@ billing.post('/cancel', async (c) => {
 billing.get('/history', async (c) => {
   const userId = c.get('userId')
   const [{ data: payments }, prof] = await Promise.all([
-    db.from('billing_payments').select('payment_id, amount, currency, status, refunded_amount, plan, paid_at')
+    db.from('billing_payments').select('payment_id, invoice_number, amount, currency, status, refunded_amount, plan, paid_at')
       .eq('user_id', userId).order('paid_at', { ascending: false }).limit(24),
     loadBilling(userId),
   ])
   return c.json({ payments: payments ?? [], replacement_scheduled: !!prof?.pending_subscription_id })
+})
+
+/** One invoice as data: feeds the in-app invoice page. */
+billing.get('/invoices/:paymentId', async (c) => {
+  const invoice = await getInvoice(c.get('userId'), c.req.param('paymentId'))
+  return invoice ? c.json(invoice) : c.json({ error: 'Invoice not found.' }, 404)
+})
+
+/** Invoice or receipt as a PDF download. ?kind=receipt for the receipt, otherwise the invoice. */
+billing.get('/invoices/:paymentId/pdf', async (c) => {
+  const invoice = await getInvoice(c.get('userId'), c.req.param('paymentId'))
+  if (!invoice) return c.json({ error: 'Invoice not found.' }, 404)
+  const kind: DocKind = c.req.query('kind') === 'receipt' ? 'receipt' : 'invoice'
+  try {
+    const pdf = await renderInvoicePdf(invoice, kind)
+    return c.body(new Uint8Array(pdf), 200, {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${invoiceFilename(invoice, kind)}"`,
+      'Cache-Control': 'private, no-store',
+    })
+  } catch (e) {
+    log.error('invoice pdf failed', { userId: c.get('userId'), payment: invoice.paymentId, error: errMsg(e) })
+    return c.json({ error: 'Could not create the PDF right now. Please try again.' }, 500)
+  }
+})
+
+/** What the customer wants printed under "Bill to" on their invoices. */
+billing.get('/details', async (c) => c.json(await getBillingDetails(c.get('userId'))))
+billing.patch('/details', async (c) => {
+  const parsed = billingDetailsSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message === 'Invalid email' ? 'Enter a valid email address.' : 'Check the invoice details: one of the fields is too long or invalid.' }, 400)
+  await saveBillingDetails(c.get('userId'), parsed.data)
+  return c.json(parsed.data)
 })
 
 // ─── Webhook (mounted outside the authenticated router) ─────────────────────

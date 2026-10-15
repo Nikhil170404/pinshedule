@@ -56,6 +56,22 @@ drop policy if exists "Users can read own payments" on public.billing_payments;
 create policy "Users can read own payments" on public.billing_payments for select using (auth.uid() = user_id);
 revoke insert, update, delete on public.billing_payments from anon, authenticated;
 
+-- Invoice fields. Every captured payment is one invoice; numbers come from a sequence so they are unique and increasing.
+create sequence if not exists public.invoice_number_seq start 1001;
+alter table public.billing_payments add column if not exists invoice_number text
+  not null default ('GPK-' || to_char(now() at time zone 'utc', 'YYYY') || '-' || lpad(nextval('public.invoice_number_seq')::text, 6, '0'));
+alter table public.billing_payments add column if not exists period_start timestamptz;
+alter table public.billing_payments add column if not exists period_end timestamptz;
+alter table public.billing_payments add column if not exists subtotal integer;
+alter table public.billing_payments add column if not exists tax_amount integer not null default 0;
+alter table public.billing_payments add column if not exists tax_rate numeric(5, 2) not null default 0;
+alter table public.billing_payments add column if not exists tax_name text;
+alter table public.billing_payments add column if not exists payer_email text;
+create unique index if not exists billing_payments_invoice_number_idx on public.billing_payments (invoice_number);
+
+-- What the customer wants printed under "Bill to" (name, company, email, address, country, tax id). Written by the worker only.
+alter table public.user_profiles add column if not exists billing_details jsonb;
+
 alter table public.user_profiles enable row level security;
 drop policy if exists "Users can read own profile" on public.user_profiles;
 drop policy if exists "Users can update own profile" on public.user_profiles;

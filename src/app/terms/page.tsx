@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { YEARLY_BILLING } from '@shared/plans'
+import { COMPANY } from '@shared/company'
 import { pageMeta } from '@/lib/site'
 import { LegalPage } from '@/components/layout/LegalPage'
 
@@ -22,7 +23,7 @@ const sections = [
   { title: '10. Termination and deletion', body: ['You can delete your account at any time in Settings, which removes your data as described in the Privacy Policy. We may suspend or end accounts that violate these Terms.'] },
   { title: '11. Liability', body: ['To the extent permitted by law, GoPinKaro is provided "as is". We are not liable for lost revenue, Pinterest account restrictions, content you publish, or indirect or consequential damages. Our total liability is limited to the amount you paid us in the three months before the claim.'] },
   { title: '12. Governing law', body: ['These Terms are governed by the laws of India. Disputes are subject to the courts of Mumbai.'] },
-  { title: '13. Changes and contact', body: ['We may update these Terms and will post the new date here; material changes take effect 14 days after posting. Questions: support@pinshedule.com.'] },
+  { title: '13. Changes and contact', body: ['We may update these Terms and will post the new date here; material changes take effect 14 days after posting. Questions: ' + COMPANY.supportEmail + ' or Instagram @' + COMPANY.instagramHandle + '.'] },
 ]
 
 export default function TermsPage() {

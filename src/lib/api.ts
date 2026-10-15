@@ -44,7 +44,7 @@ export async function api<T = Record<string, unknown>>(path: string, init: { met
 }
 
 /** Like api(), but returns the response body as a Blob (used for images fetched through the worker). */
-export async function apiBlob(path: string): Promise<Blob> {
+export async function apiBlob(path: string, failure = 'Could not load that image.'): Promise<Blob> {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new ApiError('Please sign in again.', 401)
@@ -56,7 +56,7 @@ export async function apiBlob(path: string): Promise<Blob> {
   }
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
-    throw new ApiError(typeof data.error === 'string' ? data.error : 'Could not load that image.', res.status, data)
+    throw new ApiError(typeof data.error === 'string' ? data.error : failure, res.status, data)
   }
   return res.blob()
 }

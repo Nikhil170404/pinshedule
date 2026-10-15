@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  adoption, changeKind, fallbackExpiry, noteOf, paymentStatusAfterRefund, refundOutcome, startAtFor, statusForGrant, verdictFor,
+  adoption, changeKind, fallbackExpiry, formatMoney, splitTax, noteOf, paymentStatusAfterRefund, refundOutcome, startAtFor, statusForGrant, verdictFor,
 } from '../src/lib/billing-logic'
 
 const NOW = Date.parse('2026-10-15T12:00:00Z')
@@ -73,4 +73,20 @@ test('fallback expiry is bounded and notes tolerate Razorpay returning []', () =
   assert.ok(Date.parse(fallbackExpiry('monthly', NOW)) - NOW <= 32 * 86_400_000)
   assert.equal(noteOf({ notes: [] }, 'user_id'), undefined)
   assert.equal(noteOf({ notes: { user_id: 'u1' } }, 'user_id'), 'u1')
+})
+
+test('tax: inclusive split rounds to cents and always adds back up; zero rate prints nothing', () => {
+  assert.deepEqual(splitTax(900, 0), { subtotal: 900, tax: 0 })
+  assert.deepEqual(splitTax(1180, 18), { subtotal: 1000, tax: 180 })
+  for (const [total, rate] of [[900, 18], [1900, 18], [3900, 5], [901, 7.5]] as const) {
+    const r = splitTax(total, rate)
+    assert.equal(r.subtotal + r.tax, total)
+  }
+})
+
+test('money formats USD with a dollar sign and other currencies with their code', () => {
+  assert.equal(formatMoney(900, 'USD'), '$9.00')
+  assert.equal(formatMoney(123456, 'usd'), '$1,234.56')
+  assert.equal(formatMoney(90000, 'INR'), 'INR 900.00')
+  assert.equal(formatMoney(-900, 'USD'), '-$9.00')
 })

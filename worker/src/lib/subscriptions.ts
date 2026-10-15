@@ -4,7 +4,7 @@ import { env } from '../env'
 import { db } from './clients'
 import { invalidateProfile } from './plan'
 import { errMsg, log } from './log'
-import { adoption, fallbackExpiry, paymentStatusAfterRefund, refundOutcome, statusForGrant, verdictFor, type RzpSub } from './billing-logic'
+import { adoption, fallbackExpiry, paymentStatusAfterRefund, refundOutcome, splitTax, statusForGrant, verdictFor, type RzpSub } from './billing-logic'
 
 /**
  * Subscription lifecycle. One rule runs through all of it: Razorpay is the source of truth.
@@ -161,12 +161,19 @@ export async function endSubscriptionNow(userId: string): Promise<void> {
 
 // ─── Payment ledger and refunds ─────────────────────────────────────────────
 
-export interface PaymentEntity { id: string; amount: number; currency?: string; method?: string; created_at?: number; amount_refunded?: number }
+export interface PaymentEntity { id: string; amount: number; currency?: string; method?: string; email?: string; created_at?: number; amount_refunded?: number }
 export interface RefundEntity { id: string; payment_id: string; amount: number }
 
-/** Insert-only: replaying a charged event must never overwrite refund data. */
+/**
+ * Record a payment and, with it, its invoice. Insert-only: replaying a charged event must never overwrite refund data, and
+ * the invoice number is only drawn from the sequence for a payment we have not seen (so numbers are not burnt on replays).
+ */
 export async function recordPayment(userId: string, sub: RzpSub, p: PaymentEntity): Promise<void> {
+  const { data: existing } = await db.from('billing_payments').select('payment_id').eq('payment_id', p.id).maybeSingle()
+  if (existing) return
   const refunded = p.amount_refunded ?? 0
+  const { subtotal, tax } = splitTax(p.amount, env.invoice.taxRate)
+  const iso = (t?: number | null) => (t ? new Date(t * 1000).toISOString() : null)
   const { error } = await db.from('billing_payments').upsert({
     payment_id: p.id,
     user_id: userId,
@@ -178,6 +185,13 @@ export async function recordPayment(userId: string, sub: RzpSub, p: PaymentEntit
     refunded_amount: refunded,
     plan: planFromRazorpayId(sub.plan_id)?.plan ?? null,
     paid_at: p.created_at ? new Date(p.created_at * 1000).toISOString() : new Date().toISOString(),
+    period_start: iso(sub.current_start),
+    period_end: iso(sub.current_end),
+    subtotal,
+    tax_amount: tax,
+    tax_rate: env.invoice.taxRate,
+    tax_name: tax > 0 ? env.invoice.taxName : null,
+    payer_email: p.email?.slice(0, 200) ?? null,
   }, { onConflict: 'payment_id', ignoreDuplicates: true })
   if (error) throw new Error(`ledger write failed: ${error.message}`)
 }

@@ -12,6 +12,7 @@ export interface RzpSub {
   id: string
   plan_id: string
   status: string
+  current_start?: number | null
   current_end?: number | null
   ended_at?: number | null
   start_at?: number | null
@@ -108,4 +109,18 @@ export function startAtFor(periodEndIso: string | null | undefined, now = Date.n
 export function noteOf(sub: Pick<RzpSub, 'notes'>, key: string): string | undefined {
   const n = sub.notes
   return n && !Array.isArray(n) && typeof n[key] === 'string' ? n[key] : undefined
+}
+
+/** Split a tax-inclusive total (minor units) into subtotal and tax. A rate of 0 means no tax line. */
+export function splitTax(total: number, ratePercent: number): { subtotal: number; tax: number } {
+  if (!(ratePercent > 0)) return { subtotal: total, tax: 0 }
+  const tax = Math.round(total - total / (1 + ratePercent / 100))
+  return { subtotal: total - tax, tax }
+}
+
+/** "$9.00" for USD, "INR 900.00" otherwise (the PDF fonts have no currency symbols beyond $). Amounts are minor units. */
+export function formatMoney(minor: number, currency: string): string {
+  const abs = (Math.abs(minor) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const body = currency.toUpperCase() === 'USD' ? `$${abs}` : `${currency.toUpperCase()} ${abs}`
+  return minor < 0 ? `-${body}` : body
 }

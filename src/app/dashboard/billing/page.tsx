@@ -7,21 +7,24 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { buttonStyles } from '@/components/ui/button-styles'
+import { Download } from 'lucide-react'
 import { Card, Meter, PageHeader, Skeleton } from '@/components/ui/Card'
+import { InvoiceDetails } from '@/components/billing/InvoiceDetails'
 import { api, errorText } from '@/lib/api'
 import { refreshSummary, useSummary } from '@/lib/hooks'
 import { formatDate, openRazorpay } from '@/lib/razorpay-checkout'
+import { downloadPdf, money, type DocKind } from '@/lib/invoices'
 import { PLANS } from '@/types'
+import { COMPANY } from '@shared/company'
 
-interface Payment { payment_id: string; amount: number; currency: string; status: string; refunded_amount: number; plan: string | null; paid_at: string }
+interface Payment { payment_id: string; invoice_number: string; amount: number; currency: string; status: string; refunded_amount: number; plan: string | null; paid_at: string }
 interface History { payments: Payment[]; replacement_scheduled: boolean }
 interface CheckoutResponse { subscription_id: string; key_id: string; starts_at: string | null }
-
-const money = (minor: number, currency: string) => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(minor / 100)
 
 export default function BillingPage() {
   const { summary } = useSummary()
   const [busy, setBusy] = useState<'cancel' | 'card' | 'resume' | null>(null)
+  const [pdfBusy, setPdfBusy] = useState<string | null>(null)
   const [history, setHistory] = useState<History | null>(null)
 
   const loadHistory = useCallback(() => {
@@ -32,6 +35,13 @@ export default function BillingPage() {
   async function afterChange() {
     await refreshSummary()
     loadHistory()
+  }
+
+  async function pdf(p: Payment, kind: DocKind) {
+    const key = `${p.payment_id}:${kind}`
+    setPdfBusy(key)
+    try { await downloadPdf(p.payment_id, p.invoice_number, kind) } catch (e) { toast.error(errorText(e)) }
+    setPdfBusy(null)
   }
 
   async function cancel() {
@@ -117,26 +127,38 @@ export default function BillingPage() {
 
       {paid && (
         <Card className="mb-5 p-5">
-          <h2 className="text-sm font-semibold text-ink">Payment history</h2>
+          <h2 className="text-sm font-semibold text-ink">Payment history and invoices</h2>
           {!history ? <Skeleton className="mt-3 h-16" /> : history.payments.length === 0 ? (
             <p className="mt-2 text-sm text-muted">No payments yet. They appear here after Razorpay confirms them.</p>
           ) : (
             <ul className="mt-3 divide-y divide-line text-sm">
               {history.payments.map((p) => (
-                <li key={p.payment_id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                  <span className="text-ink">{formatDate(p.paid_at)}{p.plan ? ` · ${PLANS[p.plan as keyof typeof PLANS]?.name ?? p.plan}` : ''}</span>
-                  <span className="flex items-center gap-2">
-                    {p.status === 'refunded' && <Badge tone="neutral">Refunded</Badge>}
-                    {p.status === 'partially_refunded' && <Badge tone="neutral">{money(p.refunded_amount, p.currency)} refunded</Badge>}
-                    <span className="font-medium text-ink">{money(p.amount, p.currency)}</span>
-                  </span>
+                <li key={p.payment_id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <Link href={`/dashboard/billing/invoices/${encodeURIComponent(p.payment_id)}`} className="font-medium text-ink hover:underline">{p.invoice_number}</Link>
+                      <p className="text-xs text-muted">{formatDate(p.paid_at)}{p.plan ? ` · ${PLANS[p.plan as keyof typeof PLANS]?.name ?? p.plan}` : ''}</p>
+                    </div>
+                    <span className="flex items-center gap-2">
+                      {p.status === 'refunded' && <Badge tone="neutral">Refunded</Badge>}
+                      {p.status === 'partially_refunded' && <Badge tone="neutral">{money(p.refunded_amount, p.currency)} refunded</Badge>}
+                      <span className="font-semibold text-ink">{money(p.amount, p.currency)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Link href={`/dashboard/billing/invoices/${encodeURIComponent(p.payment_id)}`} className={buttonStyles('outline')}>View</Link>
+                    <Button variant="outline" onClick={() => pdf(p, 'invoice')} loading={pdfBusy === `${p.payment_id}:invoice`}><Download size={14} aria-hidden /> Invoice PDF</Button>
+                    <Button variant="outline" onClick={() => pdf(p, 'receipt')} loading={pdfBusy === `${p.payment_id}:receipt`}><Download size={14} aria-hidden /> Receipt PDF</Button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-muted">Refund questions? See our refund terms or contact support with the date of the payment.</p>
+          <p className="mt-3 text-xs text-muted">Questions about a payment or a refund? Email {COMPANY.supportEmail} or message @{COMPANY.instagramHandle} on Instagram with the invoice number.</p>
         </Card>
       )}
+
+      {paid && <InvoiceDetails />}
 
       {paid && !failed && (
         <Card className="mb-5 p-5">
