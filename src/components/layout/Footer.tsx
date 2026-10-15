@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
 import { groups } from '@/content/seo'
 import { site } from '@/lib/site'
+import { COMPANY } from '@shared/company'
 
 const product = ['pinterest-scheduler', 'pinterest-bulk-scheduler', 'pinterest-automation-tool', 'website-to-pinterest-pins', 'pinterest-keyword-tool', 'free-pinterest-scheduler']
 
@@ -38,7 +39,9 @@ export function Footer() {
           <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/privacy" className="hover:text-ink">Privacy policy</Link>
             <Link href="/terms" className="hover:text-ink">Terms of service</Link>
-            <a href="mailto:support@pinshedule.com" className="hover:text-ink">support@pinshedule.com</a>
+            <Link href="/contact" className="hover:text-ink">Contact</Link>
+            <a href={`mailto:${COMPANY.supportEmail}`} className="hover:text-ink">{COMPANY.supportEmail}</a>
+            <a href={COMPANY.instagramUrl} target="_blank" rel="noopener noreferrer me" className="hover:text-ink">Instagram @{COMPANY.instagramHandle}</a>
             {/* Plain anchor with no rel="nofollow": a followed link to our sister product. */}
             <a href="https://www.replykaro.com" title="ReplyKaro: Instagram comment-to-DM automation" className="hover:text-ink">ReplyKaro, Instagram comment-to-DM automation</a>
           </nav>

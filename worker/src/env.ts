@@ -34,6 +34,19 @@ export const env = {
     growth_monthly: opt('RAZORPAY_PLAN_GROWTH_MONTHLY'),
     growth_yearly: opt('RAZORPAY_PLAN_GROWTH_YEARLY'),
   } as Record<string, string>,
+  /** Seller details printed on invoices. Set the INVOICE_* variables to your registered business details (see .env.example). */
+  invoice: {
+    legalName: opt('INVOICE_LEGAL_NAME', 'GoPinKaro'),
+    /** Address lines separated by "|". */
+    address: opt('INVOICE_ADDRESS').split('|').map((s) => s.trim()).filter(Boolean),
+    taxIdLabel: opt('INVOICE_TAX_ID_LABEL', 'Tax ID'),
+    taxId: opt('INVOICE_TAX_ID'),
+    taxName: opt('INVOICE_TAX_NAME', 'Tax'),
+    /** Printed on every invoice that carries no tax (e.g. a seller who is not registered for GST). */
+    taxNote: opt('INVOICE_TAX_NOTE', 'No tax is charged on this invoice.'),
+    /** Percent of the plan price that is tax, already included in what the customer pays. 0 prints no tax line. */
+    taxRate: Math.max(0, Math.min(100, Number(opt('INVOICE_TAX_RATE', '0')) || 0)),
+  },
   /** Set to "false" to run only the HTTP API (e.g. a second replica). */
   runJobs: opt('RUN_JOBS', 'true') !== 'false',
 }

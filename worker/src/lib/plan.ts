@@ -7,6 +7,7 @@ export interface Profile {
   expires_at: string | null
   subscription_id: string | null
   plan_status: string
+  billing_cycle: 'monthly' | 'yearly'
 }
 
 /** Effective plan: a paid plan whose period lapsed (plus grace) falls back to Free. Cached 60s. */
@@ -18,7 +19,7 @@ export async function getProfile(userId: string): Promise<Profile> {
   } catch {}
   const { data } = await db
     .from('user_profiles')
-    .select('plan, timezone, plan_expires_at, razorpay_subscription_id, plan_status')
+    .select('plan, timezone, plan_expires_at, razorpay_subscription_id, plan_status, billing_cycle')
     .eq('id', userId)
     .maybeSingle()
 
@@ -30,6 +31,7 @@ export async function getProfile(userId: string): Promise<Profile> {
     expires_at: data?.plan_expires_at ?? null,
     subscription_id: data?.razorpay_subscription_id ?? null,
     plan_status: data?.plan_status ?? 'active',
+    billing_cycle: data?.billing_cycle === 'yearly' ? 'yearly' : 'monthly',
   }
   redis.set(key, profile as never, { ex: 60 }).catch(() => {})
   return profile

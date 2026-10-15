@@ -5,7 +5,7 @@ import { allPages, hubs } from '@/content/seo'
 export default function sitemap(): MetadataRoute.Sitemap {
   // Core pages use the date they last changed. Content pages carry the date their facts were last reviewed,
   // and hubs the newest date of the pages they list, so lastModified never claims more than is true.
-  const core = ['', '/features', '/pricing', '/tools', '/tools/pin-size-checker', '/tools/pin-text-checker', '/tools/pin-schedule-calculator', '/login', '/privacy', '/terms'].map((p) => ({
+  const core = ['', '/features', '/pricing', '/tools', '/tools/pin-size-checker', '/tools/pin-text-checker', '/tools/pin-schedule-calculator', '/login', '/contact', '/privacy', '/terms'].map((p) => ({
     url: `${site.url}${p}`,
     lastModified: new Date(site.updated),
     changeFrequency: (p === '' || p === '/pricing' ? 'weekly' : 'monthly') as 'weekly' | 'monthly',
