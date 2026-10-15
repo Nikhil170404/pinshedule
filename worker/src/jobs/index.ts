@@ -3,6 +3,7 @@ import { dispatchDue } from './publisher'
 import { reconcile } from './reconciler'
 import { refreshExpiring } from './refresher'
 import { syncAllAnalytics } from './analytics'
+import { expireLapsedPlans } from './billing'
 import { errMsg, log } from '../lib/log'
 
 /** Self-rescheduling loop: next run starts only after the previous one finishes (no overlap). */
@@ -29,6 +30,7 @@ export function startJobs() {
     loop('reconcile', 30_000, reconcile, { lock: 25 }),
     loop('refresh-tokens', 10 * 60_000, refreshExpiring, { lock: 9 * 60 }),
     loop('analytics', 6 * 3600_000, syncAllAnalytics, { lock: 5 * 3600 }),
+    loop('expire-plans', 30 * 60_000, expireLapsedPlans, { lock: 25 * 60 }),
   ]
   log.info('background jobs started')
   return () => stops.forEach((s) => s())

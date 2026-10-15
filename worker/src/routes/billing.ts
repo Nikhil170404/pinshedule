@@ -1,32 +1,44 @@
 import { Hono } from 'hono'
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import Razorpay from 'razorpay'
 import { z } from 'zod'
-import { isPaidPlan, YEARLY_BILLING, type BillingCycle, type Plan } from '@shared/plans'
+import { effectivePlan, isPaidPlan, YEARLY_BILLING, type BillingCycle, type Plan } from '@shared/plans'
 import { env } from '../env'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, redis } from '../lib/clients'
-import { invalidateProfile } from '../lib/plan'
 import { errMsg, log } from '../lib/log'
+import { changeKind, noteOf, startAtFor, type RzpSub } from '../lib/billing-logic'
+import {
+  applyRefund, cancelSubscription, loadBilling, recordPayment, rzp, syncSubscription, userForSubscription,
+  type BillingRow, type PaymentEntity, type RefundEntity,
+} from '../lib/subscriptions'
 
-const rzp = env.razorpayKeyId ? new Razorpay({ key_id: env.razorpayKeyId, key_secret: env.razorpayKeySecret }) : null
+export { cancelSubscription }
 
 export const billing = new Hono<AppEnv>()
 billing.use('*', limit('payment'))
 
 const planIdFor = (plan: string, cycle: BillingCycle) => env.razorpayPlans[`${plan}_${cycle}`]
-function planFromRazorpayId(rzpPlanId: string): { plan: Plan; cycle: BillingCycle } | null {
-  for (const [k, v] of Object.entries(env.razorpayPlans)) {
-    if (v && v === rzpPlanId) {
-      const [plan, cycle] = k.split('_')
-      return { plan: plan as Plan, cycle: cycle as BillingCycle }
-    }
-  }
-  return null
+const safeEq = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
+const isLive = (p: BillingRow | null) => !!p?.razorpay_subscription_id && effectivePlan(p.plan, p.plan_expires_at) !== 'free_trial'
+
+async function createSubscription(userId: string, plan: string, cycle: BillingCycle, rzpPlanId: string, startAt?: number, reason = 'checkout') {
+  return rzp!.subscriptions.create({
+    plan_id: rzpPlanId,
+    total_count: cycle === 'yearly' ? 10 : 120,
+    customer_notify: 1,
+    ...(startAt ? { start_at: startAt } : {}),
+    notes: { user_id: userId, plan, cycle, reason },
+  })
 }
 
-const safeEq = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
-
+/**
+ * Start or change a subscription.
+ *  - Free, or fully ended      -> a new subscription starting now.
+ *  - Paid and healthy          -> the existing subscription is changed in place: upgrades apply now (Razorpay prorates),
+ *                                 downgrades apply at the end of the period already paid for. Nobody is billed twice.
+ *  - Cancelled but time left   -> a new subscription that starts when the paid period ends (no overlap, no gap).
+ *  - Payment failing           -> a new subscription now; it replaces the failing one when it activates.
+ */
 billing.post('/checkout', async (c) => {
   const userId = c.get('userId')
   if (!rzp) return c.json({ error: 'Payments are not configured yet.' }, 503)
@@ -37,37 +49,62 @@ billing.post('/checkout', async (c) => {
   const rzpPlanId = planIdFor(plan, cycle)
   if (!rzpPlanId) return c.json({ error: 'This plan is not available for purchase yet.' }, 503)
 
-  // One active subscription at a time: switching plans cancels the old one at the end of its period.
-  const { data: prof } = await db.from('user_profiles').select('razorpay_subscription_id, plan, plan_status').eq('id', userId).maybeSingle()
-  if (prof?.razorpay_subscription_id && prof.plan !== 'free_trial' && prof.plan_status === 'active') {
-    await cancelSubscription(userId, true).catch(() => {})
-  }
+  const prof = await loadBilling(userId)
+  const live = isLive(prof)
 
-  const sub = await rzp.subscriptions.create({
-    plan_id: rzpPlanId,
-    total_count: cycle === 'yearly' ? 10 : 120,
-    customer_notify: 1,
-    notes: { user_id: userId, plan, cycle },
-  })
-  return c.json({ subscription_id: sub.id, key_id: env.razorpayKeyId })
+  try {
+    if (live && prof!.plan_status === 'active') {
+      if (prof!.plan === plan && (prof!.billing_cycle ?? 'monthly') === cycle) return c.json({ error: 'You are already on this plan.' }, 409)
+      const kind = changeKind(prof!.plan, plan as Plan)
+      let effective: 'now' | 'cycle_end' = kind === 'downgrade' ? 'cycle_end' : 'now'
+      const subId = prof!.razorpay_subscription_id!
+      let updated: RzpSub
+      try {
+        updated = (await rzp.subscriptions.update(subId, { plan_id: rzpPlanId, schedule_change_at: effective, customer_notify: 1 })) as unknown as RzpSub
+      } catch (e) {
+        // Some payment methods (UPI, e-mandate) can only change plan at the cycle end.
+        if (effective !== 'now') throw e
+        log.warn('immediate plan change refused, scheduling for cycle end', { userId, error: errMsg(e) })
+        effective = 'cycle_end'
+        updated = (await rzp.subscriptions.update(subId, { plan_id: rzpPlanId, schedule_change_at: 'cycle_end', customer_notify: 1 })) as unknown as RzpSub
+      }
+      if (effective === 'now') await syncSubscription(userId, subId, updated)
+      return c.json({ changed: true, effective, plan, effective_at: effective === 'cycle_end' ? prof!.plan_expires_at : null })
+    }
+
+    // New subscription. While a cancelled subscription still has paid time, start the new one when that time ends.
+    const startAt = live && prof!.plan_status === 'cancelling' ? startAtFor(prof!.plan_expires_at) : undefined
+    const sub = await createSubscription(userId, plan, cycle, rzpPlanId, startAt)
+    if (live) await db.from('user_profiles').update({ pending_subscription_id: sub.id }).eq('id', userId)
+    return c.json({ subscription_id: sub.id, key_id: env.razorpayKeyId, starts_at: startAt ? new Date(startAt * 1000).toISOString() : null })
+  } catch (e) {
+    log.error('billing checkout failed', { userId, plan, error: errMsg(e) })
+    return c.json({ error: 'Could not start checkout. Please try again in a moment.' }, 502)
+  }
 })
 
-async function applySubscription(userId: string, sub: { id: string; plan_id: string; status: string; current_end?: number | null; customer_id?: string | null }) {
-  const mapped = planFromRazorpayId(sub.plan_id)
-  if (!mapped) throw new Error(`Unknown Razorpay plan ${sub.plan_id}`)
-  const expires = sub.current_end ? new Date(sub.current_end * 1000).toISOString() : null
-  await db.from('user_profiles').update({
-    plan: mapped.plan,
-    billing_cycle: mapped.cycle,
-    plan_status: 'active',
-    plan_started_at: new Date().toISOString(),
-    plan_expires_at: expires,
-    razorpay_subscription_id: sub.id,
-    razorpay_customer_id: sub.customer_id ?? null,
-  }).eq('id', userId)
-  await invalidateProfile(userId)
-  return mapped.plan
-}
+/**
+ * Replace the card on file. Razorpay cannot swap the payment method of a running subscription, so the customer authorises
+ * a replacement for the same plan that starts when the current period ends; the old one is retired once the new is authorised.
+ */
+billing.post('/payment-method', async (c) => {
+  const userId = c.get('userId')
+  if (!rzp) return c.json({ error: 'Payments are not configured yet.' }, 503)
+  const prof = await loadBilling(userId)
+  if (!isLive(prof)) return c.json({ error: 'You do not have an active subscription.' }, 400)
+  const cycle = (prof!.billing_cycle ?? 'monthly') as BillingCycle
+  const rzpPlanId = planIdFor(prof!.plan, cycle)
+  if (!rzpPlanId) return c.json({ error: 'This plan is not available right now.' }, 503)
+  try {
+    const startAt = prof!.plan_status === 'payment_failed' ? undefined : startAtFor(prof!.plan_expires_at)
+    const sub = await createSubscription(userId, prof!.plan, cycle, rzpPlanId, startAt, 'payment_method')
+    await db.from('user_profiles').update({ pending_subscription_id: sub.id }).eq('id', userId)
+    return c.json({ subscription_id: sub.id, key_id: env.razorpayKeyId, starts_at: startAt ? new Date(startAt * 1000).toISOString() : null })
+  } catch (e) {
+    log.error('payment method update failed', { userId, error: errMsg(e) })
+    return c.json({ error: 'Could not start the update. Please try again in a moment.' }, 502)
+  }
+})
 
 /** Called by the browser after Razorpay Checkout succeeds. The plan comes from Razorpay, never from the client. */
 billing.post('/verify', async (c) => {
@@ -82,40 +119,71 @@ billing.post('/verify', async (c) => {
   if (!safeEq(expected, p.razorpay_signature)) return c.json({ error: 'Payment signature mismatch' }, 400)
 
   try {
-    const sub = (await rzp.subscriptions.fetch(p.razorpay_subscription_id)) as unknown as { id: string; plan_id: string; status: string; current_end?: number; customer_id?: string; notes?: Record<string, string> }
-    if (sub.notes?.user_id !== userId) return c.json({ error: 'This subscription belongs to another account' }, 403)
-    const plan = await applySubscription(userId, sub)
-    await db.from('user_profiles').update({ razorpay_payment_id: p.razorpay_payment_id }).eq('id', userId)
-    return c.json({ ok: true, plan })
+    const sub = (await rzp.subscriptions.fetch(p.razorpay_subscription_id)) as unknown as RzpSub
+    if (noteOf(sub, 'user_id') !== userId) return c.json({ error: 'This subscription belongs to another account' }, 403)
+    const state = await syncSubscription(userId, sub.id, sub)
+    if (state === 'applied') await db.from('user_profiles').update({ razorpay_payment_id: p.razorpay_payment_id }).eq('id', userId)
+    const prof = await loadBilling(userId)
+    return c.json({ ok: true, state, plan: effectivePlan(prof?.plan, prof?.plan_expires_at) })
   } catch (e) {
     log.error('billing verify failed', { userId, error: errMsg(e) })
     return c.json({ error: 'Payment received but activation is pending. It will apply within a minute.' }, 202)
   }
 })
 
-export async function cancelSubscription(userId: string, silent = false) {
-  if (!rzp) return false
-  const { data } = await db.from('user_profiles').select('razorpay_subscription_id').eq('id', userId).maybeSingle()
-  if (!data?.razorpay_subscription_id) return false
-  await rzp.subscriptions.cancel(data.razorpay_subscription_id, true) // at end of billing cycle
-  if (!silent) {
-    await db.from('user_profiles').update({ plan_status: 'cancelling' }).eq('id', userId)
-    await invalidateProfile(userId)
-  }
-  return true
-}
-
 billing.post('/cancel', async (c) => {
   try {
     const ok = await cancelSubscription(c.get('userId'))
     return ok ? c.json({ ok: true }) : c.json({ error: 'No active subscription found.' }, 404)
   } catch (e) {
-    return c.json({ error: `Could not cancel: ${errMsg(e)}` }, 502)
+    log.error('billing cancel failed', { userId: c.get('userId'), error: errMsg(e) })
+    return c.json({ error: 'Could not cancel right now. Please try again in a moment.' }, 502)
   }
+})
+
+/** Payment history for the billing page, plus whether a replacement subscription is waiting to take over. */
+billing.get('/history', async (c) => {
+  const userId = c.get('userId')
+  const [{ data: payments }, prof] = await Promise.all([
+    db.from('billing_payments').select('payment_id, amount, currency, status, refunded_amount, plan, paid_at')
+      .eq('user_id', userId).order('paid_at', { ascending: false }).limit(24),
+    loadBilling(userId),
+  ])
+  return c.json({ payments: payments ?? [], replacement_scheduled: !!prof?.pending_subscription_id })
 })
 
 // ─── Webhook (mounted outside the authenticated router) ─────────────────────
 export const razorpayWebhook = new Hono()
+
+const SUBSCRIPTION_EVENTS = new Set([
+  'subscription.authenticated', 'subscription.activated', 'subscription.charged', 'subscription.updated', 'subscription.resumed',
+  'subscription.pending', 'subscription.halted', 'subscription.cancelled', 'subscription.completed', 'subscription.expired',
+])
+
+interface WebhookBody {
+  event: string
+  payload?: {
+    subscription?: { entity?: RzpSub }
+    payment?: { entity?: PaymentEntity }
+    refund?: { entity?: RefundEntity }
+  }
+}
+
+async function handleEvent(event: WebhookBody) {
+  const sub = event.payload?.subscription?.entity
+  if (SUBSCRIPTION_EVENTS.has(event.event) && sub) {
+    const userId = await userForSubscription(sub)
+    if (!userId) { log.warn('webhook for an unknown subscription', { event: event.event, sub: sub.id }); return }
+    const payment = event.payload?.payment?.entity
+    if (event.event === 'subscription.charged' && payment) await recordPayment(userId, sub, payment)
+    await syncSubscription(userId, sub.id) // the payload is only a hint: Razorpay's current state decides
+    return
+  }
+  if (event.event === 'refund.processed') {
+    const refund = event.payload?.refund?.entity
+    if (refund?.payment_id) await applyRefund(refund, event.payload?.payment?.entity)
+  }
+}
 
 razorpayWebhook.post('/', async (c) => {
   const raw = await c.req.text()
@@ -123,39 +191,21 @@ razorpayWebhook.post('/', async (c) => {
   const expected = createHmac('sha256', env.razorpayWebhookSecret || 'unset').update(raw).digest('hex')
   if (!env.razorpayWebhookSecret || !safeEq(expected, sig)) return c.json({ error: 'Invalid signature' }, 400)
 
-  // Razorpay retries; process each event id once.
-  const eventId = c.req.header('x-razorpay-event-id')
-  if (eventId && (await redis.set(`rzp:event:${eventId}`, '1', { nx: true, ex: 7 * 86400 })) !== 'OK') return c.json({ received: true, duplicate: true })
+  let event: WebhookBody
+  try { event = JSON.parse(raw) as WebhookBody } catch { return c.json({ error: 'Invalid body' }, 400) }
 
-  const event = JSON.parse(raw) as { event: string; payload?: { subscription?: { entity?: { id: string; plan_id: string; status: string; current_end?: number; customer_id?: string; notes?: Record<string, string> } } } }
-  const sub = event.payload?.subscription?.entity
-  if (!sub) return c.json({ received: true })
+  // Razorpay retries failed deliveries. Mark an event done only AFTER it succeeded, otherwise a failed first attempt
+  // would make every retry look like a duplicate and the event would be lost for good. Handling is idempotent.
+  const eventId = c.req.header('x-razorpay-event-id')
+  const doneKey = eventId ? `rzp:event:${eventId}` : null
+  if (doneKey && (await redis.get(doneKey).catch(() => null))) return c.json({ received: true, duplicate: true })
 
   try {
-    const userId = sub.notes?.user_id ?? (await db.from('user_profiles').select('id').eq('razorpay_subscription_id', sub.id).maybeSingle()).data?.id
-    if (!userId) return c.json({ received: true })
-
-    if (event.event === 'subscription.activated' || event.event === 'subscription.charged' || event.event === 'subscription.resumed') {
-      await applySubscription(userId, sub)
-    } else if (event.event === 'subscription.cancelled' || event.event === 'subscription.completed' || event.event === 'subscription.expired') {
-      // Only downgrade if this is still the user's current subscription (they may have switched plans).
-      const { data: prof } = await db.from('user_profiles').select('razorpay_subscription_id').eq('id', userId).maybeSingle()
-      if (prof?.razorpay_subscription_id === sub.id) {
-        const endMs = sub.current_end ? sub.current_end * 1000 : 0
-        if (endMs > Date.now()) {
-          await db.from('user_profiles').update({ plan_status: 'cancelling', plan_expires_at: new Date(endMs).toISOString() }).eq('id', userId)
-        } else {
-          await db.from('user_profiles').update({ plan: 'free_trial', plan_status: 'active', plan_expires_at: null, razorpay_subscription_id: null }).eq('id', userId)
-        }
-        await invalidateProfile(userId)
-      }
-    } else if (event.event === 'subscription.halted' || event.event === 'subscription.pending') {
-      await db.from('user_profiles').update({ plan_status: 'payment_failed' }).eq('id', userId)
-      await invalidateProfile(userId)
-    }
+    await handleEvent(event)
   } catch (e) {
     log.error('razorpay webhook failed', { event: event.event, error: errMsg(e) })
     return c.json({ error: 'processing failed' }, 500) // Razorpay will retry
   }
+  if (doneKey) await redis.set(doneKey, '1', { ex: 7 * 86400 }).catch(() => {})
   return c.json({ received: true })
 })

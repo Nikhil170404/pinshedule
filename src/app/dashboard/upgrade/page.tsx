@@ -8,12 +8,9 @@ import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/Card'
 import { CycleToggle, PlanCards } from '@/components/pricing/PlanCards'
 import { api, errorText } from '@/lib/api'
+import { formatDate, openRazorpay } from '@/lib/razorpay-checkout'
 import { refreshSummary, useSummary } from '@/lib/hooks'
-import { isPaidPlan, YEARLY_BILLING, type BillingCycle } from '@/types'
-
-declare global {
-  interface Window { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void; on: (e: string, cb: (r: unknown) => void) => void } }
-}
+import { isPaidPlan, PLANS, YEARLY_BILLING, type BillingCycle } from '@/types'
 
 export default function UpgradePage() {
   const router = useRouter()
@@ -22,38 +19,30 @@ export default function UpgradePage() {
   const [loading, setLoading] = useState<string | null>(null)
 
   async function checkout(plan: string) {
-    if (!window.Razorpay) return toast.error('Payment form is still loading. Try again in a moment.')
     setLoading(plan)
+    const name = PLANS[plan as keyof typeof PLANS]?.name ?? plan
     try {
-      const { subscription_id, key_id } = await api<{ subscription_id: string; key_id: string }>('/billing/checkout', { body: { plan, cycle } })
-      const rzp = new window.Razorpay({
-        key: key_id,
-        subscription_id,
-        name: 'GoPinKaro',
-        description: `${plan} plan, billed ${cycle}`,
-        theme: { color: '#e60023' },
-        modal: { ondismiss: () => setLoading(null) },
-        handler: async (r: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
-          try {
-            await api('/billing/verify', { body: r })
-            await refreshSummary()
-            toast.success('Your plan is active.')
-            router.push('/dashboard/billing')
-          } catch (e) { toast.error(errorText(e)) }
-          setLoading(null)
-        },
-      })
-      rzp.open()
-    } catch (e) {
-      toast.error(errorText(e))
-      setLoading(null)
-    }
+      const res = await api<{ changed?: boolean; effective?: 'now' | 'cycle_end'; effective_at?: string | null; subscription_id?: string; key_id?: string; starts_at?: string | null }>('/billing/checkout', { body: { plan, cycle } })
+      if (res.changed) {
+        // An existing subscription was changed in place: no payment form, nothing to pay twice.
+        await refreshSummary()
+        toast.success(res.effective === 'now' ? `You are now on ${name}.` : `Your plan switches to ${name}${res.effective_at ? ` on ${formatDate(res.effective_at)}` : ' at the end of this period'}.`)
+        router.push('/dashboard/billing')
+        return
+      }
+      const result = await openRazorpay({ subscriptionId: res.subscription_id!, keyId: res.key_id!, description: `${name} plan, billed ${cycle}` })
+      if (!result) return // closed the payment window
+      await refreshSummary()
+      toast.success(result.state === 'pending' && res.starts_at ? `Done. ${name} starts on ${formatDate(res.starts_at)}, when your current period ends.` : 'Your plan is active.')
+      router.push('/dashboard/billing')
+    } catch (e) { toast.error(errorText(e)) }
+    finally { setLoading(null) }
   }
 
   return (
     <div>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      <PageHeader title="Choose a plan" description="Cancel any time. You keep your plan until the end of the period you paid for." actions={YEARLY_BILLING ? <CycleToggle cycle={cycle} onChange={setCycle} /> : undefined} />
+      <PageHeader title="Choose a plan" description="Cancel any time. Upgrades apply now; downgrades apply when your current period ends." actions={YEARLY_BILLING ? <CycleToggle cycle={cycle} onChange={setCycle} /> : undefined} />
       <PlanCards cycle={cycle} current={summary?.plan}
         renderCta={(p, isCurrent) => p.id === 'free_trial' ? (
           <Button variant="outline" className="w-full" disabled>{isCurrent ? 'Current plan' : 'Free forever'}</Button>

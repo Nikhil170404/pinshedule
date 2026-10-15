@@ -43,7 +43,7 @@ account.post('/delete', async (c) => {
   const userId = c.get('userId')
   const body = z.object({ confirm: z.literal('DELETE') }).safeParse(await c.req.json().catch(() => null))
   if (!body.success) return c.json({ error: 'Type DELETE to confirm.' }, 400)
-  const { cancelSubscription } = await import('./billing')
+  const { cancelSubscription } = await import('../lib/subscriptions')
   await cancelSubscription(userId).catch(() => {})
   const { data: conns } = await db.from('pinterest_connections').select('id').eq('user_id', userId)
   for (const bucket of ['pin-images', 'pin-videos']) {

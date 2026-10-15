@@ -32,6 +32,30 @@ alter table public.user_profiles add constraint user_profiles_plan_check
 create unique index if not exists user_profiles_subscription_idx
   on public.user_profiles (razorpay_subscription_id) where razorpay_subscription_id is not null;
 
+-- A replacement subscription the customer has started (plan switch after cancelling, or a new payment method).
+-- It takes over from razorpay_subscription_id when Razorpay reports it active.
+alter table public.user_profiles add column if not exists pending_subscription_id text;
+
+-- Ledger of every payment Razorpay reports (one row per payment id), used for billing history and refunds.
+-- Amounts are in the currency's minor unit (cents). Written only by the worker.
+create table if not exists public.billing_payments (
+  payment_id text primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  subscription_id text,
+  amount integer not null,
+  currency text not null default 'USD',
+  status text not null default 'captured',
+  method text,
+  refunded_amount integer not null default 0,
+  plan text,
+  paid_at timestamptz not null default now()
+);
+create index if not exists billing_payments_user_idx on public.billing_payments (user_id, paid_at desc);
+alter table public.billing_payments enable row level security;
+drop policy if exists "Users can read own payments" on public.billing_payments;
+create policy "Users can read own payments" on public.billing_payments for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.billing_payments from anon, authenticated;
+
 alter table public.user_profiles enable row level security;
 drop policy if exists "Users can read own profile" on public.user_profiles;
 drop policy if exists "Users can update own profile" on public.user_profiles;

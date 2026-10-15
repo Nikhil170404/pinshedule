@@ -42,6 +42,7 @@ export interface Summary {
   plan: 'free_trial' | 'starter' | 'pro' | 'growth'
   plan_name: string
   plan_status: string
+  billing_cycle?: 'monthly' | 'yearly'
   expires_at: string | null
   timezone: string
   limits: { pins: number; ai: number; imports: number; ai_images: number }
