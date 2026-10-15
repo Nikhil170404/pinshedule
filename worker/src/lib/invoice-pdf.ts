@@ -127,10 +127,12 @@ export function renderInvoicePdf(inv: InvoiceData, kind: DocKind): Promise<Buffe
       text(v, tx + tw * 0.45, y, { size: o.big ? 12 : 10, font: o.bold ? 'Helvetica-Bold' : 'Helvetica', color: o.color ?? (o.bold ? C.ink : C.body), width: tw * 0.55, align: 'right' })
       y += o.big ? 22 : 18
     }
-    row('Subtotal', formatMoney(inv.subtotal, inv.currency))
+    if (inv.taxAmount > 0) row('Subtotal', formatMoney(inv.subtotal, inv.currency))
     if (inv.taxAmount > 0) row(`${inv.taxName ?? 'Tax'} (${inv.taxRate}% included)`, formatMoney(inv.taxAmount, inv.currency))
-    doc.moveTo(tx, y - 4).lineTo(R, y - 4).lineWidth(0.75).strokeColor(C.line).stroke()
-    y += 4
+    if (inv.taxAmount > 0) {
+      doc.moveTo(tx, y - 4).lineTo(R, y - 4).lineWidth(0.75).strokeColor(C.line).stroke()
+      y += 4
+    }
     row('Total', formatMoney(inv.total, inv.currency), { bold: true, big: true })
     if (inv.refunded > 0) {
       row('Refunded', formatMoney(-inv.refunded, inv.currency), { color: '#b45309' })
@@ -158,7 +160,7 @@ export function renderInvoicePdf(inv: InvoiceData, kind: DocKind): Promise<Buffe
 
     // ── Notes ──
     const notes = [
-      `All amounts are in ${inv.currency}.${inv.taxAmount > 0 ? ` ${inv.taxName ?? 'Tax'} is already included in the price.` : ''}`,
+      `All amounts are in ${inv.currency}. ${inv.taxAmount > 0 ? `${inv.taxName ?? 'Tax'} is already included in the price.` : inv.taxNote}`.trim(),
       kind === 'receipt' ? 'This receipt confirms that the payment above was received. Thank you.' : inv.status === 'paid' ? 'Thank you for your business. This invoice has been paid in full.' : 'Thank you for your business. A refund has been issued for this payment.',
       'Subscriptions renew until cancelled. You can cancel any time from Plan and billing in your dashboard.',
     ]

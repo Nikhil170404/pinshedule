@@ -19,6 +19,8 @@ export interface InvoiceData {
   taxAmount: number
   taxRate: number
   taxName: string | null
+  /** Shown instead of a tax line when no tax is charged. Empty when tax is included. */
+  taxNote: string
   total: number
   refunded: number
   method: string | null
@@ -75,6 +77,7 @@ export async function getInvoice(userId: string, paymentId: string): Promise<Inv
     taxAmount: (p.tax_amount as number) ?? 0,
     taxRate: Number(p.tax_rate ?? 0),
     taxName: (p.tax_name as string | null) ?? null,
+    taxNote: ((p.tax_amount as number) ?? 0) > 0 ? '' : env.invoice.taxNote,
     total,
     refunded,
     method: (p.method as string | null) ?? null,

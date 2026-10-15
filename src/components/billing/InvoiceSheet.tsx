@@ -86,9 +86,13 @@ export function InvoiceSheet({ inv }: { inv: InvoiceData }) {
         </div>
 
         <dl className="ml-auto mt-4 w-full max-w-xs space-y-2 text-sm">
-          <div className="flex justify-between"><dt className="text-stone-600">Subtotal</dt><dd>{money(inv.subtotal, inv.currency)}</dd></div>
-          {inv.taxAmount > 0 && <div className="flex justify-between"><dt className="text-stone-600">{inv.taxName ?? 'Tax'} ({inv.taxRate}% included)</dt><dd>{money(inv.taxAmount, inv.currency)}</dd></div>}
-          <div className="flex justify-between border-t border-line pt-2 text-base font-bold text-ink"><dt>Total</dt><dd>{money(inv.total, inv.currency)}</dd></div>
+          {inv.taxAmount > 0 && (
+            <>
+              <div className="flex justify-between"><dt className="text-stone-600">Subtotal</dt><dd>{money(inv.subtotal, inv.currency)}</dd></div>
+              <div className="flex justify-between"><dt className="text-stone-600">{inv.taxName ?? 'Tax'} ({inv.taxRate}% included)</dt><dd>{money(inv.taxAmount, inv.currency)}</dd></div>
+            </>
+          )}
+          <div className={`flex justify-between pt-2 text-base font-bold text-ink ${inv.taxAmount > 0 ? 'border-t border-line' : ''}`}><dt>Total</dt><dd>{money(inv.total, inv.currency)}</dd></div>
           {inv.refunded > 0 ? (
             <>
               <div className="flex justify-between text-amber-700"><dt>Refunded</dt><dd>{money(-inv.refunded, inv.currency)}</dd></div>
@@ -108,7 +112,7 @@ export function InvoiceSheet({ inv }: { inv: InvoiceData }) {
         </section>
 
         <p className="mt-6 text-xs leading-relaxed text-muted">
-          All amounts are in {inv.currency}.{inv.taxAmount > 0 ? ` ${inv.taxName ?? 'Tax'} is already included in the price.` : ''} Subscriptions renew until cancelled; you can cancel any time from Plan and billing.
+          All amounts are in {inv.currency}. {inv.taxAmount > 0 ? `${inv.taxName ?? 'Tax'} is already included in the price.` : inv.taxNote} Subscriptions renew until cancelled; you can cancel any time from Plan and billing.
         </p>
         <footer className="mt-6 border-t border-line pt-4 text-xs text-stone-600">
           Questions? <a className="font-medium text-ink hover:underline" href={`mailto:${inv.seller.email}`}>{inv.seller.email}</a> · Instagram <span className="font-medium text-ink">{inv.seller.instagram}</span> · {inv.seller.website}

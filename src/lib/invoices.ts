@@ -14,6 +14,7 @@ export interface InvoiceData {
   taxAmount: number
   taxRate: number
   taxName: string | null
+  taxNote: string
   total: number
   refunded: number
   method: string | null
