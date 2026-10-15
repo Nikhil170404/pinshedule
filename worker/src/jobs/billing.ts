@@ -2,7 +2,7 @@ import { PLAN_GRACE_MS } from '@shared/plans'
 import { db } from '../lib/clients'
 import { invalidateProfile } from '../lib/plan'
 import { errMsg, log } from '../lib/log'
-import { cancelQuietly, rzp, syncSubscription } from '../lib/subscriptions'
+import { cancelQuietly, FREE_PATCH, rzp, syncSubscription } from '../lib/subscriptions'
 
 /**
  * Safety net for missed webhooks. Any paid account whose period has ended is re-checked against Razorpay
@@ -28,7 +28,7 @@ export async function expireLapsedPlans() {
     if (!lapsed) continue
     if (subId) await cancelQuietly(subId, false) // a halted subscription must not be left dangling on Razorpay
     await db.from('user_profiles')
-      .update({ plan: 'free_trial', plan_status: 'active', plan_expires_at: null, razorpay_subscription_id: null, billing_cycle: 'monthly' })
+      .update(FREE_PATCH)
       .eq('id', userId)
     await invalidateProfile(userId)
     downgraded++

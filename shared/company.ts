@@ -2,7 +2,7 @@
 export const COMPANY = {
   brand: 'GoPinKaro',
   website: 'https://www.gopinkaro.com',
-  supportEmail: 'hello@replykaro.co',
+  supportEmail: 'hello@replykaro.com',
   instagramHandle: 'gopinkaro',
   instagramUrl: 'https://www.instagram.com/gopinkaro/',
 } as const

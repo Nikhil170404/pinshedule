@@ -18,7 +18,7 @@ import { PLANS } from '@/types'
 import { COMPANY } from '@shared/company'
 
 interface Payment { payment_id: string; invoice_number: string; amount: number; currency: string; status: string; refunded_amount: number; plan: string | null; paid_at: string }
-interface History { payments: Payment[]; replacement_scheduled: boolean }
+interface History { payments: Payment[]; replacement_scheduled: boolean; scheduled_change?: { plan: keyof typeof PLANS; at: string | null } | null }
 interface CheckoutResponse { subscription_id: string; key_id: string; starts_at: string | null }
 
 export default function BillingPage() {
@@ -45,12 +45,13 @@ export default function BillingPage() {
   }
 
   async function cancel() {
-    if (!confirm('Cancel your subscription? You keep your plan until the end of the current period.')) return
+    const until = summary?.expires_at ? formatDate(summary.expires_at) : 'the end of the current period'
+    if (!confirm(`Cancel your subscription? You keep ${summary ? PLANS[summary.plan].name : 'your plan'} until ${until}. You will not be charged again, and you can restart any time before then.`)) return
     setBusy('cancel')
     try {
       await api('/billing/cancel', { method: 'POST', body: {} })
       await afterChange()
-      toast.success('Subscription canceled. Your plan stays active until the period ends.')
+      toast.success(`Subscription canceled. Your plan stays active until ${until}.`)
     } catch (e) { toast.error(errorText(e)) }
     setBusy(null)
   }
@@ -96,13 +97,18 @@ export default function BillingPage() {
             <p className="mt-1 text-sm text-muted">
               {paid
                 ? summary.expires_at
-                  ? `${cancelling && !replacement ? 'Access until' : cancelling ? 'Current period ends' : 'Renews on'} ${formatDate(summary.expires_at)}`
+                  ? `${cancelling && !replacement ? 'Access until' : cancelling ? 'Current period ends' : 'Renews on'} ${formatDate(summary.expires_at)}${!cancelling && !failed ? ` · ${money((history?.scheduled_change ? PLANS[history.scheduled_change.plan] : plan).price_monthly_usd * 100, 'USD')} a month` : ''}`
                   : 'Active'
                 : 'Free forever, no card on file.'}
             </p>
           </div>
           <Link href="/dashboard/upgrade" className={buttonStyles(paid ? 'outline' : 'primary')}>{paid ? 'Change plan' : 'Upgrade'}</Link>
         </div>
+        {history?.scheduled_change && !cancelling && (
+          <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">
+            Switching to {PLANS[history.scheduled_change.plan].name} on {history.scheduled_change.at ? formatDate(history.scheduled_change.at) : 'your next renewal'}. You keep {plan.name} until then and nothing is charged today.
+          </p>
+        )}
         {failed && (
           <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             <p>Your last payment did not go through. Razorpay retries automatically, or you can add a different card now to keep your access.</p>

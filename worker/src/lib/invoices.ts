@@ -53,7 +53,7 @@ export async function saveBillingDetails(userId: string, details: BillingDetails
   await db.from('user_profiles').update({ billing_details: details }).eq('id', userId)
 }
 
-const PAYMENT_COLUMNS = 'payment_id, invoice_number, amount, currency, status, method, refunded_amount, plan, paid_at, period_start, period_end, subtotal, tax_amount, tax_rate, tax_name, payer_email'
+const PAYMENT_COLUMNS = 'payment_id, invoice_number, description, kind, amount, currency, status, method, refunded_amount, plan, paid_at, period_start, period_end, subtotal, tax_amount, tax_rate, tax_name, payer_email'
 
 export async function getInvoice(userId: string, paymentId: string): Promise<InvoiceData | null> {
   const { data: p } = await db.from('billing_payments').select(PAYMENT_COLUMNS).eq('user_id', userId).eq('payment_id', paymentId).maybeSingle()
@@ -68,7 +68,7 @@ export async function getInvoice(userId: string, paymentId: string): Promise<Inv
     paymentId: p.payment_id as string,
     issuedAt: p.paid_at as string,
     status: refunded <= 0 ? 'paid' : refunded >= total ? 'refunded' : 'partially_refunded',
-    description: `${plan.name} plan, monthly subscription`,
+    description: (p.description as string | null) || `${plan.name} plan, monthly subscription`,
     planName: plan.name,
     periodStart: (p.period_start as string | null) ?? null,
     periodEnd: (p.period_end as string | null) ?? null,

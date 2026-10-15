@@ -124,3 +124,38 @@ export function formatMoney(minor: number, currency: string): string {
   const body = currency.toUpperCase() === 'USD' ? `$${abs}` : `${currency.toUpperCase()} ${abs}`
   return minor < 0 ? `-${body}` : body
 }
+
+export interface Proration {
+  /** Minor units to charge now. */
+  charge: number
+  /** Share of the current period still unused, 0 to 1. */
+  fraction: number
+  /** Whole days left in the period (rounded up), for the customer-facing message. */
+  daysLeft: number
+}
+
+/** Smallest amount worth putting through a payment; below this the upgrade is simply granted. */
+export const MIN_CHARGE_MINOR = 100
+
+/**
+ * Prorated cost of moving to a dearer plan part-way through a paid period: the price difference for the days that are left.
+ * Starter ($9) to Pro ($19) with half the month left costs $5, not $19. Prices and the result are in minor units.
+ */
+export function prorateUpgrade(o: { oldMonthly: number; newMonthly: number; periodStart: number; periodEnd: number; now?: number }): Proration {
+  const now = o.now ?? Date.now()
+  const total = o.periodEnd - o.periodStart
+  const left = Math.max(0, Math.min(total, o.periodEnd - now))
+  const fraction = total > 0 ? left / total : 0
+  const charge = Math.max(0, Math.round((o.newMonthly - o.oldMonthly) * fraction))
+  return { charge, fraction, daysLeft: Math.ceil(left / 86_400_000) }
+}
+
+/**
+ * The plan a customer is entitled to right now. Razorpay bills `billed`; a paid mid-period upgrade (`boost`) lifts them to the
+ * higher plan until the end of that period, after which Razorpay's own plan (switched at renewal) is the truth again.
+ * The boost only counts for the subscription it was bought on.
+ */
+export function entitledPlan(billed: Plan, boost: { plan: Plan | null; until: string | null }, isCurrent: boolean, now = Date.now()): { plan: Plan; boosted: boolean } {
+  const active = isCurrent && boost.plan && boost.until && new Date(boost.until).getTime() > now && RANK[boost.plan] > RANK[billed]
+  return active ? { plan: boost.plan!, boosted: true } : { plan: billed, boosted: false }
+}

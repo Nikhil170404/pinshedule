@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  adoption, changeKind, fallbackExpiry, formatMoney, splitTax, noteOf, paymentStatusAfterRefund, refundOutcome, startAtFor, statusForGrant, verdictFor,
+  adoption, changeKind, entitledPlan, fallbackExpiry, formatMoney, prorateUpgrade, splitTax, noteOf, paymentStatusAfterRefund, refundOutcome, startAtFor, statusForGrant, verdictFor,
 } from '../src/lib/billing-logic'
 
 const NOW = Date.parse('2026-10-15T12:00:00Z')
@@ -89,4 +89,34 @@ test('money formats USD with a dollar sign and other currencies with their code'
   assert.equal(formatMoney(123456, 'usd'), '$1,234.56')
   assert.equal(formatMoney(90000, 'INR'), 'INR 900.00')
   assert.equal(formatMoney(-900, 'USD'), '-$9.00')
+})
+
+test('upgrade proration charges only the price difference for the days left', () => {
+  const start = Date.parse('2026-10-01T00:00:00Z')
+  const end = Date.parse('2026-10-31T00:00:00Z')
+  const at = (iso: string) => Date.parse(iso)
+  // Starter $9 -> Pro $19, half the period left: half of the $10 difference.
+  const half = prorateUpgrade({ oldMonthly: 900, newMonthly: 1900, periodStart: start, periodEnd: end, now: at('2026-10-16T00:00:00Z') })
+  assert.equal(half.charge, 500)
+  assert.equal(half.daysLeft, 15)
+  // Right after renewal: the whole difference, never the whole new price.
+  assert.equal(prorateUpgrade({ oldMonthly: 900, newMonthly: 1900, periodStart: start, periodEnd: end, now: start }).charge, 1000)
+  // Period over: nothing to charge. Never negative, never above the difference.
+  assert.equal(prorateUpgrade({ oldMonthly: 900, newMonthly: 1900, periodStart: start, periodEnd: end, now: end + 1000 }).charge, 0)
+  assert.equal(prorateUpgrade({ oldMonthly: 1900, newMonthly: 900, periodStart: start, periodEnd: end, now: start }).charge, 0)
+  assert.ok(prorateUpgrade({ oldMonthly: 900, newMonthly: 3900, periodStart: start, periodEnd: end, now: at('2026-10-10T00:00:00Z') }).charge < 3000)
+})
+
+test('a paid upgrade keeps the higher plan until the period ends, and only on its own subscription', () => {
+  const later = new Date(Date.now() + 10 * 86_400_000).toISOString()
+  const past = new Date(Date.now() - 1000).toISOString()
+  // Razorpay still bills Starter; the customer paid to move to Pro for the rest of the period.
+  assert.deepEqual(entitledPlan('starter', { plan: 'pro', until: later }, true), { plan: 'pro', boosted: true })
+  // After the period ends (renewal switched Razorpay to Pro, or the boost lapsed) Razorpay's plan is the truth.
+  assert.deepEqual(entitledPlan('starter', { plan: 'pro', until: past }, true), { plan: 'starter', boosted: false })
+  assert.deepEqual(entitledPlan('pro', { plan: 'pro', until: later }, true), { plan: 'pro', boosted: false })
+  // A boost never follows a different subscription, never lowers a plan, and is inert without data.
+  assert.deepEqual(entitledPlan('starter', { plan: 'pro', until: later }, false), { plan: 'starter', boosted: false })
+  assert.deepEqual(entitledPlan('growth', { plan: 'pro', until: later }, true), { plan: 'growth', boosted: false })
+  assert.deepEqual(entitledPlan('starter', { plan: null, until: null }, true), { plan: 'starter', boosted: false })
 })
