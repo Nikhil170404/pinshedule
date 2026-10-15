@@ -134,12 +134,13 @@ export interface Proration {
   daysLeft: number
 }
 
-/** Smallest amount worth putting through a payment; below this the upgrade is simply granted. */
-export const MIN_CHARGE_MINOR = 100
+/** Razorpay refuses an immediate plan change whose prorated difference is under 50 subunits ($0.50). */
+export const MIN_CHARGE_MINOR = 50
 
 /**
- * Prorated cost of moving to a dearer plan part-way through a paid period: the price difference for the days that are left.
- * Starter ($9) to Pro ($19) with half the month left costs $5, not $19. Prices and the result are in minor units.
+ * ESTIMATE of what Razorpay charges when a plan is upgraded part-way through a paid period: the price difference for the days
+ * that are left. Starter ($9) to Pro ($19) with half the month left is about $5, not $19. Razorpay does the real calculation and
+ * charge; this only lets us tell the customer roughly what to expect. Prices and the result are in minor units.
  */
 export function prorateUpgrade(o: { oldMonthly: number; newMonthly: number; periodStart: number; periodEnd: number; now?: number }): Proration {
   const now = o.now ?? Date.now()
@@ -148,14 +149,4 @@ export function prorateUpgrade(o: { oldMonthly: number; newMonthly: number; peri
   const fraction = total > 0 ? left / total : 0
   const charge = Math.max(0, Math.round((o.newMonthly - o.oldMonthly) * fraction))
   return { charge, fraction, daysLeft: Math.ceil(left / 86_400_000) }
-}
-
-/**
- * The plan a customer is entitled to right now. Razorpay bills `billed`; a paid mid-period upgrade (`boost`) lifts them to the
- * higher plan until the end of that period, after which Razorpay's own plan (switched at renewal) is the truth again.
- * The boost only counts for the subscription it was bought on.
- */
-export function entitledPlan(billed: Plan, boost: { plan: Plan | null; until: string | null }, isCurrent: boolean, now = Date.now()): { plan: Plan; boosted: boolean } {
-  const active = isCurrent && boost.plan && boost.until && new Date(boost.until).getTime() > now && RANK[boost.plan] > RANK[billed]
-  return active ? { plan: boost.plan!, boosted: true } : { plan: billed, boosted: false }
 }

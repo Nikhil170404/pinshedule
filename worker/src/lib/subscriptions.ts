@@ -4,7 +4,7 @@ import { env } from '../env'
 import { db } from './clients'
 import { invalidateProfile } from './plan'
 import { errMsg, log } from './log'
-import { adoption, changeKind, entitledPlan, fallbackExpiry, MIN_CHARGE_MINOR, paymentStatusAfterRefund, prorateUpgrade, RANK, refundOutcome, splitTax, statusForGrant, verdictFor, type RzpSub } from './billing-logic'
+import { adoption, changeKind, fallbackExpiry, MIN_CHARGE_MINOR, paymentStatusAfterRefund, prorateUpgrade, refundOutcome, splitTax, statusForGrant, verdictFor, type RzpSub } from './billing-logic'
 
 /**
  * Subscription lifecycle. One rule runs through all of it: Razorpay is the source of truth.
@@ -31,13 +31,11 @@ export interface BillingRow {
   plan_expires_at: string | null
   razorpay_subscription_id: string | null
   pending_subscription_id: string | null
-  boost_plan: Plan | null
-  boost_until: string | null
 }
 
 export async function loadBilling(userId: string): Promise<BillingRow | null> {
   const { data } = await db.from('user_profiles')
-    .select('plan, plan_status, billing_cycle, plan_expires_at, razorpay_subscription_id, pending_subscription_id, boost_plan, boost_until')
+    .select('plan, plan_status, billing_cycle, plan_expires_at, razorpay_subscription_id, pending_subscription_id')
     .eq('id', userId).maybeSingle()
   return (data as BillingRow | null) ?? null
 }
@@ -54,7 +52,7 @@ export async function cancelQuietly(subId: string, atCycleEnd: boolean): Promise
   }
 }
 
-export const FREE_PATCH = { plan: 'free_trial', plan_status: 'active', plan_expires_at: null, razorpay_subscription_id: null, billing_cycle: 'monthly', boost_plan: null, boost_until: null } as const
+export const FREE_PATCH = { plan: 'free_trial', plan_status: 'active', plan_expires_at: null, razorpay_subscription_id: null, billing_cycle: 'monthly' } as const
 
 export type SyncResult = 'applied' | 'pending' | 'ending' | 'duplicate' | 'ignored'
 
@@ -107,8 +105,7 @@ export async function syncSubscription(userId: string, subId: string, known?: Rz
   const previous = prof.razorpay_subscription_id && !isCurrent ? prof.razorpay_subscription_id : null
   const stillPaid = isCurrent && prof.plan_expires_at && new Date(prof.plan_expires_at).getTime() > Date.now()
   const expires = sub.current_end ? new Date(sub.current_end * 1000).toISOString() : stillPaid ? prof.plan_expires_at! : fallbackExpiry(mapped.cycle)
-  // A paid mid-period upgrade keeps the higher plan until the period ends, while Razorpay still bills the old plan.
-  const { plan, boosted } = entitledPlan(mapped.plan, { plan: prof.boost_plan, until: prof.boost_until }, isCurrent)
+  const plan: Plan = mapped.plan
   const patch: Record<string, unknown> = {
     plan,
     billing_cycle: mapped.cycle,
@@ -118,7 +115,6 @@ export async function syncSubscription(userId: string, subId: string, known?: Rz
   }
   if (sub.customer_id) patch.razorpay_customer_id = sub.customer_id
   if (!isCurrent || prof.plan !== plan) patch.plan_started_at = new Date().toISOString()
-  if (!boosted) { patch.boost_plan = null; patch.boost_until = null } // the entitlement ended, or this is a different subscription
   if (isPending) patch.pending_subscription_id = null
   await db.from('user_profiles').update(patch).eq('id', userId)
 
@@ -173,7 +169,7 @@ export interface RefundEntity { id: string; payment_id: string; amount: number }
  * Record a payment and, with it, its invoice. Insert-only: replaying a charged event must never overwrite refund data, and
  * the invoice number is only drawn from the sequence for a payment we have not seen (so numbers are not burnt on replays).
  */
-export interface PaymentExtra { kind?: 'subscription' | 'upgrade'; description?: string; periodStart?: number; periodEnd?: number; orderId?: string }
+export interface PaymentExtra { kind?: 'subscription' | 'plan_change'; description?: string }
 
 export async function recordPayment(userId: string, sub: RzpSub, p: PaymentEntity, extra: PaymentExtra = {}): Promise<void> {
   const { data: existing } = await db.from('billing_payments').select('payment_id').eq('payment_id', p.id).maybeSingle()
@@ -192,11 +188,10 @@ export async function recordPayment(userId: string, sub: RzpSub, p: PaymentEntit
     refunded_amount: refunded,
     plan: planFromRazorpayId(sub.plan_id)?.plan ?? null,
     paid_at: p.created_at ? new Date(p.created_at * 1000).toISOString() : new Date().toISOString(),
-    period_start: iso(extra.periodStart ?? sub.current_start),
-    period_end: iso(extra.periodEnd ?? sub.current_end),
+    period_start: iso(sub.current_start),
+    period_end: iso(sub.current_end),
     kind: extra.kind ?? 'subscription',
     description: extra.description ?? null,
-    order_id: extra.orderId ?? null,
     subtotal,
     tax_amount: tax,
     tax_rate: env.invoice.taxRate,
@@ -239,10 +234,9 @@ export async function userForSubscription(sub: RzpSub): Promise<string | null> {
   return (data?.id as string | undefined) ?? null
 }
 
-// ─── Prorated upgrades ──────────────────────────────────────────────────────
-// Moving to a dearer plan part-way through a paid month costs the price difference for the days left, not the whole new price.
-// We take that amount as a one-time payment, switch the customer to the new plan straight away, and tell Razorpay to bill the
-// new plan's price from the next renewal. Downgrades never charge: they apply when the paid period ends.
+// ─── Plan changes ───────────────────────────────────────────────────────────
+// Upgrades use Razorpay's own immediate plan update: it prorates, raises an invoice for the difference and charges the saved
+// payment method, and leaves the plan unchanged if that charge fails. Downgrades are scheduled for the end of the paid period.
 
 export class BillingError extends Error {
   constructor(message: string, readonly status: 400 | 404 | 409 | 502 = 400) { super(message) }
@@ -251,12 +245,11 @@ export class BillingError extends Error {
 export interface UpgradeQuote {
   from: Plan
   to: Plan
-  subId: string
-  cycle: BillingCycle
   currency: 'USD'
-  /** Minor units due now (0 when the remainder is too small to charge). */
+  /** Estimated minor units Razorpay will charge now. */
   charge: number
-  free: boolean
+  /** False when the difference is too small for Razorpay to charge now, so the change waits for the renewal. */
+  immediate: boolean
   daysLeft: number
   periodEnd: number
   newMonthly: number
@@ -268,75 +261,10 @@ export async function quoteUpgrade(userId: string, to: Plan): Promise<UpgradeQuo
   if (!prof?.razorpay_subscription_id || effectivePlan(prof.plan, prof.plan_expires_at) === 'free_trial' || prof.plan_status !== 'active') throw new BillingError('You do not have an active subscription to upgrade.', 409)
   if (changeKind(prof.plan, to) !== 'upgrade') throw new BillingError('That plan is not an upgrade.')
   const sub = (await rzp.subscriptions.fetch(prof.razorpay_subscription_id)) as unknown as RzpSub
-  if (sub.status !== 'active' || !sub.current_end) throw new BillingError('Your subscription cannot be changed right now. Try again after your next renewal.', 409)
+  // Razorpay can only update a subscription that is authenticated or active.
+  if (!['active', 'authenticated'].includes(sub.status) || !sub.current_end) throw new BillingError('Your subscription cannot be changed right now. If a payment failed, update your payment method first.', 409)
   const periodEnd = sub.current_end * 1000
   const periodStart = (sub.current_start ?? sub.current_end - 30 * 86_400) * 1000
   const pr = prorateUpgrade({ oldMonthly: PLANS[prof.plan].price_monthly_usd * 100, newMonthly: PLANS[to].price_monthly_usd * 100, periodStart, periodEnd })
-  return {
-    from: prof.plan, to, subId: sub.id, cycle: prof.billing_cycle ?? 'monthly', currency: 'USD',
-    charge: pr.charge, free: pr.charge < MIN_CHARGE_MINOR, daysLeft: pr.daysLeft, periodEnd, newMonthly: PLANS[to].price_monthly_usd * 100,
-  }
-}
-
-/** Create the one-time order for the prorated difference, or (when it is negligible) grant the upgrade at once. */
-export async function startUpgrade(userId: string, to: Plan): Promise<{ free: true } | { order_id: string; amount: number; currency: 'USD'; quote: UpgradeQuote }> {
-  const q = await quoteUpgrade(userId, to)
-  if (q.free) {
-    await applyUpgrade(userId, q, null)
-    return { free: true }
-  }
-  const order = await rzp!.orders.create({
-    amount: q.charge,
-    currency: 'USD',
-    receipt: `up_${Date.now()}`,
-    notes: { user_id: userId, kind: 'upgrade', sub: q.subId, from: q.from, to: q.to, period_end: String(q.periodEnd) },
-  })
-  return { order_id: order.id, amount: q.charge, currency: 'USD', quote: q }
-}
-
-interface UpgradeTarget { subId: string; from: Plan; to: Plan; periodEnd: number }
-
-async function applyUpgrade(userId: string, t: UpgradeTarget, payment: PaymentEntity | null) {
-  const prof = await loadBilling(userId)
-  if (!prof || prof.razorpay_subscription_id !== t.subId || prof.plan_status !== 'active' || RANK[t.to] <= RANK[prof.plan]) throw new BillingError('Your subscription changed while you were paying.', 409)
-  const cycle = prof.billing_cycle ?? 'monthly'
-  const toPlanId = env.razorpayPlans[`${t.to}_${cycle}`]
-  if (!toPlanId) throw new BillingError('This plan is not available right now.', 502)
-
-  // From the next renewal Razorpay bills the new plan's full price; until then the customer is entitled to it (boost).
-  await rzp!.subscriptions.update(t.subId, { plan_id: toPlanId, schedule_change_at: 'cycle_end', customer_notify: 1 })
-  await db.from('user_profiles').update({
-    plan: t.to, boost_plan: t.to, boost_until: new Date(t.periodEnd).toISOString(), plan_started_at: new Date().toISOString(),
-  }).eq('id', userId)
-  await invalidateProfile(userId)
-
-  if (payment) {
-    await recordPayment(userId, { id: t.subId, plan_id: toPlanId } as RzpSub, payment, {
-      kind: 'upgrade',
-      description: `Upgrade from ${PLANS[t.from].name} to ${PLANS[t.to].name} (prorated to ${new Date(t.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })})`,
-      periodStart: Math.floor(Date.now() / 1000),
-      periodEnd: Math.floor(t.periodEnd / 1000),
-      orderId: payment.order_id,
-    })
-  }
-}
-
-/**
- * The prorated payment succeeded: switch the plan. Safe to run twice (browser callback and webhook both call it).
- * If the account changed while the customer was paying, the payment is refunded instead of leaving them charged for nothing.
- */
-export async function completeUpgrade(order: { id: string; notes?: Record<string, string> | unknown[] }, payment: PaymentEntity): Promise<'applied' | 'refunded' | 'ignored'> {
-  const n = order.notes && !Array.isArray(order.notes) ? order.notes : null
-  if (!n || n.kind !== 'upgrade' || !n.user_id) return 'ignored'
-  const { data: done } = await db.from('billing_payments').select('payment_id').eq('payment_id', payment.id).maybeSingle()
-  if (done) return 'applied'
-  try {
-    await applyUpgrade(n.user_id, { subId: n.sub, from: n.from as Plan, to: n.to as Plan, periodEnd: Number(n.period_end) }, payment)
-    return 'applied'
-  } catch (e) {
-    if (!(e instanceof BillingError) || e.status !== 409) throw e
-    log.warn('upgrade no longer applicable, refunding', { userId: n.user_id, payment: payment.id })
-    await rzp!.payments.refund(payment.id, { amount: payment.amount, notes: { reason: 'Upgrade could not be applied' } })
-    return 'refunded'
-  }
+  return { from: prof.plan, to, currency: 'USD', charge: pr.charge, immediate: pr.charge >= MIN_CHARGE_MINOR, daysLeft: pr.daysLeft, periodEnd, newMonthly: PLANS[to].price_monthly_usd * 100 }
 }

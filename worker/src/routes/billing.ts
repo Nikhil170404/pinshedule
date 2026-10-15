@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
-import { effectivePlan, isPaidPlan, YEARLY_BILLING, type BillingCycle, type Plan } from '@shared/plans'
+import { effectivePlan, isPaidPlan, PLANS, YEARLY_BILLING, type BillingCycle, type Plan } from '@shared/plans'
 import { env } from '../env'
 import { limit, type AppEnv } from '../lib/auth'
 import { db, redis } from '../lib/clients'
@@ -11,7 +11,7 @@ import { planFromRazorpayId } from '../lib/subscriptions'
 import { billingDetailsSchema, getBillingDetails, getInvoice, saveBillingDetails } from '../lib/invoices'
 import { invoiceFilename, renderInvoicePdf, type DocKind } from '../lib/invoice-pdf'
 import {
-  applyRefund, BillingError, cancelSubscription, completeUpgrade, loadBilling, quoteUpgrade, recordPayment, rzp, startUpgrade, syncSubscription, userForSubscription,
+  applyRefund, BillingError, cancelSubscription, loadBilling, quoteUpgrade, recordPayment, rzp, syncSubscription, userForSubscription,
   type BillingRow, type PaymentEntity, type RefundEntity,
 } from '../lib/subscriptions'
 
@@ -45,9 +45,9 @@ async function createSubscription(userId: string, plan: string, cycle: BillingCy
 billing.post('/checkout', async (c) => {
   const userId = c.get('userId')
   if (!rzp) return c.json({ error: 'Payments are not configured yet.' }, 503)
-  const parsed = z.object({ plan: z.string().refine(isPaidPlan), cycle: z.enum(['monthly', 'yearly']) }).safeParse(await c.req.json().catch(() => null))
+  const parsed = z.object({ plan: z.string().refine(isPaidPlan), cycle: z.enum(['monthly', 'yearly']), when: z.enum(['now', 'renewal']).default('now') }).safeParse(await c.req.json().catch(() => null))
   if (!parsed.success) return c.json({ error: 'Invalid plan' }, 400)
-  const { plan, cycle } = parsed.data
+  const { plan, cycle, when } = parsed.data
   if (cycle === 'yearly' && !YEARLY_BILLING) return c.json({ error: 'Yearly billing is not available yet. Choose monthly.' }, 400)
   const rzpPlanId = planIdFor(plan, cycle)
   if (!rzpPlanId) return c.json({ error: 'This plan is not available for purchase yet.' }, 503)
@@ -59,10 +59,24 @@ billing.post('/checkout', async (c) => {
     if (live && prof!.plan_status === 'active') {
       if (prof!.plan === plan && (prof!.billing_cycle ?? 'monthly') === cycle) return c.json({ error: 'You are already on this plan.' }, 409)
       if (changeKind(prof!.plan, plan as Plan) === 'upgrade') {
-        // Pay only the price difference for the days left; the new plan's full price starts at the next renewal.
-        const r = await startUpgrade(userId, plan as Plan)
-        if ('free' in r) return c.json({ changed: true, effective: 'now', plan })
-        return c.json({ upgrade: { order_id: r.order_id, amount: r.amount, currency: r.currency, key_id: env.razorpayKeyId, days_left: r.quote.daysLeft, renews_at: new Date(r.quote.periodEnd).toISOString() } })
+        // Razorpay prorates an immediate update itself: it invoices the difference for the days left and charges the saved
+        // payment method. If that charge fails the plan stays as it was.
+        const q = await quoteUpgrade(userId, plan as Plan)
+        const subId = prof!.razorpay_subscription_id!
+        if (when === 'renewal' || !q.immediate) {
+          await rzp.subscriptions.update(subId, { plan_id: rzpPlanId, schedule_change_at: 'cycle_end', customer_notify: 1 })
+          return c.json({ changed: true, effective: 'cycle_end', plan, effective_at: prof!.plan_expires_at })
+        }
+        let updated: RzpSub
+        try {
+          updated = (await rzp.subscriptions.update(subId, { plan_id: rzpPlanId, schedule_change_at: 'now', customer_notify: 1 })) as unknown as RzpSub
+        } catch (e) {
+          log.warn('immediate plan change refused', { userId, plan, error: errMsg(e) })
+          return c.json({ error: 'We could not upgrade you right now, so nothing was charged or changed. Your payment method may have been declined.', can_schedule: true, effective_at: prof!.plan_expires_at }, 409)
+        }
+        await syncSubscription(userId, subId, updated)
+        const confirmed = planFromRazorpayId(updated.plan_id)?.plan === plan
+        return c.json({ changed: true, effective: 'now', plan, confirmed })
       }
       // A downgrade keeps the current plan until the period already paid for ends, then bills the lower price.
       await rzp.subscriptions.update(prof!.razorpay_subscription_id!, { plan_id: rzpPlanId, schedule_change_at: 'cycle_end', customer_notify: 1 })
@@ -93,37 +107,11 @@ billing.get('/quote', async (c) => {
   if (kind === 'downgrade') return c.json({ kind: 'downgrade', effective_at: prof!.plan_expires_at })
   try {
     const q = await quoteUpgrade(userId, plan)
-    return c.json({ kind: 'upgrade', charge: q.charge, free: q.free, currency: q.currency, days_left: q.daysLeft, renews_at: new Date(q.periodEnd).toISOString(), new_monthly: q.newMonthly })
+    return c.json({ kind: 'upgrade', estimated_charge: q.charge, immediate: q.immediate, currency: q.currency, days_left: q.daysLeft, renews_at: new Date(q.periodEnd).toISOString(), new_monthly: q.newMonthly })
   } catch (e) {
     if (e instanceof BillingError) return c.json({ error: e.message }, e.status)
     log.error('billing quote failed', { userId, error: errMsg(e) })
     return c.json({ error: 'Could not price that change right now. Please try again.' }, 502)
-  }
-})
-
-/** Called by the browser after the prorated upgrade payment succeeds. The webhook (order.paid) does the same if the tab was closed. */
-billing.post('/upgrade/verify', async (c) => {
-  const userId = c.get('userId')
-  if (!rzp) return c.json({ error: 'Payments are not configured yet.' }, 503)
-  const parsed = z.object({ razorpay_payment_id: z.string(), razorpay_order_id: z.string(), razorpay_signature: z.string() }).safeParse(await c.req.json().catch(() => null))
-  if (!parsed.success) return c.json({ error: 'Invalid payment data' }, 400)
-  const p = parsed.data
-  const expected = createHmac('sha256', env.razorpayKeySecret).update(`${p.razorpay_order_id}|${p.razorpay_payment_id}`).digest('hex')
-  if (!safeEq(expected, p.razorpay_signature)) return c.json({ error: 'Payment signature mismatch' }, 400)
-  try {
-    const order = (await rzp.orders.fetch(p.razorpay_order_id)) as unknown as { id: string; amount: number; notes?: Record<string, string> }
-    if (order.notes?.user_id !== userId) return c.json({ error: 'This payment belongs to another account' }, 403)
-    let payment = (await rzp.payments.fetch(p.razorpay_payment_id)) as unknown as PaymentEntity
-    if (payment.order_id !== order.id || payment.amount !== order.amount) return c.json({ error: 'Payment does not match this upgrade' }, 400)
-    if (payment.status === 'authorized') payment = (await rzp.payments.capture(payment.id, payment.amount, 'USD')) as unknown as PaymentEntity
-    if (payment.status !== 'captured') return c.json({ error: 'Your payment is still being confirmed. Your plan will update within a minute.' }, 202)
-    const result = await completeUpgrade(order, payment)
-    const prof = await loadBilling(userId)
-    if (result === 'refunded') return c.json({ error: 'Your subscription changed while you were paying, so the upgrade was not applied and your payment is being refunded.' }, 409)
-    return c.json({ ok: result === 'applied', plan: effectivePlan(prof?.plan, prof?.plan_expires_at) })
-  } catch (e) {
-    log.error('upgrade verify failed', { userId, error: errMsg(e) })
-    return c.json({ error: 'Payment received but the upgrade is still being applied. It will show within a minute.' }, 202)
   }
 })
 
@@ -255,7 +243,6 @@ interface WebhookBody {
     subscription?: { entity?: RzpSub }
     payment?: { entity?: PaymentEntity }
     refund?: { entity?: RefundEntity }
-    order?: { entity?: { id: string; notes?: Record<string, string> | unknown[] } }
   }
 }
 
@@ -265,14 +252,14 @@ async function handleEvent(event: WebhookBody) {
     const userId = await userForSubscription(sub)
     if (!userId) { log.warn('webhook for an unknown subscription', { event: event.event, sub: sub.id }); return }
     const payment = event.payload?.payment?.entity
-    if (event.event === 'subscription.charged' && payment) await recordPayment(userId, sub, payment)
+    // A renewal arrives as subscription.charged. The prorated charge of an immediate plan change arrives with subscription.updated.
+    if (payment && payment.status === 'captured' && (event.event === 'subscription.charged' || event.event === 'subscription.updated')) {
+      const planName = planFromRazorpayId(sub.plan_id)?.plan
+      await recordPayment(userId, sub, payment, event.event === 'subscription.updated' && planName
+        ? { kind: 'plan_change', description: `Plan change to ${PLANS[planName].name} (prorated for the rest of this period)` }
+        : {})
+    }
     await syncSubscription(userId, sub.id) // the payload is only a hint: Razorpay's current state decides
-    return
-  }
-  if (event.event === 'order.paid') {
-    const order = event.payload?.order?.entity
-    const payment = event.payload?.payment?.entity
-    if (order && payment) await completeUpgrade(order, payment)
     return
   }
   if (event.event === 'refund.processed') {

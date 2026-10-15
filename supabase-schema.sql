@@ -35,10 +35,6 @@ create unique index if not exists user_profiles_subscription_idx
 -- A replacement subscription the customer has started (plan switch after cancelling, or a new payment method).
 -- It takes over from razorpay_subscription_id when Razorpay reports it active.
 alter table public.user_profiles add column if not exists pending_subscription_id text;
--- A paid mid-period upgrade: the customer gets this plan immediately, while Razorpay keeps billing the old plan until the
--- renewal switches it. boost_until is the end of that period; after it Razorpay's own plan is the truth again.
-alter table public.user_profiles add column if not exists boost_plan text;
-alter table public.user_profiles add column if not exists boost_until timestamptz;
 
 -- Ledger of every payment Razorpay reports (one row per payment id), used for billing history and refunds.
 -- Amounts are in the currency's minor unit (cents). Written only by the worker.
@@ -73,7 +69,6 @@ alter table public.billing_payments add column if not exists tax_name text;
 alter table public.billing_payments add column if not exists payer_email text;
 alter table public.billing_payments add column if not exists kind text not null default 'subscription';
 alter table public.billing_payments add column if not exists description text;
-alter table public.billing_payments add column if not exists order_id text;
 create unique index if not exists billing_payments_invoice_number_idx on public.billing_payments (invoice_number);
 
 -- What the customer wants printed under "Bill to" (name, company, email, address, country, tax id). Written by the worker only.

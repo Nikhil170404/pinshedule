@@ -42,9 +42,4 @@ export function openRazorpay(o: { subscriptionId: string; keyId: string; descrip
   return open({ key: o.keyId, subscription_id: o.subscriptionId, description: o.description }, '/billing/verify', (r) => r as unknown as VerifyResult)
 }
 
-/** One-time payment for the prorated difference of an upgrade. Resolves to true once the new plan is active. */
-export function openUpgradePayment(o: { orderId: string; amount: number; currency: string; keyId: string; description: string }): Promise<boolean | null> {
-  return open({ key: o.keyId, order_id: o.orderId, amount: o.amount, currency: o.currency, description: o.description }, '/billing/upgrade/verify', (r) => r.ok === true)
-}
-
 export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
