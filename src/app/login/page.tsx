@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { AlertCircle } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { examplePins } from '@/components/landing/example-pins'
+import { SupportLine } from '@/components/layout/SupportLinks'
 
 const PinterestMark = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -52,6 +53,7 @@ export default function LoginPage() {
         <div>
           <div className="mb-6 flex justify-center"><Logo /></div>
           <Suspense fallback={<div className="h-64 rounded-2xl border border-line bg-white" />}><LoginCard /></Suspense>
+          <SupportLine />
         </div>
         <div className="hidden lg:block" aria-hidden>
           <div className="grid grid-cols-3 gap-3">
