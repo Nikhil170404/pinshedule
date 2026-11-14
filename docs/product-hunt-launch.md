@@ -19,7 +19,7 @@ What it does:
 - One login for up to 100 Pinterest accounts
 - An AI assistant that asks before it changes anything
 - Free tools: pin size checker, title/description checker, pace calculator
-- A public MCP endpoint (https://gopinkaro.com/mcp) so AI assistants can answer pricing and Pinterest-limit questions
+- A public MCP endpoint (https://www.gopinkaro.com/mcp) so AI assistants can answer pricing and Pinterest-limit questions
 
 Honest limits: Pinterest only, and the pin designer is template-based, not a full design studio.
 Pricing is flat by pins per month, with no credit pool. Free plan needs no card.
@@ -27,5 +27,5 @@ Pricing is flat by pins per month, with no credit pool. Free plan needs no card.
 What would make you switch from your current scheduler?
 
 **Gallery (5 images, 1270x760):** 1) bulk composer, 2) website import, 3) calendar, 4) accounts page, 5) pricing.
-**Links:** site https://gopinkaro.com, pricing /pricing, tools /tools, alternatives /alternatives.
+**Links:** site https://www.gopinkaro.com, pricing /pricing, tools /tools, alternatives /alternatives.
 **Checklist:** launch 12:01am Pacific Tuesday to Thursday; reply to every comment in the first hours; add the PH badge link to the footer after launch; update sitemap `site.updated` in `src/lib/site.ts`.

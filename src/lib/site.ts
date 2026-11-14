@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 export const site = {
   name: 'GoPinKaro',
-  url: (process.env.NEXT_PUBLIC_APP_URL ?? 'https://gopinkaro.com').replace(/\/$/, ''),
+  url: (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.gopinkaro.com').replace(/\/$/, ''),
   title: 'GoPinKaro: Pinterest scheduler for bulk pins',
   description: 'Schedule Pinterest pins in bulk, turn your website into pins, and publish at the best times. Free plan included.',
   /** When the core pages (home, features, pricing, legal) last changed. Content pages carry their own dates. */
