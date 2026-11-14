@@ -23,6 +23,9 @@ ${plans}
 - [Pinterest title and description checker](${siteUrl()}/tools/pin-text-checker): character counts and keyword placement
 - [Pinterest posting frequency calculator](${siteUrl()}/tools/pin-schedule-calculator): turns a batch of pins and a number of days into a daily pace
 
+## MCP server
+- Public, read-only MCP endpoint (Streamable HTTP): ${siteUrl()}/mcp. Tools: get_plans, search_pages, check_pin_text, plan_pin_pace. It cannot access anyone's Pinterest account.
+
 ## Pages
 ${pages}
 `

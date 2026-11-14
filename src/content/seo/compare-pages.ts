@@ -148,7 +148,7 @@ export const comparePages: SeoPage[] = [
     kind: 'comparison',
     label: 'Pinterest scheduler pricing',
     title: 'Pinterest scheduler pricing compared (2026)',
-    description: 'What Pinterest schedulers cost in 2026: Tailwind, BlogToPin, Later, Buffer, Publer and more, with entry prices, cost per pin and the credit and per-account charges.',
+    description: 'What Pinterest schedulers cost in 2026: Tailwind, BlogToPin, Later, Buffer, Publer and more, with entry prices, cost per pin and per-account charges.',
     h1: 'Pinterest scheduler pricing compared: what you really pay in 2026',
     intro: `Pinterest's own scheduler is free. Pinterest-focused paid tools mostly cost between about $18 and $30 a month, general social media tools run from a few dollars per channel to $99 a month, and the number on the pricing page is rarely the whole story: credit pools, per-account pricing and annual billing all change it. GoPinKaro is free for ${free.pins} pins a month and paid plans start at $${starter.price}.`,
     updated: CHECKED,
