@@ -31,7 +31,8 @@ export async function updateSession(request: NextRequest) {
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
-  if (signedIn && (pathname === '/login' || pathname === '/signup')) {
+  // Signed-in people land on their dashboard, not the marketing home page. Visitors and search engines carry no session, so they still get the landing page.
+  if (signedIn && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     url.search = ''
