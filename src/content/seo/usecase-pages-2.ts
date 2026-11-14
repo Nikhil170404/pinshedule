@@ -105,7 +105,7 @@ export const useCasePages2: SeoPage[] = [
     kind: 'use-case',
     label: 'Pinterest scheduler for food bloggers',
     title: 'Pinterest scheduler for food bloggers',
-    description: 'Keep recipe pins flowing: import posts from your sitemap, write keyword-first titles, schedule video and carousel pins, and plan seasonal recipes months ahead.',
+    description: 'Keep recipe pins flowing: import posts from your sitemap, write keyword-first titles, schedule video and carousel pins, and plan seasonal recipes ahead.',
     h1: 'Pinterest scheduling for food bloggers',
     intro: 'Recipe content suits Pinterest: people search for ideas, save them and come back to cook. The challenge is keeping a steady stream of pins as the archive grows. GoPinKaro turns recipe posts into drafted pins, schedules them at a sensible pace, and handles video and step-by-step carousels.',
     updated: CHECKED,

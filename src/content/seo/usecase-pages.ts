@@ -9,7 +9,7 @@ export const useCasePages: SeoPage[] = [
     kind: 'use-case',
     label: 'Pinterest scheduler for bloggers',
     title: "Pinterest scheduler for bloggers",
-    description: 'How bloggers use GoPinKaro to turn new and old blog posts into scheduled Pinterest pins: import posts, draft titles, space pins over weeks and track what works.',
+    description: 'How bloggers turn new and old blog posts into scheduled Pinterest pins with GoPinKaro: import posts, draft titles, space pins over weeks, track results.',
     h1: 'A Pinterest scheduler for bloggers',
     intro: 'Pinterest can send steady traffic to blog posts for months, but only if each post has pins and new pins keep appearing. GoPinKaro helps bloggers turn each post into several pins quickly, then spreads them over days so the account stays active without daily effort.',
     updated: CHECKED,
