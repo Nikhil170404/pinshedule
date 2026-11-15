@@ -42,6 +42,8 @@ export function Footer() {
             <Link href="/contact" className="hover:text-ink">Contact</Link>
             <a href={`mailto:${COMPANY.supportEmail}`} className="hover:text-ink">{COMPANY.supportEmail}</a>
             <a href={COMPANY.instagramUrl} target="_blank" rel="noopener noreferrer me" className="hover:text-ink">Instagram @{COMPANY.instagramHandle}</a>
+            <a href={COMPANY.productHuntUrl} target="_blank" rel="noopener me" className="hover:text-ink">Product Hunt</a>
+            <a href={COMPANY.indieHackersUrl} target="_blank" rel="noopener me" className="hover:text-ink">Indie Hackers</a>
             {/* Plain anchor with no rel="nofollow": a followed link to our sister product. */}
             <a href="https://www.replykaro.com" title="ReplyKaro: Instagram comment-to-DM automation" className="hover:text-ink">ReplyKaro, Instagram comment-to-DM automation</a>
           </nav>

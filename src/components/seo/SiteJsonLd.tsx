@@ -17,7 +17,7 @@ export function SiteJsonLd() {
             operatingSystem: 'Web',
             description: site.description,
             url: site.url,
-            publisher: { '@type': 'Organization', name: site.name, url: site.url, sameAs: [COMPANY.instagramUrl, COMPANY.indieHackersUrl], contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: COMPANY.supportEmail } },
+            publisher: { '@type': 'Organization', name: site.name, url: site.url, sameAs: [COMPANY.instagramUrl, COMPANY.productHuntUrl, COMPANY.indieHackersUrl], contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: COMPANY.supportEmail } },
             offers: Object.values(PLANS).map((p) => ({ '@type': 'Offer', name: p.name, price: p.price_monthly_usd, priceCurrency: 'USD', url: `${site.url}/pricing` })),
           },
         ],

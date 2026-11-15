@@ -5,5 +5,6 @@ export const COMPANY = {
   supportEmail: 'hello@replykaro.com',
   instagramHandle: 'gopinkaro',
   instagramUrl: 'https://www.instagram.com/gopinkaro/',
+  productHuntUrl: 'https://www.producthunt.com/products/gopinkaro',
   indieHackersUrl: 'https://www.indiehackers.com/product/gopinkaro',
 } as const
