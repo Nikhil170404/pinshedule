@@ -8,12 +8,13 @@ import { PricingSection } from '@/components/landing/PricingSection'
 import { FAQ } from '@/components/landing/FAQ'
 import { Explore } from '@/components/landing/Explore'
 import { site } from '@/lib/site'
+import { COMPANY } from '@shared/company'
 import { CTA } from '@/components/landing/CTA'
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${site.url}/#org`, name: site.name, url: site.url, logo: `${site.url}/logo-mark.png` },
+    { '@type': 'Organization', '@id': `${site.url}/#org`, name: site.name, url: site.url, logo: `${site.url}/logo-mark.png`, sameAs: [COMPANY.instagramUrl, COMPANY.indieHackersUrl] },
     { '@type': 'WebSite', '@id': `${site.url}/#site`, name: site.name, url: site.url, publisher: { '@id': `${site.url}/#org` } },
     {
       '@type': 'SoftwareApplication',
